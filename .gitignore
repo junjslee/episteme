@@ -4,3 +4,10 @@ __pycache__/
 labs/skills/*/candidate/
 labs/skills/*/runs/
 labs/skills/*/tmp/
+
+# Personal memory files — gitignored so forks stay private.
+# Run `agent-os init` to generate these from the *.example.md templates.
+core/memory/global/overview.md
+core/memory/global/operator_profile.md
+core/memory/global/workflow_policy.md
+core/memory/global/python_runtime_policy.md

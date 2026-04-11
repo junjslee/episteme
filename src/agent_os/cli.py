@@ -142,15 +142,18 @@ def _managed_skills() -> list[Path]:
     return sorted(skill_dirs, key=lambda p: p.name)
 
 
+def _resolve_memory_file(name: str) -> Path:
+    """Return the personal file if it exists, else fall back to the example."""
+    personal = REPO_ROOT / "core" / "memory" / "global" / f"{name}.md"
+    if personal.exists():
+        return personal
+    return REPO_ROOT / "core" / "memory" / "global" / f"{name}.example.md"
+
+
 def _render_user_claude_md() -> str:
     imports = "\n".join(
-        f"@{path}"
-        for path in [
-            REPO_ROOT / "core" / "memory" / "global" / "overview.md",
-            REPO_ROOT / "core" / "memory" / "global" / "operator_profile.md",
-            REPO_ROOT / "core" / "memory" / "global" / "workflow_policy.md",
-            REPO_ROOT / "core" / "memory" / "global" / "python_runtime_policy.md",
-        ]
+        f"@{_resolve_memory_file(name)}"
+        for name in ["overview", "operator_profile", "workflow_policy", "python_runtime_policy"]
     )
     return (
         "# Agent OS Global Memory\n\n"
@@ -158,6 +161,38 @@ def _render_user_claude_md() -> str:
         "Edit the source of truth in `~/agent-os/core/memory/global/`.\n\n"
         f"{imports}\n"
     )
+
+
+def _init_memory() -> int:
+    """Bootstrap personal memory files from *.example.md templates."""
+    memory_dir = REPO_ROOT / "core" / "memory" / "global"
+    names = ["overview", "operator_profile", "workflow_policy", "python_runtime_policy"]
+
+    created: list[str] = []
+    skipped: list[str] = []
+
+    for name in names:
+        personal = memory_dir / f"{name}.md"
+        example = memory_dir / f"{name}.example.md"
+        if personal.exists():
+            skipped.append(f"{name}.md")
+            continue
+        if not example.exists():
+            print(f"Warning: {name}.example.md not found, skipping.", file=sys.stderr)
+            continue
+        shutil.copy2(example, personal)
+        created.append(f"{name}.md")
+
+    if created:
+        print("Created personal memory files:")
+        for f in created:
+            print(f"  core/memory/global/{f}")
+        print("\nEdit these files with your personal context, then run `agent-os sync`.")
+    if skipped:
+        print(f"Already present (not overwritten): {', '.join(skipped)}")
+    if not created and not skipped:
+        print("Nothing to do.")
+    return 0
 
 
 def _agent_os_settings() -> dict:
@@ -685,6 +720,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Agent OS cross-tool runtime manager")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    sub.add_parser("init", help="Bootstrap personal memory files from *.example.md templates")
     sub.add_parser("doctor", help="Verify Conda base and tool runtime wiring")
     sub.add_parser("sync", help="Sync managed runtime assets into Claude, Codex, Cursor, and Hermes")
     sub.add_parser("update", help="Pull the latest agent-os from git")
@@ -717,6 +753,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
 
+    if args.command == "init":
+        return _init_memory()
     if args.command == "doctor":
         return _doctor()
     if args.command == "sync":
