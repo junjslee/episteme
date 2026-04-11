@@ -1,8 +1,8 @@
 # Python Runtime Policy
 
-- All local Python-backed `agent-os` commands must run in Conda `base`.
-- The expected Conda root is set via `AGENT_OS_CONDA_ROOT` (default: `~/miniconda3`).
-- Homebrew Python is not the supported runtime for `agent-os`.
-- Non-Python tooling such as Claude Code, Cursor, Git, and `jq` stays outside Conda.
+<!-- Personalize: set AGENT_OS_CONDA_ROOT if your Conda is not at ~/miniconda3. -->
 
-<!-- Copy this file to python_runtime_policy.md and adjust the Conda path if needed. -->
+- All local Python-backed `agent-os` commands run in Conda `base`.
+- Default Conda root: `~/miniconda3`. Override: `export AGENT_OS_CONDA_ROOT=/your/path`.
+- Homebrew Python is not the supported runtime for `agent-os`.
+- Non-Python tooling (Claude Code, Cursor, Git, `jq`) stays outside Conda.

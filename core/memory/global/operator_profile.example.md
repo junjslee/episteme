@@ -1,8 +1,8 @@
 # Operator Profile
 
-<!-- Fill in your machine and tool preferences. -->
+<!-- Personalize: update machine specs, tool stack, and Conda path for your setup. -->
 
-- Primary machine: <!-- e.g. macOS 15.x, Apple M2, 16 GB unified memory, arm64, zsh -->
+- Primary machine: macOS, Apple Silicon, arm64, zsh.
 - This machine is suited for coding, tests, small automation, and light local inference.
 - Heavy LLM runs, large training, or long autonomous compute loops should default to remote infrastructure.
 - Tool preference:
@@ -12,10 +12,10 @@
 
 ## Execution Profiles
 
-### `local_mac_base`
-- Hardware: <!-- your CPU, RAM, architecture -->
+### `local`
 - Valid use: orchestration, editing, tests, smoke tests, light inference, query exploration
-- Not valid for: production model inference, heavy training, large data pipelines
+- Not valid for: production model inference, heavy training runs, large data pipelines
+- Default profile for all local work unless a remote profile is explicitly chosen
 
 ### `remote_gpu`
 - Preferred profile for production model-backed runs requiring GPU
@@ -28,6 +28,5 @@
 
 ## Python Runtime
 - All local Python-backed `agent-os` work runs in Conda `base`.
-- Expected Conda root: <!-- e.g. /Users/yourname/miniconda3 -->
-- Override with: `export AGENT_OS_CONDA_ROOT=/your/conda/path`
+- Set `AGENT_OS_CONDA_ROOT` to your Conda path (default: `~/miniconda3`).
 - Homebrew Python is not the supported runtime for `agent-os`.
