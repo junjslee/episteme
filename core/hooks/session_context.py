@@ -30,6 +30,14 @@ def main() -> int:
         if log:
             lines.append(f"log    :\n{log}")
 
+    # HARNESS.md if present — tells the agent its operating constraints
+    harness = Path("HARNESS.md")
+    if harness.exists():
+        h_content = harness.read_text().strip()
+        if h_content:
+            first_line = h_content.split("\n", 1)[0].strip("# ").strip()
+            lines.append(f"harness: {first_line}")
+
     # NEXT_STEPS.md if present
     ns = Path("docs/NEXT_STEPS.md")
     if ns.exists():

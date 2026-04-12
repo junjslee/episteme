@@ -1,6 +1,7 @@
 # Project Claude Memory
 
 @AGENTS.md
+@HARNESS.md
 @docs/REQUIREMENTS.md
 @docs/PLAN.md
 @docs/PROGRESS.md

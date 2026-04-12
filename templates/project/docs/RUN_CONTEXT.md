@@ -2,10 +2,10 @@
 
 Last generated: `{{DATE}}`
 
-## Local Machine
-- OS: macOS `{{OS_VERSION}}` (`{{OS_BUILD}}`)
+## Machine
+- OS: `{{OS_VERSION}}` (`{{OS_BUILD}}`)
 - CPU: `{{CPU}}`
-- Memory: `{{MEM_GB}} GB` unified memory
+- Memory: `{{MEM_GB}} GB`
 - Architecture: `{{ARCH}}`
 - Shell: `{{SHELL}}`
 

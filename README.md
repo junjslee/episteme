@@ -1,28 +1,31 @@
 # agent-os
 
-**One source of truth for all your AI coding agents.**
+**Every AI tool you open starts cold. agent-os fixes that.**
 
-`agent-os` is a CLI that syncs global memory, skills, hooks, and workflow policy across Claude Code, Codex CLI, Cursor, and Hermes — so every agent you open starts with the same context, the same safety guards, and the same skills.
+`agent-os` is a Python CLI that provisions the operating environment for AI coding agents — memory, skills, hooks, and project harnesses — across Claude Code, Codex CLI, Cursor, and Hermes. It detects what kind of project you're in, configures the right constraints, and syncs everything in one command.
+
+> Not a web UI, not a session manager, not a skill marketplace. It's the layer that runs *before* your agent starts work.
 
 ---
 
 ## The problem it solves
 
-You use multiple AI coding agents. Each one starts cold. You repeat yourself. Skills drift out of sync. One agent knows your workflow; another doesn't. A context reset wipes everything.
+You use multiple AI coding agents. Each one starts cold. You repeat yourself. Skills drift out of sync. One agent knows your workflow; another doesn't. A context reset wipes everything. Every project gets the same generic scaffold regardless of whether it's ML research on a GPU cluster or a React app on your laptop.
 
 `agent-os` fixes this with a single repo that acts as the operating layer for your entire AI stack:
 
 ```
 ┌─────────────────────── agent-os ────────────────────────────┐
 │                                                              │
-│  core/memory/   →  who you are, how you work                │
-│  core/agents/   →  planner, implementer, reviewer …         │
-│  core/hooks/    →  safety guards, formatter, quality gate   │
-│  skills/        →  reusable prompt + tool packages          │
-│  templates/     →  standard scaffold for every new project  │
+│  core/memory/     →  who you are, how you work              │
+│  core/agents/     →  planner, implementer, reviewer …       │
+│  core/hooks/      →  safety guards, formatter, quality gate │
+│  core/harnesses/  →  per-project-type operating contexts    │
+│  skills/          →  reusable prompt + tool packages        │
+│  templates/       →  standard scaffold for every new project│
 │                                                              │
 └───────────┬──────────────────────────────────────────────────┘
-            │   agent-os sync
+            │   agent-os sync / detect / harness apply
    ┌────────┼────────┬──────────┬───────────┐
    ▼        ▼        ▼          ▼           ▼
  Claude   Codex   Cursor     Hermes    new machines

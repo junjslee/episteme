@@ -7,6 +7,7 @@ This file is the vendor-neutral operating manual for agents working in this repo
 Read in this order at session start:
 - `docs/NEXT_STEPS.md` — current priority and next actions
 - `docs/PROGRESS.md` — current state and key decisions
+- `HARNESS.md` — project harness: execution profile, workflow constraints, safety rules (if present)
 Read on demand:
 - `CLAUDE.md`
 - `docs/REQUIREMENTS.md`

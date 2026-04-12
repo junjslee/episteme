@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-os"
-version = "0.1.0"
-description = "Cross-tool AI agent runtime manager — sync memory, skills, and hooks across Claude Code, Codex, Cursor, and Hermes"
+version = "0.2.0"
+description = "The operating system for AI coding agents — provisions memory, harnesses, hooks, and skills across Claude Code, Codex, Cursor, and Hermes"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
