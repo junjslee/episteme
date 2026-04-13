@@ -72,6 +72,18 @@ agent-os sync               # push everything to all tools
 agent-os new-project .      # scaffold any existing or new project
 ```
 
+## Why this exists (and why not tool-native memory alone)
+
+- Cross-tool consistency: one canonical operating contract across Claude/Codex/Cursor/Hermes.
+- Deterministic setup: profile/cognition onboarding is explainable (`survey`/`infer`/`hybrid`) instead of implicit drift.
+- Canonical boundary: repo docs + global memory are authority; tool-native memories are acceleration layers.
+
+### Demo
+
+Guided setup in one command:
+
+![agent-os setup demo](docs/assets/setup-demo.gif)
+
 ### 60-second demo (workflow + cognition + sync)
 
 ```bash
