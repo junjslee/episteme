@@ -8,7 +8,7 @@
 
 > Not a web UI, not a session manager, not a skill marketplace. It's the layer that runs *before* your agent starts work.
 
-## System in 20 seconds
+## System Overview
 
 <p align="center">
   <img src="docs/assets/system-overview.gif" alt="cognitive-os system overview" width="100%" />

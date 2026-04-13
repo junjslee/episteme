@@ -1,82 +1,82 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="760" viewBox="0 0 1600 760" role="img" aria-label="cognitive-os system structure overview">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="860" viewBox="0 0 1600 860" role="img" aria-label="System overview for cognitive-os">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0b0d12"/>
+      <stop offset="0%" stop-color="#0b1020"/>
       <stop offset="100%" stop-color="#111827"/>
     </linearGradient>
     <marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
-      <path d="M0,0 L10,4 L0,8 Z" fill="#8ea0bf"/>
+      <path d="M0,0 L10,4 L0,8 Z" fill="#91a4c8"/>
     </marker>
     <style>
-      .title{font:700 34px Inter,Segoe UI,Arial,sans-serif;fill:#f8fafc}
-      .sub{font:500 15px Inter,Segoe UI,Arial,sans-serif;fill:#b8c6e0}
-      .panel{fill:#121a2a;stroke:#2a3a56;stroke-width:2;rx:14}
-      .panel2{fill:#0f1c22;stroke:#2f5561;stroke-width:2;rx:14}
-      .panel3{fill:#17152a;stroke:#4b3a7a;stroke-width:2;rx:14}
-      .h{font:700 18px Inter,Segoe UI,Arial,sans-serif;fill:#e8f0ff}
-      .t{font:500 14px Inter,Segoe UI,Arial,sans-serif;fill:#c9d6ec}
-      .mono{font:500 12px ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;fill:#9fb2d4}
-      .small{font:500 13px Inter,Segoe UI,Arial,sans-serif;fill:#d5e1f7}
-      .arrow{stroke:#8ea0bf;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+      .title { font: 700 36px Inter, -apple-system, Segoe UI, Arial, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 500 16px Inter, -apple-system, Segoe UI, Arial, sans-serif; fill: #bfccdf; }
+      .panelA { fill: #132038; stroke: #2f4e7a; stroke-width: 2; rx: 14; }
+      .panelB { fill: #122633; stroke: #2f5e73; stroke-width: 2; rx: 14; }
+      .panelC { fill: #221b3a; stroke: #5b4d8c; stroke-width: 2; rx: 14; }
+      .panelD { fill: #111c2f; stroke: #2a3f66; stroke-width: 2; rx: 14; }
+      .tool { fill: #16243b; stroke: #35507b; stroke-width: 1.5; rx: 10; }
+      .h { font: 700 19px Inter, -apple-system, Segoe UI, Arial, sans-serif; fill: #e8f1ff; }
+      .t { font: 500 14px Inter, -apple-system, Segoe UI, Arial, sans-serif; fill: #cfdaf0; }
+      .mono { font: 500 12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; fill: #a8bddf; }
+      .small { font: 500 13px Inter, -apple-system, Segoe UI, Arial, sans-serif; fill: #dbe6ff; }
+      .arrow { stroke: #91a4c8; stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
     </style>
   </defs>
 
-  <rect x="0" y="0" width="1600" height="760" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1600" height="860" fill="url(#bg)"/>
 
-  <text x="48" y="56" class="title">cognitive-os system structure</text>
-  <text x="48" y="84" class="sub">Canonical cognitive governance across agents: ontology → memory policy → workflow → runtime sync</text>
+  <text x="42" y="58" class="title">System Overview</text>
+  <text x="42" y="86" class="subtitle">cognitive-os is the canonical governance backbone that blends with existing agent systems instead of replacing them.</text>
 
-  <rect x="48" y="120" width="470" height="290" class="panel"/>
-  <text x="72" y="154" class="h">1) Ontological + operational stack</text>
-  <text x="72" y="186" class="t">L0 Ontology • L1 Epistemics • L2 Governance</text>
-  <text x="72" y="212" class="t">L3 Execution • L4 Orchestration + outcomes</text>
-  <text x="72" y="250" class="small">Role files</text>
-  <text x="72" y="274" class="mono">core/agents/ontologist.md</text>
-  <text x="72" y="296" class="mono">core/agents/epistemic-auditor.md</text>
-  <text x="72" y="318" class="mono">core/agents/governance-safety.md</text>
-  <text x="72" y="340" class="mono">core/agents/orchestrator.md + domain-owner.md</text>
+  <rect x="42" y="128" width="492" height="258" class="panelA"/>
+  <text x="64" y="162" class="h">1) Operator + machine context</text>
+  <text x="64" y="192" class="t">• Detect local machine/runtime specs</text>
+  <text x="64" y="216" class="t">• Build deterministic profile + cognition</text>
+  <text x="64" y="240" class="t">• Write project run context templates</text>
+  <text x="64" y="278" class="mono">core/memory/global/*.md + docs/RUN_CONTEXT.md</text>
+  <text x="64" y="302" class="mono">profile/cognition setup outputs (.generated/*)</text>
 
-  <rect x="566" y="120" width="470" height="290" class="panel2"/>
-  <text x="590" y="154" class="h">2) Canonical memory + policy</text>
-  <text x="590" y="186" class="t">Global memory • Project truth • Episodic evidence</text>
-  <text x="590" y="212" class="t">Contracts + schemas define authority and promotion</text>
-  <text x="590" y="250" class="small">Canonical sources</text>
-  <text x="590" y="274" class="mono">core/memory/global/*.md</text>
-  <text x="590" y="296" class="mono">AGENTS.md + docs/* + HARNESS.md</text>
-  <text x="590" y="318" class="mono">docs/MEMORY_CONTRACT.md + docs/EVOLUTION_CONTRACT.md</text>
-  <text x="590" y="340" class="mono">core/schemas/memory-contract/* + core/schemas/evolution/*</text>
+  <rect x="554" y="128" width="492" height="258" class="panelB"/>
+  <text x="576" y="162" class="h">2) Canonical backbone</text>
+  <text x="576" y="192" class="t">• Global memory + project truth + episodic evidence</text>
+  <text x="576" y="216" class="t">• Contracts define authority and conflict resolution</text>
+  <text x="576" y="240" class="t">• Schemas keep memory and evolution auditable</text>
+  <text x="576" y="278" class="mono">docs/MEMORY_CONTRACT.md + docs/EVOLUTION_CONTRACT.md</text>
+  <text x="576" y="302" class="mono">core/schemas/memory-contract/* + core/schemas/evolution/*</text>
 
-  <rect x="1084" y="120" width="470" height="290" class="panel3"/>
-  <text x="1108" y="154" class="h">3) Workflow + accountable evolution</text>
-  <text x="1108" y="186" class="t">setup/profile/cognition → detect/harness/new-project</text>
-  <text x="1108" y="212" class="t">execute loop (plan → implement → verify → handoff)</text>
-  <text x="1108" y="238" class="t">evolve (run → report → promote / rollback)</text>
-  <text x="1108" y="276" class="small">Commands</text>
-  <text x="1108" y="300" class="mono">cognitive-os setup • new-project • detect • harness apply</text>
-  <text x="1108" y="322" class="mono">cognitive-os evolve run/report/promote/rollback</text>
+  <rect x="1066" y="128" width="492" height="258" class="panelC"/>
+  <text x="1088" y="162" class="h">3) Governance + execution loop</text>
+  <text x="1088" y="192" class="t">• Plan → implement → verify → handoff</text>
+  <text x="1088" y="216" class="t">• Evolution gate: run/report/promote/rollback</text>
+  <text x="1088" y="240" class="t">• Decision quality: known/unknown/assumptions/disconfirm</text>
+  <text x="1088" y="278" class="mono">core/agents/* + docs/COGNITIVE_SYSTEM_PLAYBOOK.md</text>
+  <text x="1088" y="302" class="mono">core/memory/evolution/episodes/*.json</text>
 
-  <path d="M520,265 L560,265" class="arrow"/>
-  <path d="M1038,265 L1078,265" class="arrow"/>
+  <path d="M536,257 L548,257" class="arrow"/>
+  <path d="M1048,257 L1060,257" class="arrow"/>
 
-  <rect x="176" y="470" width="1248" height="220" class="panel"/>
-  <text x="204" y="504" class="h">4) Runtime propagation via cognitive-os sync</text>
-  <text x="204" y="530" class="t">Canonical governance is published to each execution surface while preserving local runtime speed.</text>
+  <rect x="160" y="430" width="1280" height="374" class="panelD"/>
+  <text x="188" y="466" class="h">4) Blend with existing systems through adapters (cognitive-os sync)</text>
+  <text x="188" y="494" class="t">Existing tools keep their native workflows; cognitive-os publishes shared memory/policy so behavior stays aligned.</text>
+  <text x="188" y="518" class="t">Local runtime memory is fast cache; canonical truth remains in repository docs and contracts.</text>
 
-  <rect x="230" y="558" width="240" height="94" class="panel2"/>
-  <text x="325" y="592" class="h">Claude</text>
-  <text x="266" y="616" class="small">hooks + skills + context</text>
+  <rect x="212" y="560" width="260" height="108" class="tool"/>
+  <text x="310" y="599" class="h">Claude</text>
+  <text x="237" y="625" class="small">hooks + skills + context index</text>
 
-  <rect x="515" y="558" width="240" height="94" class="panel2"/>
-  <text x="613" y="592" class="h">Codex</text>
-  <text x="551" y="616" class="small">skills + config + docs</text>
+  <rect x="500" y="560" width="260" height="108" class="tool"/>
+  <text x="603" y="599" class="h">Codex</text>
+  <text x="536" y="625" class="small">skills + docs + runtime contract</text>
 
-  <rect x="800" y="558" width="240" height="94" class="panel2"/>
-  <text x="896" y="592" class="h">Cursor</text>
-  <text x="836" y="616" class="small">skills + repo contract</text>
+  <rect x="788" y="560" width="260" height="108" class="tool"/>
+  <text x="888" y="599" class="h">Cursor</text>
+  <text x="821" y="625" class="small">skills + repo memory contract</text>
 
-  <rect x="1085" y="558" width="240" height="94" class="panel2"/>
-  <text x="1182" y="592" class="h">Hermes</text>
-  <text x="1115" y="616" class="small">OPERATOR + skills sync</text>
+  <rect x="1076" y="560" width="260" height="108" class="tool"/>
+  <text x="1178" y="599" class="h">Hermes</text>
+  <text x="1100" y="625" class="small">OPERATOR context + skills sync</text>
 
-  <path d="M800,410 L800,468" class="arrow"/>
+  <text x="188" y="718" class="small">Result: one cognitive backbone, many execution surfaces, consistent decision behavior.</text>
+
+  <path d="M800,388 L800,430" class="arrow"/>
 </svg>
