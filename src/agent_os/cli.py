@@ -2058,7 +2058,8 @@ def _setup_command(
     overwrite: bool,
     do_sync: bool,
     do_doctor: bool,
-    answers: dict[str, int] | None,
+    profile_answers: dict[str, int] | None,
+    cognition_answers: dict[str, int] | None,
     interactive: bool,
 ) -> int:
     if interactive:
@@ -2087,9 +2088,13 @@ def _setup_command(
 
     print()
     print(f"Setup target: {path}")
+    print(
+        f"Defaults: profile_mode={profile_mode}, cognition_mode={cognition_mode}, "
+        f"write={write}, overwrite={overwrite}, sync={do_sync}, doctor={do_doctor}"
+    )
     if profile_mode != "skip":
         print(f"- Running profile {profile_mode}")
-        rc = _profile_command(profile_mode, str(path), write=write, overwrite=overwrite, answers=answers)
+        rc = _profile_command(profile_mode, str(path), write=write, overwrite=overwrite, answers=profile_answers)
         if rc != 0:
             return rc
     else:
@@ -2097,7 +2102,7 @@ def _setup_command(
 
     if cognition_mode != "skip":
         print(f"- Running cognition {cognition_mode}")
-        rc = _cognition_command(cognition_mode, str(path), write=write, overwrite=overwrite, answers=answers)
+        rc = _cognition_command(cognition_mode, str(path), write=write, overwrite=overwrite, answers=cognition_answers)
         if rc != 0:
             return rc
     else:
@@ -2269,7 +2274,9 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--interactive", action="store_true", help="Run interactive wizard prompts")
     setup.add_argument("--profile-mode", choices=["survey", "infer", "hybrid", "skip"], default="hybrid")
     setup.add_argument("--cognition-mode", choices=["survey", "infer", "hybrid", "skip"], default="hybrid")
-    setup.add_argument("--answers-file", metavar="JSON", help="Optional JSON file for survey/hybrid answers")
+    setup.add_argument("--answers-file", metavar="JSON", help="Fallback JSON answers file used by both profile and cognition")
+    setup.add_argument("--profile-answers-file", metavar="JSON", help="Optional JSON answers file for profile survey/hybrid")
+    setup.add_argument("--cognition-answers-file", metavar="JSON", help="Optional JSON answers file for cognition survey/hybrid")
     setup.add_argument("--write", action="store_true", help="Compile results into canonical global memory files")
     setup.add_argument("--overwrite", action="store_true", help="Allow overwriting existing canonical files")
     setup.add_argument("--sync", action="store_true", help="Run agent-os sync after setup")
@@ -2391,14 +2398,33 @@ def main(argv: Iterable[str] | None = None) -> int:
             answers=answers,
         )
     if args.command == "setup":
-        answers = None
-        answers_file = getattr(args, "answers_file", None)
-        if answers_file:
+        fallback_answers = None
+        fallback_answers_file = getattr(args, "answers_file", None)
+        if fallback_answers_file:
             try:
-                answers = _load_answers_file(Path(answers_file).expanduser())
+                fallback_answers = _load_answers_file(Path(fallback_answers_file).expanduser())
             except (FileNotFoundError, ValueError) as exc:
                 print(str(exc), file=sys.stderr)
                 return 1
+
+        profile_answers = fallback_answers
+        profile_answers_file = getattr(args, "profile_answers_file", None)
+        if profile_answers_file:
+            try:
+                profile_answers = _load_answers_file(Path(profile_answers_file).expanduser())
+            except (FileNotFoundError, ValueError) as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+
+        cognition_answers = fallback_answers
+        cognition_answers_file = getattr(args, "cognition_answers_file", None)
+        if cognition_answers_file:
+            try:
+                cognition_answers = _load_answers_file(Path(cognition_answers_file).expanduser())
+            except (FileNotFoundError, ValueError) as exc:
+                print(str(exc), file=sys.stderr)
+                return 1
+
         return _setup_command(
             path_arg=getattr(args, "path", "."),
             profile_mode=getattr(args, "profile_mode", "hybrid"),
@@ -2407,7 +2433,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             overwrite=getattr(args, "overwrite", False),
             do_sync=getattr(args, "sync", False),
             do_doctor=getattr(args, "doctor", False),
-            answers=answers,
+            profile_answers=profile_answers,
+            cognition_answers=cognition_answers,
             interactive=getattr(args, "interactive", False),
         )
     if args.command == "worktree":

@@ -1,4 +1,5 @@
 import json
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -112,29 +113,83 @@ class ProfileCognitionTests(unittest.TestCase):
                 overwrite=False,
                 do_sync=True,
                 do_doctor=True,
-                answers={"planning_strictness": 4},
+                profile_answers={"planning_strictness": 4},
+                cognition_answers={"first_principles_depth": 3},
                 interactive=False,
             )
 
         self.assertEqual(rc, 0)
-        profile_cmd.assert_called_once()
-        cognition_cmd.assert_called_once()
+        profile_cmd.assert_called_once_with(
+            "hybrid",
+            ".",
+            write=True,
+            overwrite=False,
+            answers={"planning_strictness": 4},
+        )
+        cognition_cmd.assert_called_once_with(
+            "infer",
+            ".",
+            write=True,
+            overwrite=False,
+            answers={"first_principles_depth": 3},
+        )
         sync_cmd.assert_called_once()
         doctor_cmd.assert_called_once()
 
     def test_setup_command_rejects_invalid_mode(self):
-        rc = cli._setup_command(
-            path_arg=".",
-            profile_mode="bad",
-            cognition_mode="skip",
-            write=False,
-            overwrite=False,
-            do_sync=False,
-            do_doctor=False,
-            answers=None,
-            interactive=False,
-        )
+        with patch("sys.stderr", new_callable=io.StringIO):
+            rc = cli._setup_command(
+                path_arg=".",
+                profile_mode="bad",
+                cognition_mode="skip",
+                write=False,
+                overwrite=False,
+                do_sync=False,
+                do_doctor=False,
+                profile_answers=None,
+                cognition_answers=None,
+                interactive=False,
+            )
         self.assertEqual(rc, 1)
+
+    def test_setup_answers_file_override_resolution(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            fallback = root / "fallback.json"
+            profile = root / "profile.json"
+            cognition = root / "cognition.json"
+            fallback.write_text(json.dumps({"answers": {"planning_strictness": 2, "first_principles_depth": 2}}), encoding="utf-8")
+            profile.write_text(json.dumps({"planning_strictness": 4}), encoding="utf-8")
+            cognition.write_text(json.dumps({"first_principles_depth": 3}), encoding="utf-8")
+
+            parser = cli.build_parser()
+            args = parser.parse_args(
+                [
+                    "setup",
+                    ".",
+                    "--profile-mode",
+                    "survey",
+                    "--cognition-mode",
+                    "survey",
+                    "--answers-file",
+                    str(fallback),
+                    "--profile-answers-file",
+                    str(profile),
+                    "--cognition-answers-file",
+                    str(cognition),
+                ]
+            )
+
+            fallback_answers = cli._load_answers_file(Path(args.answers_file).expanduser())
+            profile_answers = fallback_answers
+            if args.profile_answers_file:
+                profile_answers = cli._load_answers_file(Path(args.profile_answers_file).expanduser())
+            cognition_answers = fallback_answers
+            if args.cognition_answers_file:
+                cognition_answers = cli._load_answers_file(Path(args.cognition_answers_file).expanduser())
+
+            self.assertEqual(profile_answers["planning_strictness"], 4)
+            self.assertEqual(cognition_answers["first_principles_depth"], 3)
 
 
 if __name__ == "__main__":

@@ -192,7 +192,7 @@ agent-os cognition survey [--answers-file JSON] [--write] [--overwrite]       de
 agent-os cognition infer [path] [--write] [--overwrite]                        infer cognitive philosophy scores from repo signals
 agent-os cognition hybrid [path] [--answers-file JSON] [--write] [--overwrite] blend cognitive survey + infer (60/40)
 agent-os cognition show                                                        show latest generated cognitive scorecard
-agent-os setup [path] [--interactive] [--profile-mode ...] [--cognition-mode ...] [--answers-file JSON] [--write] [--overwrite] [--sync] [--doctor]  guided setup for profile+cognition
+agent-os setup [path] [--interactive] [--profile-mode ...] [--cognition-mode ...] [--answers-file JSON] [--profile-answers-file JSON] [--cognition-answers-file JSON] [--write] [--overwrite] [--sync] [--doctor]  guided setup for profile+cognition
 agent-os worktree <type> <name>             create a git worktree for a bounded task
 agent-os start [claude|cursor|codex]        open a tool surface
 agent-os private-skill enable <name>        enable a local experimental skill for Claude
@@ -335,20 +335,33 @@ agent-os doctor
 
 For first-time setup (or reconfiguration), use:
 
+Safe non-interactive defaults (recommended):
+- `profile-mode=hybrid`
+- `cognition-mode=hybrid`
+- `write=false` (preview first)
+- `overwrite=false`
+- `sync=false`
+- `doctor=false`
+
 ```bash
 # interactive prompts (choose modes, write behavior, sync/doctor)
 agent-os setup . --interactive
 
-# non-interactive defaults (hybrid/hybrid) with explicit post-steps
+# non-interactive with explicit post-steps
 agent-os setup . --write --sync --doctor
 
-# fully scripted
+# fully scripted with separate answer files
 agent-os setup . \
   --profile-mode hybrid \
   --cognition-mode infer \
-  --answers-file templates/profile_answers.example.json \
+  --profile-answers-file templates/profile_answers.example.json \
+  --cognition-answers-file templates/profile_answers.example.json \
   --write --overwrite --sync --doctor
 ```
+
+Answer-file precedence in setup:
+1) `--profile-answers-file` / `--cognition-answers-file` (most specific)
+2) `--answers-file` fallback for both
 
 This command is designed for end users to self-select setup options instead of editing files manually.
 
