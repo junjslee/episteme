@@ -25,7 +25,7 @@ Structure summary:
 ## Quick start
 
 ```bash
-git clone https://github.com/junjslee/agent-os ~/cognitive-os
+git clone https://github.com/junjslee/cognitive-os ~/cognitive-os
 cd ~/cognitive-os
 pip install -e .
 cognitive-os init
