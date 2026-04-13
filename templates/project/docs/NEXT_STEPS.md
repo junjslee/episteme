@@ -1,20 +1,13 @@
 # Next Steps
 
-## Active Goal
-- State the current priority.
+## TL;DR / So-What Now?
+[One sentence summary of context and immediate priority]
 
-## Next Actions
-1. First concrete action
-2. Second concrete action
-3. Third concrete action
+## Immediate Actions
+- [ ] [Task]
 
-## Blockers
-- Record blockers if any.
-
-## Suggested Commands
-```bash
-# Add exact commands for the next session here
-```
-
-## Handoff Notes
-- Keep this concise and operational.
+## Handoff Context
+- **Last Decision**: [Summary]
+  - **Why**: [First-principles reason]
+- **Blockers**: [Known unknowns]
+- **Status**: [Stable/Experimental]

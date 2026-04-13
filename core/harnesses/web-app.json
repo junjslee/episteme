@@ -60,7 +60,7 @@
   "workflow_notes": [
     "Start the dev server and verify in a browser before reporting any UI task complete — type checking alone is not sufficient.",
     "Test the golden path and common edge cases for every feature change.",
-    "Use `agent-os worktree feat/<name>` for non-trivial frontend features to keep the main branch clean.",
+    "Use `cognitive-os worktree feat/<name>` for non-trivial frontend features to keep the main branch clean.",
     "Run `npm run build` and check for type errors before any merge.",
     "Monitor for regressions in existing features when making layout or state changes."
   ],

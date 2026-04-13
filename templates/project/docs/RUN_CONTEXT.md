@@ -17,9 +17,9 @@ Last generated: `{{DATE}}`
 - npm: `{{NPM_VERSION}}`
 
 ## Python Runtime Policy
-- `agent-os` local Python work must run in Conda `base`.
+- `cognitive-os` local Python work must run in Conda `base`.
 - Expected Conda root: `{{CONDA_ROOT}}`
-- Homebrew Python is not the supported runtime for `agent-os`.
+- Homebrew Python is not the supported runtime for `cognitive-os`.
 
 ## Practical Local Limits
 - This machine is well suited for editing, tests, small automation, and light inference.

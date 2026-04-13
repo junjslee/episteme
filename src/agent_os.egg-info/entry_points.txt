@@ -1,2 +1,0 @@
-[console_scripts]
-agent-os = agent_os.cli:main

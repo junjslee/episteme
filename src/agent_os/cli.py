@@ -8,7 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
@@ -21,6 +21,14 @@ RUNTIME_MANIFEST = json.loads((REPO_ROOT / "core" / "runtime_manifest.json").rea
 HARNESSES_DIR = REPO_ROOT / "core" / "harnesses"
 GLOBAL_MEMORY_DIR = REPO_ROOT / "core" / "memory" / "global"
 GENERATED_PROFILE_DIR = GLOBAL_MEMORY_DIR / ".generated"
+EVOLUTION_EPISODES_DIR = REPO_ROOT / "core" / "memory" / "evolution" / "episodes"
+ALLOWED_EVOLUTION_MUTATIONS = {
+    "prompt_policy_tweak",
+    "retrieval_policy_tweak",
+    "planning_depth_tweak",
+    "tool_selection_rule_tweak",
+    "handoff_format_tweak",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -58,11 +66,6 @@ def _write_text(path: Path, content: str, *, executable: bool = False) -> None:
     path.write_text(content, encoding="utf-8")
     if executable:
         path.chmod(path.stat().st_mode | 0o111)
-
-
-def _write_text(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def _load_generated_scores(project_root: Path) -> tuple[dict[str, int] | None, dict[str, int] | None]:
@@ -195,6 +198,185 @@ def _today() -> str:
     return date.today().isoformat()
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _safe_slug(raw: str) -> str:
+    out = re.sub(r"[^a-z0-9._-]+", "-", raw.strip().lower())
+    out = out.strip("-")
+    return out or "episode"
+
+
+def _episode_path(episode_id: str) -> Path:
+    return EVOLUTION_EPISODES_DIR / f"{_safe_slug(episode_id)}.json"
+
+
+def _write_episode(payload: dict) -> Path:
+    episode_id = str(payload.get("episode_id", "")).strip()
+    if not episode_id:
+        raise ValueError("episode payload missing episode_id")
+    target = _episode_path(episode_id)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return target
+
+
+def _load_episode(episode_id: str) -> dict:
+    target = _episode_path(episode_id)
+    if not target.exists():
+        raise FileNotFoundError(f"episode not found: {episode_id} ({target})")
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"episode file is not valid JSON: {target}") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"episode payload must be an object: {target}")
+    return payload
+
+
+def _default_evaluation_report(seed: int, suite_ref: str) -> dict:
+    return {
+        "suite_ref": suite_ref,
+        "seed": seed,
+        "metrics": {
+            "task_success_rate": 0.0,
+            "safety_violation_count": 0,
+            "latency_ms_p50": 0,
+            "token_cost": 0,
+            "style_fit_score": 0.0,
+        },
+        "safety_regression": False,
+        "notes": "stub evaluation report (replace with real replay harness output)",
+    }
+
+
+def _evolve_run(
+    *,
+    hypothesis: str,
+    mutation_type: str,
+    target: str,
+    expected_effect: str,
+    diff_text: str,
+    risk_level: str,
+    suite_ref: str,
+    seed: int,
+    captured_by: str,
+) -> int:
+    if mutation_type not in ALLOWED_EVOLUTION_MUTATIONS:
+        print(f"unsupported mutation type: {mutation_type}", file=sys.stderr)
+        return 1
+    if risk_level not in {"low", "medium", "high"}:
+        print(f"unsupported risk level: {risk_level}", file=sys.stderr)
+        return 1
+
+    ts = datetime.now(timezone.utc)
+    episode_id = f"ep-{ts.strftime('%Y%m%d-%H%M%S')}"
+    before = _default_evaluation_report(seed=seed, suite_ref=suite_ref)
+    after = _default_evaluation_report(seed=seed, suite_ref=suite_ref)
+
+    payload = {
+        "episode_id": episode_id,
+        "hypothesis": hypothesis,
+        "mutation": {
+            "type": mutation_type,
+            "target": target,
+            "diff": diff_text,
+            "expected_effect": expected_effect,
+            "risk_level": risk_level,
+        },
+        "suite_ref": suite_ref,
+        "metrics_before": before["metrics"],
+        "metrics_after": after["metrics"],
+        "gate_result": {
+            "passed": False,
+            "reasons": ["evaluation not run yet"],
+        },
+        "decision": "candidate",
+        "provenance": {
+            "captured_at": _now_iso(),
+            "captured_by": captured_by,
+            "confidence": "medium",
+            "evidence_refs": [],
+        },
+        "version": "evolution-contract-v1",
+        "evaluation_report_before": before,
+        "evaluation_report_after": after,
+    }
+
+    out = _write_episode(payload)
+    print("Created evolution episode:")
+    print(f"  - id: {episode_id}")
+    print(f"  - file: {out}")
+    print("Next steps:")
+    print(f"  1) cognitive-os evolve report {episode_id}")
+    print(f"  2) cognitive-os evolve promote {episode_id}")
+    return 0
+
+
+def _evolve_report(episode_id: str) -> int:
+    try:
+        ep = _load_episode(episode_id)
+    except (FileNotFoundError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    print(f"Evolution episode: {ep.get('episode_id', 'unknown')}")
+    print(f"Decision: {ep.get('decision', 'unknown')}")
+    mutation = ep.get("mutation", {}) if isinstance(ep.get("mutation"), dict) else {}
+    print(f"Mutation: {mutation.get('type', 'unknown')} -> {mutation.get('target', 'unknown')}")
+    print(f"Hypothesis: {ep.get('hypothesis', '')}")
+    gate = ep.get("gate_result", {}) if isinstance(ep.get("gate_result"), dict) else {}
+    print(f"Gate passed: {gate.get('passed', False)}")
+    reasons = gate.get("reasons", []) if isinstance(gate.get("reasons"), list) else []
+    if reasons:
+        print("Gate reasons:")
+        for reason in reasons:
+            print(f"  - {reason}")
+    return 0
+
+
+def _evolve_promote(episode_id: str, *, force: bool = False) -> int:
+    try:
+        ep = _load_episode(episode_id)
+    except (FileNotFoundError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    gate = ep.get("gate_result", {}) if isinstance(ep.get("gate_result"), dict) else {}
+    if not force and not bool(gate.get("passed", False)):
+        print("cannot promote: gate_result.passed is false (use --force to override)", file=sys.stderr)
+        return 1
+
+    ep["decision"] = "promoted"
+    provenance = ep.get("provenance", {}) if isinstance(ep.get("provenance"), dict) else {}
+    provenance["captured_at"] = _now_iso()
+    ep["provenance"] = provenance
+    path = _write_episode(ep)
+    print(f"Promoted episode: {episode_id}")
+    print(f"  - {path}")
+    return 0
+
+
+def _evolve_rollback(episode_id: str, *, rollback_ref: str) -> int:
+    try:
+        ep = _load_episode(episode_id)
+    except (FileNotFoundError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+    ep["decision"] = "rolled_back"
+    ep["rollback_ref"] = rollback_ref
+    provenance = ep.get("provenance", {}) if isinstance(ep.get("provenance"), dict) else {}
+    provenance["captured_at"] = _now_iso()
+    ep["provenance"] = provenance
+    path = _write_episode(ep)
+    print(f"Rolled back episode: {episode_id}")
+    print(f"  - rollback_ref: {rollback_ref}")
+    print(f"  - {path}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Machine context — cross-platform (macOS + Linux)
 # ---------------------------------------------------------------------------
@@ -298,7 +480,7 @@ def _machine_context() -> dict[str, str]:
         "GIT_VERSION": _tool_version(["git", "--version"]),
         "NODE_VERSION": _tool_version(["node", "-v"]),
         "NPM_VERSION": _tool_version(["npm", "-v"]),
-        "PYTHON_POLICY": f"All local Python-backed agent-os commands run in Conda base at {CONDA_ROOT}.",
+        "PYTHON_POLICY": f"All local Python-backed cognitive-os commands run in Conda base at {CONDA_ROOT}.",
     }
 
 
@@ -359,7 +541,7 @@ def _init_memory() -> int:
         print("Created personal memory files:")
         for f in created:
             print(f"  core/memory/global/{f}")
-        print("\nEdit these files with your personal context, then run `agent-os sync`.")
+        print("\nEdit these files with your personal context, then run `cognitive-os sync`.")
     if skipped:
         print(f"Already present (not overwritten): {', '.join(skipped)}")
     if not created and not skipped:
@@ -377,9 +559,9 @@ def _render_user_claude_md() -> str:
         for name in ["overview", "operator_profile", "workflow_policy", "python_runtime_policy", "cognitive_profile"]
     )
     return (
-        "# Agent OS Global Memory\n\n"
-        "This file is generated by `agent-os sync`.\n"
-        "Edit the source of truth in `~/agent-os/core/memory/global/`.\n\n"
+        "# cognitive-os Global Memory\n\n"
+        "This file is generated by `cognitive-os sync`.\n"
+        "Edit the source of truth in `~/cognitive-os/core/memory/global/`.\n\n"
         f"{imports}\n"
     )
 
@@ -451,7 +633,7 @@ def _merge_claude_settings(existing: dict, agent_os: dict) -> dict:
     """Merge agent_os settings into existing without removing anything.
 
     - permissions.deny: union (no duplicates)
-    - hooks.<event>: append agent-os entries whose commands aren't already present
+    - hooks.<event>: append cognitive-os entries whose commands aren't already present
     - All other existing keys: preserved untouched
     """
     import copy
@@ -494,8 +676,8 @@ def _sync_hermes_runtime() -> bool:
     operator_md = hermes_root / "OPERATOR.md"
     sections: list[str] = [
         "# Operator Context\n\n"
-        "Generated by `agent-os sync`. "
-        "Edit sources in `~/agent-os/core/memory/global/`.\n\n"
+        "Generated by `cognitive-os sync`. "
+        "Edit sources in `~/cognitive-os/core/memory/global/`.\n\n"
     ]
     for mem_file in [
         REPO_ROOT / "core" / "memory" / "global" / "overview.md",
@@ -529,7 +711,7 @@ def _sync_user_runtime() -> None:
 
     _write_text(claude_root / "CLAUDE.md", _render_user_claude_md())
 
-    # Merge agent-os settings into existing settings.json rather than replace,
+    # Merge cognitive-os settings into existing settings.json rather than replace,
     # so plugin-installed hooks and keys are preserved across syncs.
     settings_path = claude_root / "settings.json"
     agent_os = _agent_os_settings()
@@ -582,7 +764,7 @@ def _list_runtime() -> None:
     if skills_dir.exists():
         for d in sorted(skills_dir.iterdir()):
             if d.is_dir():
-                tag = " [agent-os]" if d.name in managed else " [external]"
+                tag = " [cognitive-os]" if d.name in managed else " [external]"
                 print(f"  {d.name}{tag}")
     else:
         print("  (none)")
@@ -671,7 +853,7 @@ def _private_skill(action: str, name: str, tool: str) -> int:
 
 def _doctor() -> int:
     failures: list[str] = []
-    print("Agent OS doctor")
+    print("cognitive-os doctor")
     print(f"Repo root: {REPO_ROOT}")
     print(f"Expected Conda root: {CONDA_ROOT}")
 
@@ -867,7 +1049,7 @@ def _validate_manifest() -> int:
 
 def _update() -> int:
     if not (REPO_ROOT / ".git").exists():
-        print("agent-os repo has no .git directory — cannot update.", file=sys.stderr)
+        print("cognitive-os repo has no .git directory — cannot update.", file=sys.stderr)
         return 1
     try:
         result = _run(["git", "pull", "--ff-only"], cwd=REPO_ROOT, capture_output=False)
@@ -1018,7 +1200,7 @@ def _render_harness_md(harness: dict) -> str:
     lines: list[str] = [
         f"# Project Harness: {label}",
         "",
-        f"Generated by `agent-os harness apply {name}`.",
+        f"Generated by `cognitive-os harness apply {name}`.",
         "Edit this file to customize the operating context for this project.",
         "",
         f"> {description}",
@@ -1113,8 +1295,8 @@ def _list_harnesses() -> None:
         description = harness.get("description", "")
         print(f"  {name:<22} {description}")
     print()
-    print("Apply: agent-os harness apply <name> [path]")
-    print("Detect best fit: agent-os detect [path]")
+    print("Apply: cognitive-os harness apply <name> [path]")
+    print("Detect best fit: cognitive-os detect [path]")
 
 
 # ---------------------------------------------------------------------------
@@ -1496,7 +1678,7 @@ def _compile_operator_profile(scores: dict[str, int], mode: str) -> str:
     return "\n".join([
         "# Operator Profile",
         "",
-        f"Generated by `agent-os profile {mode}` on {_today()}.",
+        f"Generated by `cognitive-os profile {mode}` on {_today()}.",
         "This file captures deterministic working-style preferences for cross-tool runtime behavior.",
         "",
         "## Deterministic Workstyle Scorecard (0-3)",
@@ -1528,14 +1710,14 @@ def _compile_workflow_policy(scores: dict[str, int], mode: str) -> str:
     docs = scores.get("documentation_rigor", 0)
     automation = scores.get("automation_level", 0)
 
-    flow = ["Explore", "Plan", "Implement", "Review", "Handoff"]
+    flow = ["Explore", "Deconstruct (Epistemic Surface)", "Plan", "Falsify (Devil's Advocate)", "Implement", "Review", "Handoff"]
     if planning >= 2:
-        flow.insert(2, "Validate plan against constraints")
+        flow.insert(3, "Validate plan against first-principles")
 
     lines = [
         "# Workflow Policy",
         "",
-        f"Generated by `agent-os profile {mode}` on {_today()}.",
+        f"Generated by `cognitive-os profile {mode}` on {_today()}.",
         "Deterministic policy compiled from the workstyle scorecard.",
         "",
         "## Standard Flow",
@@ -1544,6 +1726,12 @@ def _compile_workflow_policy(scores: dict[str, int], mode: str) -> str:
         lines.append(f"{i}. {step}")
 
     lines += [
+        "",
+        "## Epistemic Standards",
+        "- **Divide and Conquer**: Structure chaotic info into clear distinctions.",
+        "- **Known vs Unknown**: Explicitly list what is verified vs. assumed in every plan.",
+        "- **Skepticism**: Seek reasons behind actions; do not accept heuristics at face value.",
+        "- **Check-ins**: Perform lightweight epistemic check-ins during substantial problem-solving.",
         "",
         "## Project Memory",
         "- Canonical project truth lives in `docs/` and `AGENTS.md`.",
@@ -1620,8 +1808,8 @@ def _compile_workflow_policy(scores: dict[str, int], mode: str) -> str:
         "",
         "## Local Integration",
         "After updating global memory files, run:",
-        "1. `agent-os sync`",
-        "2. `agent-os doctor`",
+        "1. `cognitive-os sync`",
+        "2. `cognitive-os doctor`",
         "",
     ]
     return "\n".join(lines)
@@ -1690,7 +1878,7 @@ def _profile_show() -> int:
 
     if not scores_path.exists():
         print("No generated workstyle profile found.")
-        print("Run: agent-os profile survey --write")
+        print("Run: cognitive-os profile survey --write")
         return 1
 
     try:
@@ -1861,7 +2049,7 @@ def _compile_cognitive_profile(scores: dict[str, int], mode: str) -> str:
     return "\n".join([
         "# Cognitive Profile",
         "",
-        f"Generated by `agent-os cognition {mode}` on {_today()}.",
+        f"Generated by `cognitive-os cognition {mode}` on {_today()}.",
         "Deterministic cognitive and philosophical operating profile.",
         "",
         "## Cognitive Scorecard (0-3)",
@@ -2016,7 +2204,7 @@ def _cognition_show() -> int:
     explain_path = GENERATED_PROFILE_DIR / "cognitive_explanations.md"
     if not profile_path.exists():
         print("No generated cognitive profile found.")
-        print("Run: agent-os cognition survey --write")
+        print("Run: cognitive-os cognition survey --write")
         return 1
     try:
         data = json.loads(profile_path.read_text(encoding="utf-8"))
@@ -2083,8 +2271,8 @@ def _cognition_command(
             print(f"Wrote: {target}")
         print()
         print("Next steps for local integration:")
-        print("  1) agent-os sync")
-        print("  2) agent-os doctor")
+        print("  1) cognitive-os sync")
+        print("  2) cognitive-os doctor")
     else:
         print()
         print("Run with --write to compile cognitive profile into global memory markdown.")
@@ -2125,8 +2313,8 @@ def _profile_command(
         _write_compiled_memory(mode, payload, overwrite=overwrite)
         print()
         print("Next steps for local integration:")
-        print("  1) agent-os sync")
-        print("  2) agent-os doctor")
+        print("  1) cognitive-os sync")
+        print("  2) cognitive-os doctor")
     else:
         print()
         print("Run with --write to compile scores into global memory markdown files.")
@@ -2179,7 +2367,7 @@ def _setup_command(
     interactive: bool,
 ) -> int:
     if interactive:
-        print("Agent OS setup wizard")
+        print("cognitive-os setup wizard")
         print("Configure deterministic workstyle + cognitive defaults for this machine.")
         print()
         if profile_mode is None and cognition_mode is None:
@@ -2196,8 +2384,8 @@ def _setup_command(
 
         write = _prompt_yes_no("Write canonical global memory files now?", default=True)
         overwrite = _prompt_yes_no("Allow overwrite of existing canonical files?", default=False) if write else False
-        do_sync = _prompt_yes_no("Run agent-os sync now?", default=True)
-        do_doctor = _prompt_yes_no("Run agent-os doctor now?", default=True)
+        do_sync = _prompt_yes_no("Run cognitive-os sync now?", default=True)
+        do_doctor = _prompt_yes_no("Run cognitive-os doctor now?", default=True)
 
     if profile_mode is None:
         profile_mode = "infer"
@@ -2349,13 +2537,13 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
 # ---------------------------------------------------------------------------
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Agent OS cross-tool runtime manager")
+    parser = argparse.ArgumentParser(description="cognitive-os cross-tool runtime manager")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("init", help="Bootstrap personal memory files from *.example.md templates")
     sub.add_parser("doctor", help="Verify runtime wiring — Conda, core tools, optional tools")
     sub.add_parser("sync", help="Sync managed runtime assets into Claude, Codex, Cursor, and Hermes")
-    sub.add_parser("update", help="Pull the latest agent-os from git")
+    sub.add_parser("update", help="Pull the latest cognitive-os from git")
     sub.add_parser("list", help="Show installed agents, skills, plugins, and active hooks")
     sub.add_parser("validate", help="Check manifest integrity — every declared skill must have a SKILL.md")
 
@@ -2430,8 +2618,8 @@ def build_parser() -> argparse.ArgumentParser:
     setup.add_argument("--cognition-answers-file", metavar="JSON", help="Optional JSON answers file for cognition survey/hybrid")
     setup.add_argument("--write", action="store_true", help="Compile results into canonical global memory files")
     setup.add_argument("--overwrite", action="store_true", help="Allow overwriting existing canonical files")
-    setup.add_argument("--sync", action="store_true", help="Run agent-os sync after setup")
-    setup.add_argument("--doctor", action="store_true", help="Run agent-os doctor after setup")
+    setup.add_argument("--sync", action="store_true", help="Run cognitive-os sync after setup")
+    setup.add_argument("--doctor", action="store_true", help="Run cognitive-os doctor after setup")
 
     worktree = sub.add_parser("worktree", help="Create a git worktree for a bounded task")
     worktree.add_argument("task_type")
@@ -2445,6 +2633,31 @@ def build_parser() -> argparse.ArgumentParser:
 
     start = sub.add_parser("start", help="Start the preferred agent surface")
     start.add_argument("tool", nargs="?", default="claude", choices=["claude", "cursor", "codex"])
+
+    evolve = sub.add_parser("evolve", help="Run and manage gated self-evolution episodes")
+    evolve_sub = evolve.add_subparsers(dest="evolve_action", required=True)
+
+    e_run = evolve_sub.add_parser("run", help="Create a candidate evolution episode")
+    e_run.add_argument("--hypothesis", required=True, help="Hypothesis this evolution episode tests")
+    e_run.add_argument("--mutation-type", required=True, choices=sorted(ALLOWED_EVOLUTION_MUTATIONS))
+    e_run.add_argument("--target", required=True, help="Target file/policy for the mutation")
+    e_run.add_argument("--expected-effect", required=True, help="Expected measurable effect")
+    e_run.add_argument("--diff", default="", help="Optional mutation diff/summary")
+    e_run.add_argument("--risk-level", default="medium", choices=["low", "medium", "high"])
+    e_run.add_argument("--suite-ref", default="default-suite")
+    e_run.add_argument("--seed", type=int, default=0)
+    e_run.add_argument("--captured-by", default="cognitive-os")
+
+    e_report = evolve_sub.add_parser("report", help="Show an evolution episode summary")
+    e_report.add_argument("episode_id")
+
+    e_promote = evolve_sub.add_parser("promote", help="Promote an episode after gate checks")
+    e_promote.add_argument("episode_id")
+    e_promote.add_argument("--force", action="store_true", help="Override failed gates")
+
+    e_rollback = evolve_sub.add_parser("rollback", help="Rollback a previously promoted episode")
+    e_rollback.add_argument("episode_id")
+    e_rollback.add_argument("--ref", required=True, help="Rollback reference/reason id")
 
     return parser
 
@@ -2480,7 +2693,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         results = _detect_project_harness(project_root)
         if not results or results[0][1] == 0:
             print("No harness signals detected. Apply the generic harness or specify one explicitly.")
-            print("  agent-os harness apply generic .")
+            print("  cognitive-os harness apply generic .")
             return 0
         print("Harness scores:")
         print()
@@ -2495,10 +2708,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         best_name, best_score, _ = results[0]
         if best_score > 2:
             print(f"Recommended: {best_name}")
-            print(f"  agent-os harness apply {best_name} {args.path}")
+            print(f"  cognitive-os harness apply {best_name} {args.path}")
         else:
             print("Low confidence — review scores above and choose manually.")
-            print("  agent-os harness list")
+            print("  cognitive-os harness list")
         return 0
     if args.command == "harness":
         if args.harness_action == "list":
@@ -2594,6 +2807,26 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _private_skill(args.action, args.name, args.tool)
     if args.command == "start":
         return _start(args.tool, Path.cwd())
+    if args.command == "evolve":
+        if args.evolve_action == "run":
+            return _evolve_run(
+                hypothesis=args.hypothesis,
+                mutation_type=args.mutation_type,
+                target=args.target,
+                expected_effect=args.expected_effect,
+                diff_text=args.diff,
+                risk_level=args.risk_level,
+                suite_ref=args.suite_ref,
+                seed=args.seed,
+                captured_by=args.captured_by,
+            )
+        if args.evolve_action == "report":
+            return _evolve_report(args.episode_id)
+        if args.evolve_action == "promote":
+            return _evolve_promote(args.episode_id, force=getattr(args, "force", False))
+        if args.evolve_action == "rollback":
+            return _evolve_rollback(args.episode_id, rollback_ref=getattr(args, "ref"))
+        return 0
     parser.error(f"unsupported command: {args.command}")
     return 2
 

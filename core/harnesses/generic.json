@@ -14,7 +14,7 @@
   "workflow_notes": [
     "Define the active objective in `docs/REQUIREMENTS.md` before starting implementation.",
     "Keep `docs/NEXT_STEPS.md` current as the handoff for the next session.",
-    "Use `agent-os worktree feat/<name>` for non-trivial parallel work."
+    "Use `cognitive-os worktree feat/<name>` for non-trivial parallel work."
   ],
   "safety_notes": [
     "Keep credentials and secrets out of version control.",

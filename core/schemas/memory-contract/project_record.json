@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/memory-contract-v1/project_record.json",
+  "title": "Memory Contract v1 Project Record",
+  "allOf": [
+    {"$ref": "common.json"},
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "artifact_type"],
+      "properties": {
+        "memory_class": {"const": "project"},
+        "project_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Repository or project identity key."
+        },
+        "artifact_type": {
+          "type": "string",
+          "enum": [
+            "requirements",
+            "plan",
+            "progress",
+            "next-steps",
+            "run-context",
+            "decision-story",
+            "policy",
+            "other"
+          ]
+        }
+      }
+    }
+  ]
+}

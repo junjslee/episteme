@@ -10,7 +10,7 @@ This system must be:
 - overridable (operator can manually adjust or rerun)
 
 ## 2) Problem Statement
-Current `agent-os` setup relies on manually editing global memory files. This is flexible but not systematic.
+Current `cognitive-os` setup relies on manually editing global memory files. This is flexible but not systematic.
 
 Gaps:
 - no structured intake for working style
@@ -19,14 +19,14 @@ Gaps:
 - no unified command to generate profile + policy together
 
 ## 3) Goals
-1. Add `agent-os profile` command group with deterministic modes:
-   - `survey`: explicit questionnaire-driven scoring
-   - `infer`: repository signal-driven scoring
-   - `hybrid`: survey + infer merge
+1. Add `cognitive-os profile` command group with deterministic modes:
+  - `survey`: explicit questionnaire-driven scoring
+  - `infer`: repository signal-driven scoring
+  - `hybrid`: survey + infer merge
 2. Produce machine-readable profile artifacts under `core/memory/global/.generated/`.
 3. Compile profile scores into human-readable markdown updates:
-   - `core/memory/global/operator_profile.md`
-   - `core/memory/global/workflow_policy.md`
+  - `core/memory/global/operator_profile.md`
+  - `core/memory/global/workflow_policy.md`
 4. Keep existing user edits safe by default (no overwrite unless requested).
 5. Keep adapter-neutral architecture and documentation.
 
@@ -47,10 +47,10 @@ Gaps:
 
 ### FR-1: New CLI Surface
 Add:
-- `agent-os profile survey [--write] [--overwrite]`
-- `agent-os profile infer [path] [--write] [--overwrite]`
-- `agent-os profile hybrid [path] [--write] [--overwrite]`
-- `agent-os profile show`
+- `cognitive-os profile survey [--write] [--overwrite]`
+- `cognitive-os profile infer [path] [--write] [--overwrite]`
+- `cognitive-os profile hybrid [path] [--write] [--overwrite]`
+- `cognitive-os profile show`
 
 Behavior:
 - default mode writes generated JSON under `.generated/`
@@ -114,47 +114,47 @@ Each question offers 4 options mapped directly to 0/1/2/3.
 
 ### Infer mapping (examples)
 - planning_strictness:
-  - +1 if PLAN and NEXT_STEPS exist
-  - +1 if commit messages include `plan`/`docs`
-  - +1 if project uses staged docs set (`REQUIREMENTS`, `PLAN`, `PROGRESS`, `NEXT_STEPS`)
+ - +1 if PLAN and NEXT_STEPS exist
+ - +1 if commit messages include `plan`/`docs`
+ - +1 if project uses staged docs set (`REQUIREMENTS`, `PLAN`, `PROGRESS`, `NEXT_STEPS`)
 - testing_rigor:
-  - +1 test directory/file presence
-  - +1 CI workflow presence
-  - +1 if test-related commits in recent history
+ - +1 test directory/file presence
+ - +1 CI workflow presence
+ - +1 if test-related commits in recent history
 - documentation_rigor:
-  - +1 if `docs/` exists
-  - +1 if >=3 canonical docs exist
-  - +1 if docs commits found
+ - +1 if `docs/` exists
+ - +1 if >=3 canonical docs exist
+ - +1 if docs commits found
 - parallelism_preference:
-  - +1 if worktree command usage detectable (branch prefixes)
-  - +1 if branch diversity includes task-type prefixes
-  - +1 if separate docs/review branches observed
+ - +1 if worktree command usage detectable (branch prefixes)
+ - +1 if branch diversity includes task-type prefixes
+ - +1 if separate docs/review branches observed
 - automation_level:
-  - +1 if hooks configured (`core/hooks` present)
-  - +1 if quality gate/checkpoint hooks are active in config templates
-  - +1 if CI present
+ - +1 if hooks configured (`core/hooks` present)
+ - +1 if quality gate/checkpoint hooks are active in config templates
+ - +1 if CI present
 - risk_tolerance (conservative posture):
-  - +1 if destructive guardrails exist
-  - +1 if review-gate language present
-  - +1 if no-force policy signals observed
+ - +1 if destructive guardrails exist
+ - +1 if review-gate language present
+ - +1 if no-force policy signals observed
 
 Clamp all scores to 0..3.
 
 ## 8) Output UX Requirements
 - Every run prints:
-  - mode
-  - score table
-  - key evidence bullets
-  - file paths written
+ - mode
+ - score table
+ - key evidence bullets
+ - file paths written
 - `profile show` prints current generated scorecard if available.
 
 ## 9) Developer Experience / Maintainability
 - Keep logic in `src/agent_os/cli.py` for v1 to minimize architecture churn.
 - Use helper functions:
-  - `_profile_survey()`
-  - `_profile_infer(path)`
-  - `_profile_hybrid(path)`
-  - `_compile_workstyle_policy(...)`
+ - `_profile_survey()`
+ - `_profile_infer(path)`
+ - `_profile_hybrid(path)`
+ - `_compile_workstyle_policy(...)`
 - Keep rule tables as dictionaries/lists with explicit comments.
 
 ## 10) Acceptance Criteria
@@ -168,17 +168,17 @@ Clamp all scores to 0..3.
 
 ## 11) Rollout / Local Integration
 - After profile generation with `--write`, operator should run:
-  1. `agent-os sync` to push updated global memory to adapters
-  2. `agent-os doctor` to verify runtime
+ 1. `cognitive-os sync` to push updated global memory to adapters
+ 2. `cognitive-os doctor` to verify runtime
 - This should be printed as post-run guidance.
 
 ## 12) Risks and Mitigations
 - Risk: inferred signals misrepresent intent
-  - Mitigation: hybrid mode + explainable evidence + overwrite opt-in
+ - Mitigation: hybrid mode + explainable evidence + overwrite opt-in
 - Risk: perceived lock-in to one platform
-  - Mitigation: adapter-neutral language and outputs
+ - Mitigation: adapter-neutral language and outputs
 - Risk: user loses custom edits
-  - Mitigation: default no-overwrite behavior
+ - Mitigation: default no-overwrite behavior
 
 ## 13) Future Extensions (v2+)
 - per-project override files

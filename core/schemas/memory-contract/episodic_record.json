@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/memory-contract-v1/episodic_record.json",
+  "title": "Memory Contract v1 Episodic Record",
+  "allOf": [
+    {"$ref": "common.json"},
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_id", "event_type"],
+      "properties": {
+        "memory_class": {"const": "episodic"},
+        "session_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_type": {
+          "type": "string",
+          "enum": [
+            "observation",
+            "decision",
+            "action",
+            "verification",
+            "error",
+            "handoff",
+            "other"
+          ]
+        },
+        "related_project_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  ]
+}

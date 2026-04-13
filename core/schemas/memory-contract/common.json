@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/memory-contract-v1/common.json",
+  "title": "Memory Contract v1 Common",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "memory_class",
+    "summary",
+    "details",
+    "provenance",
+    "status",
+    "version"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable record identifier (UUID recommended)."
+    },
+    "memory_class": {
+      "type": "string",
+      "enum": ["global", "project", "episodic"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "details": {
+      "description": "Structured or freeform details payload.",
+      "oneOf": [
+        {"type": "string"},
+        {"type": "object"},
+        {"type": "array"}
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_type",
+        "source_ref",
+        "captured_at",
+        "captured_by",
+        "confidence"
+      ],
+      "properties": {
+        "source_type": {
+          "type": "string",
+          "enum": ["human", "agent", "tool", "imported"]
+        },
+        "source_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "captured_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "default": []
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "superseded", "archived"]
+    },
+    "version": {
+      "type": "string",
+      "const": "memory-contract-v1"
+    },
+    "tags": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": []
+    },
+    "supersedes": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "default": []
+    },
+    "superseded_by": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

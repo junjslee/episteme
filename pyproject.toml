@@ -3,9 +3,9 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-os"
+name = "cognitive-os"
 version = "0.2.0"
-description = "The operating system for AI coding agents — provisions memory, harnesses, hooks, and skills across Claude Code, Codex, Cursor, and Hermes"
+description = "cognitive-os: cognitive + execution harness for AI coding agents across Claude Code, Codex, Cursor, and Hermes"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
@@ -27,12 +27,12 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/junjslee/agent-os"
-Repository = "https://github.com/junjslee/agent-os"
-Issues = "https://github.com/junjslee/agent-os/issues"
+Homepage = "https://github.com/junjslee/cognitive-os"
+Repository = "https://github.com/junjslee/cognitive-os"
+Issues = "https://github.com/junjslee/cognitive-os/issues"
 
 [project.scripts]
-agent-os = "agent_os.cli:main"
+cognitive-os = "agent_os.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

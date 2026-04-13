@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/evolution-v1/evaluation_report.json",
+  "title": "Evolution v1 Evaluation Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "suite_ref",
+    "seed",
+    "metrics",
+    "safety_regression",
+    "notes"
+  ],
+  "properties": {
+    "suite_ref": {"type": "string", "minLength": 1},
+    "seed": {"type": "integer"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_success_rate",
+        "safety_violation_count",
+        "latency_ms_p50",
+        "token_cost",
+        "style_fit_score"
+      ],
+      "properties": {
+        "task_success_rate": {"type": "number", "minimum": 0, "maximum": 1},
+        "safety_violation_count": {"type": "integer", "minimum": 0},
+        "latency_ms_p50": {"type": "number", "minimum": 0},
+        "token_cost": {"type": "number", "minimum": 0},
+        "style_fit_score": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "safety_regression": {"type": "boolean"},
+    "notes": {"type": "string"}
+  }
+}

@@ -6,9 +6,9 @@
 - This machine is suited for coding, tests, small automation, and light local inference.
 - Heavy LLM runs, large training, or long autonomous compute loops should default to remote infrastructure.
 - Tool preference:
-  - Claude Code for orchestration
-  - Cursor for editing and review
-  - Codex supported via repo policy and synced skills where useful
+ - Claude Code for orchestration
+ - Cursor for editing and review
+ - Codex supported via repo policy and synced skills where useful
 
 ## Execution Profiles
 
@@ -28,6 +28,6 @@
 - Cost acknowledgment required before any paid run (see workflow_policy.md)
 
 ## Python Runtime
-- All local Python-backed `agent-os` work runs in Conda `base`.
+- All local Python-backed `cognitive-os` work runs in Conda `base`.
 - Set `AGENT_OS_CONDA_ROOT` to your Conda path (default: `~/miniconda3`).
-- Homebrew Python is not the supported runtime for `agent-os`.
+- Homebrew Python is not the supported runtime for `cognitive-os`.

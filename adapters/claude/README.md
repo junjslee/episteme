@@ -1,6 +1,6 @@
 # Claude Adapter
 
-`agent-os sync` installs the Claude runtime into `~/.claude`.
+`cognitive-os sync` installs the Claude runtime into `~/.claude`.
 
 Managed assets:
 - `~/.claude/CLAUDE.md`
@@ -8,4 +8,4 @@ Managed assets:
 - `~/.claude/agents/*`
 - `~/.claude/skills/*`
 
-Project repos also get `.claude/settings.json` through `agent-os bootstrap`.
+Project repos also get `.claude/settings.json` through `cognitive-os bootstrap`.

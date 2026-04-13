@@ -15,13 +15,20 @@ Read on demand:
 - `docs/RUN_CONTEXT.md`
 
 ## Workflow
-1. Read project memory before planning or code changes.
-2. Clarify the active objective in `docs/REQUIREMENTS.md`.
-3. Update `docs/PLAN.md` before substantial implementation.
-4. Track completed work, decisions, and validation in `docs/PROGRESS.md`.
-5. Keep `docs/NEXT_STEPS.md` current as the handoff for the next session.
-6. Use git worktrees for non-trivial parallel work, with one bounded objective per worktree.
-7. Use Conventional Commits for final commit messages.
+1. **Explore**: Read project memory and define the epistemic surface.
+2. **Deconstruct**: Separate Knowns, Unknowns, and Assumptions in `docs/REQUIREMENTS.md`.
+3. **Plan**: Update `docs/PLAN.md`.
+4. **Falsify**: Before implementing, state one reason why this plan might fail (Disconfirmation).
+5. **Implement**: Execute implementation with staged verification.
+6. **Review**: Validate against the original requirements and cognitive profile.
+7. **Handoff**: Update `docs/NEXT_STEPS.md` with a "So-What Now?" summary.
+
+## Epistemic Surface (Mandatory in Docs)
+Every major decision must record:
+- **Knowns**: Verified facts/constraints.
+- **Unknowns**: Missing info or risks.
+- **Assumptions**: What we are taking for granted.
+- **Disconfirmation**: What would prove this decision wrong?
 
 ## Worktree Naming
 - `feat/<name>` — new feature
@@ -67,6 +74,6 @@ Keep local only:
 - `.claude/settings.local.json`, user auth, trust settings, `.env*`, `secrets/`, private keys, large local datasets.
 
 ## Runtime Policy
-- `agent-os` is the source of truth for the project scaffold.
-- Local Python-backed `agent-os` work runs in Conda `base` at `{{CONDA_ROOT}}`.
-- Homebrew Python is not the supported runtime for `agent-os`.
+- `cognitive-os` is the source of truth for the project scaffold.
+- Local Python-backed `cognitive-os` work runs in Conda `base` at `{{CONDA_ROOT}}`.
+- Homebrew Python is not the supported runtime for `cognitive-os`.

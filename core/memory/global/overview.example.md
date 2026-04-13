@@ -1,6 +1,6 @@
-# Agent OS Overview
+# cognitive-os Overview
 
-- `agent-os` is the chief executive layer for project setup and cross-tool workflow.
+- `cognitive-os` is the chief executive layer for project setup and cross-tool workflow.
 - Claude Code is the primary orchestration surface.
 - Codex and Cursor are supported through synced skills and shared project structure.
 - `AGENTS.md` is the vendor-neutral repo operating policy.

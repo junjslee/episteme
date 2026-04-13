@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/memory-contract-v1/memory_envelope.json",
+  "title": "Memory Contract v1 Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["records", "contract_version"],
+  "properties": {
+    "contract_version": {
+      "type": "string",
+      "const": "memory-contract-v1"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {"$ref": "global_record.json"},
+          {"$ref": "project_record.json"},
+          {"$ref": "episodic_record.json"}
+        ]
+      }
+    }
+  }
+}

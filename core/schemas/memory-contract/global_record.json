@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/memory-contract-v1/global_record.json",
+  "title": "Memory Contract v1 Global Record",
+  "allOf": [
+    {"$ref": "common.json"},
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["domain"],
+      "properties": {
+        "memory_class": {"const": "global"},
+        "domain": {
+          "type": "string",
+          "enum": [
+            "operator-profile",
+            "workflow-policy",
+            "cognitive-profile",
+            "runtime-policy",
+            "naming-convention",
+            "safety-policy",
+            "other"
+          ]
+        }
+      }
+    }
+  ]
+}

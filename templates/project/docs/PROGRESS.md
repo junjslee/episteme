@@ -1,19 +1,22 @@
-# Progress
+# Progress: [Task Name]
 
-## Last Updated
-- `{{DATE}}`
+## Epistemic Surface
+- **Knowns**:
+  - [Verified fact]
+- **Unknowns**:
+  - [Identification of risk/gap]
+- **Assumptions**:
+  - [Belief requiring validation]
+- **Disconfirmation**:
+  - [What would prove us wrong?]
 
-## Completed
-- Record completed milestones.
+## Completed Work
+- [ ] Item 1
 
-## In Progress
-- Record active work.
+## Key Decisions
+- **Decision**: [Summary]
+  - **Reasoning**: [Top-down explanation]
+  - **Status**: [Accepted/Superseded]
 
-## Decisions
-- Record important decisions and why they were made.
-
-## Validation
-- Record tests, commands, and checks that were run.
-
-## Blockers
-- Record unresolved blockers.
+## Validation Results
+- [ ] [Test description]

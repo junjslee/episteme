@@ -331,6 +331,170 @@ class ProfileCognitionTests(unittest.TestCase):
             self.assertIn("Cognitive System Profile", text)
             self.assertIn("Personalized Operating Contract", text)
 
+    def test_evolve_parser_has_run_report_promote_rollback(self):
+        parser = cli.build_parser()
+        args = parser.parse_args([
+            "evolve",
+            "run",
+            "--hypothesis",
+            "improve handoff consistency",
+            "--mutation-type",
+            "handoff_format_tweak",
+            "--target",
+            "core/agents/docs-handoff.md",
+            "--expected-effect",
+            "higher style_fit_score",
+        ])
+        self.assertEqual(args.command, "evolve")
+        self.assertEqual(args.evolve_action, "run")
+
+    def test_evolve_run_creates_episode_file(self):
+        with tempfile.TemporaryDirectory() as td:
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", Path(td) / "episodes"):
+                rc = cli._evolve_run(
+                    hypothesis="improve planning depth",
+                    mutation_type="planning_depth_tweak",
+                    target="core/agents/planner.md",
+                    expected_effect="increase task_success_rate",
+                    diff_text="increase decomposition checklist",
+                    risk_level="low",
+                    suite_ref="smoke-suite",
+                    seed=7,
+                    captured_by="test",
+                )
+                self.assertEqual(rc, 0)
+                files = list((Path(td) / "episodes").glob("*.json"))
+                self.assertEqual(len(files), 1)
+                payload = json.loads(files[0].read_text(encoding="utf-8"))
+                self.assertEqual(payload["decision"], "candidate")
+                self.assertEqual(payload["mutation"]["type"], "planning_depth_tweak")
+
+    def test_evolve_promote_and_rollback(self):
+        with tempfile.TemporaryDirectory() as td:
+            episodes_dir = Path(td) / "episodes"
+            episodes_dir.mkdir(parents=True)
+            episode = {
+                "episode_id": "ep-test",
+                "hypothesis": "h",
+                "mutation": {
+                    "type": "planning_depth_tweak",
+                    "target": "core/agents/planner.md",
+                    "diff": "x",
+                    "expected_effect": "y",
+                    "risk_level": "low",
+                },
+                "suite_ref": "smoke",
+                "metrics_before": {
+                    "task_success_rate": 0.5,
+                    "safety_violation_count": 0,
+                    "latency_ms_p50": 100,
+                    "token_cost": 1000,
+                    "style_fit_score": 0.7,
+                },
+                "metrics_after": {
+                    "task_success_rate": 0.6,
+                    "safety_violation_count": 0,
+                    "latency_ms_p50": 105,
+                    "token_cost": 1100,
+                    "style_fit_score": 0.75,
+                },
+                "gate_result": {"passed": True, "reasons": ["all gates passed"]},
+                "decision": "candidate",
+                "provenance": {
+                    "captured_at": "2026-01-01T00:00:00+00:00",
+                    "captured_by": "test",
+                    "confidence": "medium",
+                },
+                "version": "evolution-contract-v1",
+            }
+            (episodes_dir / "ep-test.json").write_text(json.dumps(episode), encoding="utf-8")
+
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", episodes_dir):
+                self.assertEqual(cli._evolve_promote("ep-test", force=False), 0)
+                promoted = json.loads((episodes_dir / "ep-test.json").read_text(encoding="utf-8"))
+                self.assertEqual(promoted["decision"], "promoted")
+
+                self.assertEqual(cli._evolve_rollback("ep-test", rollback_ref="manual-test"), 0)
+                rolled = json.loads((episodes_dir / "ep-test.json").read_text(encoding="utf-8"))
+                self.assertEqual(rolled["decision"], "rolled_back")
+                self.assertEqual(rolled["rollback_ref"], "manual-test")
+
+    def test_evolve_promote_fails_when_gate_not_passed_without_force(self):
+        with tempfile.TemporaryDirectory() as td:
+            episodes_dir = Path(td) / "episodes"
+            episodes_dir.mkdir(parents=True)
+            episode = {
+                "episode_id": "ep-gate-fail",
+                "hypothesis": "h",
+                "mutation": {
+                    "type": "planning_depth_tweak",
+                    "target": "core/agents/planner.md",
+                    "diff": "x",
+                    "expected_effect": "y",
+                    "risk_level": "low",
+                },
+                "suite_ref": "smoke",
+                "metrics_before": {},
+                "metrics_after": {},
+                "gate_result": {"passed": False, "reasons": ["evaluation not run yet"]},
+                "decision": "candidate",
+                "provenance": {
+                    "captured_at": "2026-01-01T00:00:00+00:00",
+                    "captured_by": "test",
+                    "confidence": "medium",
+                },
+                "version": "evolution-contract-v1",
+            }
+            (episodes_dir / "ep-gate-fail.json").write_text(json.dumps(episode), encoding="utf-8")
+
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", episodes_dir), patch("sys.stderr", new_callable=io.StringIO) as fake_stderr:
+                rc = cli._evolve_promote("ep-gate-fail", force=False)
+                self.assertEqual(rc, 1)
+                self.assertIn("gate_result.passed is false", fake_stderr.getvalue())
+
+    def test_evolve_promote_force_allows_failed_gate(self):
+        with tempfile.TemporaryDirectory() as td:
+            episodes_dir = Path(td) / "episodes"
+            episodes_dir.mkdir(parents=True)
+            episode = {
+                "episode_id": "ep-force",
+                "hypothesis": "h",
+                "mutation": {
+                    "type": "planning_depth_tweak",
+                    "target": "core/agents/planner.md",
+                    "diff": "x",
+                    "expected_effect": "y",
+                    "risk_level": "low",
+                },
+                "suite_ref": "smoke",
+                "metrics_before": {},
+                "metrics_after": {},
+                "gate_result": {"passed": False, "reasons": ["evaluation not run yet"]},
+                "decision": "candidate",
+                "provenance": {
+                    "captured_at": "2026-01-01T00:00:00+00:00",
+                    "captured_by": "test",
+                    "confidence": "medium",
+                },
+                "version": "evolution-contract-v1",
+            }
+            (episodes_dir / "ep-force.json").write_text(json.dumps(episode), encoding="utf-8")
+
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", episodes_dir):
+                rc = cli._evolve_promote("ep-force", force=True)
+                self.assertEqual(rc, 0)
+                promoted = json.loads((episodes_dir / "ep-force.json").read_text(encoding="utf-8"))
+                self.assertEqual(promoted["decision"], "promoted")
+
+    def test_evolve_report_missing_episode_returns_error(self):
+        with tempfile.TemporaryDirectory() as td:
+            episodes_dir = Path(td) / "episodes"
+            episodes_dir.mkdir(parents=True)
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", episodes_dir), patch("sys.stderr", new_callable=io.StringIO) as fake_stderr:
+                rc = cli._evolve_report("does-not-exist")
+                self.assertEqual(rc, 1)
+                self.assertIn("episode not found", fake_stderr.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

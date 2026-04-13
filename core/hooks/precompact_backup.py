@@ -2,7 +2,7 @@
 """PreCompact hook — backs up Claude session transcripts before compaction.
 
 Copies .jsonl session files for the current project to
-~/agent-os/backups/sessions/ with a timestamp prefix so compacted
+~/cognitive-os/backups/sessions/ with a timestamp prefix so compacted
 history can be recovered. Always exits 0.
 """
 import datetime
@@ -27,7 +27,7 @@ def main() -> int:
     if not session_files:
         return 0
 
-    backup_dir = Path.home() / "agent-os" / "backups" / "sessions"
+    backup_dir = Path.home() / "cognitive-os" / "backups" / "sessions"
     backup_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.datetime.now().strftime("%Y%m%dT%H%M%S")

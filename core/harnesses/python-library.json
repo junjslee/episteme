@@ -39,7 +39,7 @@
   "workflow_notes": [
     "Public API changes require a version bump — treat the public surface as a contract.",
     "Every new function or class needs a corresponding test.",
-    "Use `agent-os worktree feat/<name>` for any non-trivial feature branch.",
+    "Use `cognitive-os worktree feat/<name>` for any non-trivial feature branch.",
     "Run `pytest` before every merge.",
     "Keep the `CHANGELOG` or release notes current."
   ],

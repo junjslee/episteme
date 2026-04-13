@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/evolution-v1/mutation.json",
+  "title": "Evolution v1 Mutation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["type", "target", "diff", "expected_effect", "risk_level"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "prompt_policy_tweak",
+        "retrieval_policy_tweak",
+        "planning_depth_tweak",
+        "tool_selection_rule_tweak",
+        "handoff_format_tweak"
+      ]
+    },
+    "target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "diff": {
+      "description": "Mutation payload or patch.",
+      "oneOf": [
+        {"type": "string"},
+        {"type": "object"}
+      ]
+    },
+    "expected_effect": {
+      "type": "string",
+      "minLength": 1
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    }
+  }
+}

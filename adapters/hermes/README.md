@@ -1,6 +1,6 @@
 # Hermes Adapter
 
-`agent-os sync` automatically detects Hermes at `~/.hermes/` and syncs if installed.
+`cognitive-os sync` automatically detects Hermes at `~/.hermes/` and syncs if installed.
 
 ## What Gets Synced
 
@@ -18,7 +18,7 @@ A generated composite of your global memory sources:
 - `python_runtime_policy.md`
 - `cognitive_profile.md`
 
-`agent-os sync` writes this to `~/.hermes/OPERATOR.md`.
+`cognitive-os sync` writes this to `~/.hermes/OPERATOR.md`.
 
 For deterministic behavior, load it from `~/.hermes/SOUL.md`:
 
@@ -29,12 +29,12 @@ You are a technical AI assistant working with the operator contract below.
 {{read ~/.hermes/OPERATOR.md}}
 ```
 
-This keeps Hermes runtime behavior aligned with canonical `agent-os` memory after each sync.
+This keeps Hermes runtime behavior aligned with canonical `cognitive-os` memory after each sync.
 
 ## Skills
 
 Hermes uses the [agentskills.io](https://agentskills.io) format — the same `SKILL.md`
-layout agent-os already uses. All `custom/` and `vendor/` skills sync directly.
+layout cognitive-os already uses. All `custom/` and `vendor/` skills sync directly.
 
 ## Hooks
 

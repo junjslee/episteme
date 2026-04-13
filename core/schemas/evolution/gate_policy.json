@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cognitive-os.dev/schemas/evolution-v1/gate_policy.json",
+  "title": "Evolution v1 Gate Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "min_success_delta",
+    "max_safety_violations_delta",
+    "max_latency_ratio",
+    "max_token_cost_ratio",
+    "min_style_fit_score",
+    "require_critic_signoff",
+    "require_human_approval"
+  ],
+  "properties": {
+    "min_success_delta": {"type": "number"},
+    "max_safety_violations_delta": {"type": "integer"},
+    "max_latency_ratio": {"type": "number", "minimum": 1},
+    "max_token_cost_ratio": {"type": "number", "minimum": 1},
+    "min_style_fit_score": {"type": "number", "minimum": 0, "maximum": 1},
+    "require_critic_signoff": {"type": "boolean"},
+    "require_human_approval": {"type": "boolean"}
+  }
+}
