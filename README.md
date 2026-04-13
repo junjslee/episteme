@@ -6,9 +6,41 @@
      6|
      7|`cognitive-os` is a platform-agnostic CLI that provisions memory, skills, hooks, and project harnesses across Claude Code, Codex CLI, Cursor, Hermes, and future adapters.
      8|
-     9|> Not a web UI, not a session manager, not a skill marketplace. It's the layer that runs *before* your agent starts work.
-    10|
-    11|## Quick start (60 seconds)
+> Not a web UI, not a session manager, not a skill marketplace. It's the layer that runs *before* your agent starts work.
+
+## System in 20 seconds
+
+```mermaid
+flowchart TB
+    A[cognitive-os canonical core]
+
+    subgraph LAYERS[Ontological + operational layers]
+      L0[L0 Ontology\nentities boundaries invariants]
+      L1[L1 Epistemics\nknown unknown assumptions disconfirmation]
+      L2[L2 Governance\nrisk gates promotion rollback]
+      L3[L3 Execution\nplan implement test review handoff]
+      L4[L4 Orchestration + outcomes\nmacro-context and domain utility]
+    end
+
+    A --> LAYERS
+
+    subgraph CANONICAL[Canonical memory + policy]
+      M1[Global memory\ncore/memory/global]
+      M2[Project memory\nAGENTS.md docs/* HARNESS.md]
+      M3[Episodic evidence\ncore/memory/evolution/episodes]
+    end
+
+    LAYERS --> CANONICAL
+
+    S[cognitive-os sync] --> C[Claude]
+    S --> X[Codex]
+    S --> U[Cursor]
+    S --> H[Hermes]
+
+    CANONICAL --> S
+```
+
+## Quick start (60 seconds)
     12|
     13|```bash
     14|git clone https://github.com/junjslee/cognitive-os ~/cognitive-os
