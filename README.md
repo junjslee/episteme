@@ -2,9 +2,7 @@
 
 **Every AI tool you open starts cold. cognitive-os fixes that.**
 
-`cognitive-os` is a cognitive + execution operating system for AI work that operationalizes decision quality, memory governance, how agents think, how agents execute, and accountable evolution.
-
-`cognitive-os` is a platform-agnostic CLI that provisions memory, skills, hooks, and project harnesses across Claude Code, Codex CLI, Cursor, Hermes, and future adapters.
+`cognitive-os` is a platform-agnostic cognitive + execution operating system for AI work, delivered as a CLI that syncs memory, skills, hooks, and project harnesses across Claude Code, Codex CLI, Cursor, Hermes, and future adapters.
 
 > Not a web UI, not a session manager, not a skill marketplace. It's the layer that runs *before* your agent starts work.
 
