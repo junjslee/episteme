@@ -12,60 +12,67 @@
 
 ```mermaid
 flowchart TB
-    A[cognitive-os canonical core]
+    A[cognitive-os operating system]
 
-    subgraph LAYERS[Ontological + operational layers]
-      L0[L0 Ontology\nentities boundaries invariants]
-      L1[L1 Epistemics\nknown unknown assumptions disconfirmation]
-      L2[L2 Governance\nrisk gates promotion rollback]
-      L3[L3 Execution\nplan implement test review handoff]
-      L4[L4 Orchestration + outcomes\nmacro-context and domain utility]
+    subgraph O1[Ontological + operational stack]
+      L0[L0 Ontology\ncore/agents/ontologist.md]
+      L1[L1 Epistemics\ncore/agents/epistemic-auditor.md]
+      L2[L2 Governance\ncore/agents/governance-safety.md]
+      L3[L3 Execution\nplanner implementer reviewer test-runner docs-handoff]
+      L4[L4 Orchestration + outcomes\ncore/agents/orchestrator.md + domain-owner.md]
     end
 
-    A --> LAYERS
-
-    subgraph CANONICAL[Canonical memory + policy]
-      M1[Global memory\ncore/memory/global]
-      M2[Project memory\nAGENTS.md docs/* HARNESS.md]
-      M3[Episodic evidence\ncore/memory/evolution/episodes]
+    subgraph M[Canonical memory + policy]
+      G[Global memory\ncore/memory/global/*.md]
+      P[Project truth\nAGENTS.md + docs/* + HARNESS.md]
+      E[Episodic evidence\ncore/memory/evolution/episodes/*.json]
+      C[Contracts\ndocs/MEMORY_CONTRACT.md\ndocs/EVOLUTION_CONTRACT.md]
+      S[Schemas\ncore/schemas/memory-contract/*.json\ncore/schemas/evolution/*.json]
     end
 
-    LAYERS --> CANONICAL
+    subgraph W[Workflow]
+      W1[setup/profile/cognition]\n[write canonical memory]
+      W2[new-project/detect/harness apply]\n[provision project context]
+      W3[execute loop]\n[explore plan implement verify handoff]
+      W4[evolve run/report/promote/rollback]\n[accountable evolution]
+    end
 
-    S[cognitive-os sync] --> C[Claude]
-    S --> X[Codex]
-    S --> U[Cursor]
-    S --> H[Hermes]
+    A --> O1
+    O1 --> M
+    M --> W
 
-    CANONICAL --> S
+    X[cognitive-os sync] --> R1[Claude]
+    X --> R2[Codex]
+    X --> R3[Cursor]
+    X --> R4[Hermes]
+    M --> X
 ```
 
 ## Quick start (60 seconds)
-    12|
-    13|```bash
-    14|git clone https://github.com/junjslee/cognitive-os ~/cognitive-os
-    15|cd ~/cognitive-os
-    16|pip install -e .
-    17|cognitive-os init
-    18|cognitive-os sync
-    19|```
-    20|
-    21|## Verify setup
-    22|
-    23|```bash
-    24|cognitive-os doctor
-    25|```
-    26|
-    27|Expected outcome:
-    28|- `Doctor passed.`
-    29|- Claude/Codex/Cursor/Hermes adapter wiring checks shown as `[ok]` or `[info]`
-    30|
-    31|## Read this next
-    32|
-    33|- Docs index: `docs/README.md`
-    34|- Architecture: `docs/AGENT_OS_ARCHITECTURE.md`
-    35|- Cognitive System Playbook: `docs/COGNITIVE_SYSTEM_PLAYBOOK.md`
-    36|
+
+```bash
+git clone https://github.com/junjslee/cognitive-os ~/cognitive-os
+cd ~/cognitive-os
+pip install -e .
+cognitive-os init
+cognitive-os sync
+```
+
+## Verify setup
+
+```bash
+cognitive-os doctor
+```
+
+Expected outcome:
+- `Doctor passed.`
+- Claude/Codex/Cursor/Hermes adapter wiring checks shown as `[ok]` or `[info]`
+
+## Read this next
+
+- Docs index: `docs/README.md`
+- Architecture: `docs/AGENT_OS_ARCHITECTURE.md`
+- Cognitive System Playbook: `docs/COGNITIVE_SYSTEM_PLAYBOOK.md`
     37|---
     38|
     39|## Why cognitive-os
