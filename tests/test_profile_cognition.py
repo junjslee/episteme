@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from cognitive_os import cli
+from cognitive_os.adapters import claude as claude_adapter
 
 
 class ProfileCognitionTests(unittest.TestCase):
@@ -232,8 +233,8 @@ class ProfileCognitionTests(unittest.TestCase):
                 ]
             }
         }
-        merged = cli._merge_claude_settings(existing, cli._cognitive_os_settings("strict"))
-        merged = cli._enforce_governance_overrides(merged, "strict")
+        merged = claude_adapter.merge_settings(existing, claude_adapter.build_settings("strict"))
+        merged = claude_adapter.enforce_governance_overrides(merged, "strict")
         hooks = merged.get("hooks", {})
         self.assertNotIn("PermissionRequest", hooks)
 
@@ -248,8 +249,8 @@ class ProfileCognitionTests(unittest.TestCase):
                 ]
             }
         }
-        merged = cli._merge_claude_settings(existing, cli._cognitive_os_settings("balanced"))
-        merged = cli._enforce_governance_overrides(merged, "balanced")
+        merged = claude_adapter.merge_settings(existing, claude_adapter.build_settings("balanced"))
+        merged = claude_adapter.enforce_governance_overrides(merged, "balanced")
         hooks = merged.get("hooks", {})
         self.assertIn("PermissionRequest", hooks)
 
@@ -265,7 +266,7 @@ class ProfileCognitionTests(unittest.TestCase):
                 }
             ]
         }
-        deduped = cli._dedupe_hooks_map(hooks)
+        deduped = claude_adapter.dedupe_hooks_map(hooks)
         self.assertIn("PostToolUse", deduped)
         self.assertEqual(len(deduped["PostToolUse"]), 1)
         out_hooks = deduped["PostToolUse"][0].get("hooks", [])
@@ -287,15 +288,15 @@ class ProfileCognitionTests(unittest.TestCase):
                 ]
             }
         }
-        merged = cli._merge_claude_settings(existing, cli._cognitive_os_settings("strict"))
-        merged = cli._enforce_governance_overrides(merged, "strict")
+        merged = claude_adapter.merge_settings(existing, claude_adapter.build_settings("strict"))
+        merged = claude_adapter.enforce_governance_overrides(merged, "strict")
         hooks = merged.get("hooks", {})
         self.assertIn("PermissionRequest", hooks)
         entries = hooks.get("PermissionRequest", [])
         self.assertTrue(any(isinstance(e, dict) and e.get("matcher") == "Read" for e in entries))
 
     def test_prune_managed_hooks_for_minimal_pack(self):
-        merged = cli._cognitive_os_settings("balanced")
+        merged = claude_adapter.build_settings("balanced")
         merged.setdefault("hooks", {}).setdefault("PreToolUse", []).append(
             {
                 "matcher": "Write",
@@ -303,7 +304,7 @@ class ProfileCognitionTests(unittest.TestCase):
             }
         )
 
-        out = cli._prune_managed_hook_entries(merged, "minimal")
+        out = claude_adapter.prune_managed_hook_entries(merged, "minimal")
         hooks = out.get("hooks", {})
         pre = hooks.get("PreToolUse", [])
         post = hooks.get("PostToolUse", [])

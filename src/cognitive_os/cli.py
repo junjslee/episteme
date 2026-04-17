@@ -1346,9 +1346,10 @@ def _doctor() -> int:
     claude_settings_path = HOME / ".claude" / "settings.json"
     if claude_settings_path.exists():
         try:
+            from .adapters import claude as _claude
             settings = json.loads(claude_settings_path.read_text(encoding="utf-8"))
             hooks = settings.get("hooks", {}) if isinstance(settings, dict) else {}
-            deduped = _dedupe_hooks_map(hooks)
+            deduped = _claude.dedupe_hooks_map(hooks)
             orig_count = 0
             deduped_count = 0
             for entries in hooks.values() if isinstance(hooks, dict) else []:
