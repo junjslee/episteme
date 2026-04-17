@@ -37,6 +37,15 @@ growing, the fix is in the kernel's portability, not in more adapter code.
   sources; concepts are described in the kernel's own vocabulary. This
   file is the attribution trail for readers who want to go deeper.
 
+- **[HOOKS_MAP.md](./HOOKS_MAP.md)** — mapping from kernel invariants to
+  runtime hooks that enforce them. Also documents the Reasoning Surface
+  state file and the integrity manifest commands.
+
+- **MANIFEST.sha256** — sha256 digest of every managed kernel file.
+  `cognitive-os kernel verify` detects drift; `cognitive-os kernel update`
+  regenerates after intentional edits. `cognitive-os doctor` surfaces
+  drift as a non-blocking warning.
+
 ---
 
 ## How the kernel is delivered

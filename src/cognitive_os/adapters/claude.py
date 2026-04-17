@@ -44,6 +44,7 @@ def build_settings(governance_mode: str = "balanced") -> dict:
 
     pretool_entries = [
         {"matcher": "Bash", "hooks": [hook_cmd("block_dangerous.py")]},
+        {"matcher": "Bash|Write|Edit|MultiEdit", "hooks": [hook_cmd("reasoning_surface_guard.py")]},
     ]
     posttool_entries = [
         {"matcher": "Write|Edit|MultiEdit", "hooks": [hook_cmd("format.py", async_=True)]},

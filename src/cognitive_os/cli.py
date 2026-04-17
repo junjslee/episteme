@@ -1366,6 +1366,19 @@ def _doctor() -> int:
         except json.JSONDecodeError:
             warnings.append("Could not parse ~/.claude/settings.json for drift checks (invalid JSON).")
 
+    # Kernel integrity drift check
+    from . import kernel_integrity as _kint
+    if (REPO_ROOT / _kint.MANIFEST_PATH).exists():
+        ok, diffs = _kint.verify(REPO_ROOT)
+        if ok:
+            print("[ok] kernel manifest: in sync")
+        else:
+            warnings.append(
+                f"Kernel drift detected ({len(diffs)} file(s)). Run `cognitive-os kernel update` to refresh the manifest."
+            )
+    else:
+        print("[info] kernel manifest: not initialized (run `cognitive-os kernel update` to create one)")
+
     if warnings:
         print("\nWarnings:")
         for item in warnings:
@@ -3191,6 +3204,26 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
 # ---------------------------------------------------------------------------
 
 
+def _kernel_verify() -> int:
+    from . import kernel_integrity
+    ok, diffs = kernel_integrity.verify(REPO_ROOT)
+    if ok:
+        print("[ok] kernel manifest matches working tree")
+        return 0
+    print("[fail] kernel drift detected:", file=sys.stderr)
+    for d in diffs:
+        print(f"  - {d}", file=sys.stderr)
+    print("\nRun `cognitive-os kernel update` to regenerate the manifest.", file=sys.stderr)
+    return 2
+
+
+def _kernel_update() -> int:
+    from . import kernel_integrity
+    path = kernel_integrity.write_manifest(REPO_ROOT)
+    print(f"[ok] wrote {path.relative_to(REPO_ROOT)}")
+    return 0
+
+
 def _audit(fix: bool = False) -> int:
     """Reasoning audit: verify the current project session has addressed cognitive unknowns."""
 
@@ -3458,6 +3491,11 @@ def build_parser() -> argparse.ArgumentParser:
     audit = sub.add_parser("audit", help="Reasoning check: verify the current project session has addressed cognitive unknowns")
     audit.add_argument("--fix", action="store_true", help="Append stub Reasoning Surface blocks to files that are missing them")
 
+    kernel = sub.add_parser("kernel", help="Kernel integrity manifest operations")
+    kernel_sub = kernel.add_subparsers(dest="kernel_action", required=True)
+    kernel_sub.add_parser("verify", help="Verify managed kernel files match the manifest")
+    kernel_sub.add_parser("update", help="Regenerate kernel/MANIFEST.sha256 from current files")
+
     worktree = sub.add_parser("worktree", help="Create a git worktree for a bounded task")
     worktree.add_argument("task_type")
     worktree.add_argument("task_name", nargs="+")
@@ -3720,6 +3758,12 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0
     if args.command == "audit":
         return _audit(fix=getattr(args, "fix", False))
+    if args.command == "kernel":
+        if args.kernel_action == "verify":
+            return _kernel_verify()
+        if args.kernel_action == "update":
+            return _kernel_update()
+        return 0
     parser.error(f"unsupported command: {args.command}")
     return 2
 

@@ -1,16 +1,53 @@
 #!/usr/bin/env python3
-"""SessionStart hook — prints git status and NEXT_STEPS to the terminal.
+"""SessionStart hook — prints git status, NEXT_STEPS, and Reasoning Surface state.
 
 Output appears at session open so Claude and the operator share the same
 starting context without a manual paste.
 """
+import json
 import subprocess
+import time
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+SURFACE_TTL_SECONDS = 30 * 60
 
 
 def run(args: list[str]) -> str:
     r = subprocess.run(args, capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def _surface_line() -> str | None:
+    path = Path(".cognitive-os/reasoning-surface.json")
+    if not path.exists():
+        return "surface: none declared — write .cognitive-os/reasoning-surface.json before high-impact ops"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return "surface: unreadable .cognitive-os/reasoning-surface.json"
+
+    ts = data.get("timestamp")
+    age: int | None = None
+    if isinstance(ts, (int, float)):
+        age = int(time.time() - float(ts))
+    elif isinstance(ts, str) and ts:
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age = int(time.time() - dt.timestamp())
+        except ValueError:
+            age = None
+
+    core_q = str(data.get("core_question") or "").strip() or "(none)"
+    if age is None:
+        return f"surface: present, no timestamp — core_question: {core_q}"
+    if age > SURFACE_TTL_SECONDS:
+        mins = age // 60
+        return f"surface: STALE ({mins} min old) — refresh before high-impact ops"
+    return f"surface: fresh — core_question: {core_q}"
 
 
 def main() -> int:
@@ -37,6 +74,10 @@ def main() -> int:
         if h_content:
             first_line = h_content.split("\n", 1)[0].strip("# ").strip()
             lines.append(f"harness: {first_line}")
+
+    surface_line = _surface_line()
+    if surface_line:
+        lines.append(surface_line)
 
     # NEXT_STEPS.md if present
     ns = Path("docs/NEXT_STEPS.md")
