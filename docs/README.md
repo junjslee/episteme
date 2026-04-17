@@ -5,7 +5,8 @@ Primary navigation for cognitive-os documentation.
 ## Start here
 
 - `../README.md` — project overview, what problem it solves, quickstart, full command surface
-- `CONSTITUTION.md` — the governing philosophy: why this system exists, what it believes, and what it is not
+- `../kernel/` — the canonical markdown spec: constitution, reasoning surface, system-1 counters, operator-profile schema
+- `../kernel/CONSTITUTION.md` — the governing philosophy: why this system exists, what it believes, and what it is not
 - `COGNITIVE_OS_ARCHITECTURE.md` — layered architecture, tool matrix, runtime model
 - `COGNITIVE_SYSTEM_PLAYBOOK.md` — practical cognitive + workflow operating protocol
 
@@ -29,14 +30,17 @@ Primary navigation for cognitive-os documentation.
 
 ## Recommended reading order
 
-Read CONSTITUTION first. Everything else is derived from it.
+Read the kernel first. Everything else is derived from it.
 
-1) `CONSTITUTION.md`
-2) `../README.md`
-3) `COGNITIVE_OS_ARCHITECTURE.md`
-4) `COGNITIVE_SYSTEM_PLAYBOOK.md`
-5) `MEMORY_CONTRACT.md`
-6) `EVOLUTION_CONTRACT.md`
+1) `../kernel/CONSTITUTION.md`
+2) `../kernel/REASONING_SURFACE.md`
+3) `../kernel/SYSTEM_1_COUNTERS.md`
+4) `../kernel/OPERATOR_PROFILE_SCHEMA.md`
+5) `../README.md`
+6) `COGNITIVE_OS_ARCHITECTURE.md`
+7) `COGNITIVE_SYSTEM_PLAYBOOK.md`
+8) `MEMORY_CONTRACT.md`
+9) `EVOLUTION_CONTRACT.md`
 
 ## Contribution quality gate (docs changes)
 

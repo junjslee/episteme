@@ -1,24 +1,37 @@
 # 🧠 cognitive-os
-**Every AI agent starts as a blank slate. cognitive-os gives them a Soul.**
+**A portable cognitive kernel for AI agents.**
 
-You use Claude Code, Codex CLI, opencode, Hermes. Each one starts cold. You repeat yourself every session. One agent knows your workflow; the next doesn't. A context reset wipes everything. Skills and preferences drift out of sync across tools.
+Most AI tooling is about what the agent does. `cognitive-os` is about *how it thinks* — before any tool, framework, or platform gets involved.
 
-`cognitive-os` is the missing operating layer. One repo that acts as the persistent cognitive contract for your entire AI stack — identity, memory, skills, safety hooks, and sync.
+The kernel is [a small set of markdown files](./kernel/) that define the agent's worldview: the reasoning protocol it follows, the named counters to its most dangerous failure modes, and the schema for encoding an operator's cognitive preferences so they travel across tools and sessions.
 
-> Stop managing configuration files. Start managing your agent's consciousness.
+Everything else in this repo — the CLI, the hooks, the adapters — exists to deliver that kernel into a specific runtime. If the kernel is sound, the adapters are small.
+
+> The body can be replaced. Tools change. Platforms come and go. But the question of how to reason well under uncertainty does not expire. That is what this project is about.
 
 ---
 
-## The problem with CLAUDE.md, AGENTS.md, and .cursorrules
+## The kernel
 
-These files are good for project-specific instructions. They're not enough on their own:
+Start here: **[`kernel/`](./kernel/)**
 
-- **They're per-project.** Your cross-project identity, cognitive posture, and workflow defaults don't live anywhere durable.
-- **They're per-tool.** CLAUDE.md means nothing to Codex. .cursorrules means nothing to Claude Code. You end up maintaining divergent files.
-- **They're static.** No sync mechanism. No structure. No governance. If you update one, the others fall behind.
-- **They have no memory layer.** No episodic trace, no provenance, no conflict semantics. Just flat text that agents forget after a reset.
+- **[CONSTITUTION.md](./kernel/CONSTITUTION.md)** — the north-star document. Root claim, why agents fail, four principles.
+- **[REASONING_SURFACE.md](./kernel/REASONING_SURFACE.md)** — the Knowns / Unknowns / Assumptions / Disconfirmation protocol.
+- **[SYSTEM_1_COUNTERS.md](./kernel/SYSTEM_1_COUNTERS.md)** — six named failure modes, each with the kernel artifact that counters it.
+- **[OPERATOR_PROFILE_SCHEMA.md](./kernel/OPERATOR_PROFILE_SCHEMA.md)** — schema for encoding an operator's cognitive preferences.
 
-`cognitive-os` wraps around these files and gives them a backbone. Your `CLAUDE.md` becomes an index into a governed memory system. Your `AGENTS.md` inherits from a global cognitive contract. Your `.cursorrules` gets supplemented with synced skills.
+Pure markdown. No code. No vendor lock-in. The kernel does not care which runtime loads it.
+
+---
+
+## The delivery layer
+
+Once the kernel exists, two mechanical problems remain:
+
+- **Getting it into the runtime.** Claude Code reads `CLAUDE.md`; Hermes reads `OPERATOR.md`. Each adapter mounts the same kernel files into the runtime's native context-loading mechanism. Today's adapters cover Claude Code and Hermes. Additional adapters (Codex, opencode, Cursor, etc.) are a 50-line shim away — the kernel is vendor-neutral by design.
+- **Keeping it consistent.** A single command (`cognitive-os sync`) writes the kernel into every adapter's target, with a managed-region contract so user-authored content outside the region is preserved.
+
+Everything below this line is how that delivery layer works. If you just want the ideas, stop at the kernel.
 
 ---
 
@@ -295,7 +308,8 @@ docs/
 
 ## Read this next
 
-- Governing philosophy: `docs/CONSTITUTION.md`
+- Kernel (start here): `kernel/`
+- Governing philosophy: `kernel/CONSTITUTION.md`
 - Docs index: `docs/README.md`
 - Architecture: `docs/COGNITIVE_OS_ARCHITECTURE.md`
 - Cognitive System Playbook: `docs/COGNITIVE_SYSTEM_PLAYBOOK.md`
