@@ -424,9 +424,24 @@ def _surface_missing_fields(surface: dict) -> list[str]:
 
 
 def _surface_status(cwd: Path) -> tuple[str, str]:
-    surface = _read_surface(cwd)
-    if surface is None:
+    # Disambiguate "file absent" from "file present but malformed". The
+    # two cases surface the same `_read_surface` return (None) but ask
+    # the operator to take different actions — author vs. repair. Parse
+    # inline here so the status detail can name the actual failure.
+    p = cwd / ".episteme" / "reasoning-surface.json"
+    if not p.exists():
         return "missing", "no .episteme/reasoning-surface.json found"
+    try:
+        surface = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return "invalid", (
+            f"surface file exists but is not valid JSON "
+            f"({exc.__class__.__name__} at line {exc.lineno}, col {exc.colno})"
+        )
+    except OSError as exc:
+        return "invalid", f"surface file exists but could not be read ({exc.__class__.__name__})"
+    if not isinstance(surface, dict):
+        return "invalid", "surface file is valid JSON but not an object"
     age = _surface_age_seconds(surface)
     if age is None:
         return "invalid", "surface has no parseable timestamp"

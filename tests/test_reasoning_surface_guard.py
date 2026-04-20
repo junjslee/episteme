@@ -424,6 +424,45 @@ class ReasoningSurfaceGuardTests(unittest.TestCase):
             tpath = telemetry_root / ".episteme" / "telemetry"
             self.assertFalse(tpath.exists())
 
+    def test_malformed_surface_is_distinguishable_from_missing(self):
+        """A corrupt .episteme/reasoning-surface.json previously read as
+        'missing' (same message as file-absent), so the operator never
+        learned their surface was malformed — they just saw a generic
+        'no surface found' block and re-authored it from scratch.
+        After the fix, status is 'invalid' and the detail names JSON as
+        the failure mode."""
+        with tempfile.TemporaryDirectory() as td:
+            cwd = Path(td)
+            (cwd / ".episteme").mkdir()
+            (cwd / ".episteme" / "reasoning-surface.json").write_text(
+                "{ not valid json ]", encoding="utf-8"
+            )
+            rc, out, err = self._run(
+                {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}},
+                cwd,
+            )
+        self.assertEqual(rc, 2)
+        self.assertIn("REASONING SURFACE INVALID", err)
+        self.assertIn("not valid JSON", err)
+        # Ensure the missing-file message does NOT fire — proving
+        # disambiguation from the absent case.
+        self.assertNotIn("no .episteme/reasoning-surface.json found", err)
+
+    def test_missing_surface_still_reports_missing(self):
+        """Contrast: an absent surface still says 'missing' / 'not found',
+        not 'invalid'. Proves the malformed fix didn't collapse the two
+        cases into one."""
+        with tempfile.TemporaryDirectory() as td:
+            cwd = Path(td)
+            rc, out, err = self._run(
+                {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}},
+                cwd,
+            )
+        self.assertEqual(rc, 2)
+        self.assertIn("REASONING SURFACE MISSING", err)
+        self.assertIn("no .episteme/reasoning-surface.json found", err)
+        self.assertNotIn("not valid JSON", err)
+
 
 if __name__ == "__main__":
     unittest.main()

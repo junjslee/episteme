@@ -489,6 +489,35 @@ class ProfileCognitionTests(unittest.TestCase):
                 payload = json.loads(files[0].read_text(encoding="utf-8"))
                 self.assertEqual(payload["decision"], "candidate")
                 self.assertEqual(payload["mutation"]["type"], "planning_depth_tweak")
+                # Episode id shape includes a 4-char uuid suffix so same-second
+                # invocations don't collide. Prefix-match the wall-clock portion.
+                self.assertRegex(payload["episode_id"], r"^ep-\d{8}-\d{6}-[0-9a-f]{4}$")
+
+    def test_evolve_run_episode_ids_are_unique_under_rapid_calls(self):
+        """Prior to the uuid-suffix fix, two _evolve_run calls in the same
+        wall-clock second produced the same episode_id and the second
+        silently overwrote the first. Ten rapid calls must produce ten
+        distinct episode files."""
+        with tempfile.TemporaryDirectory() as td:
+            episodes_root = Path(td) / "episodes"
+            with patch.object(cli, "EVOLUTION_EPISODES_DIR", episodes_root):
+                for _ in range(10):
+                    rc = cli._evolve_run(
+                        hypothesis="collision-probe",
+                        mutation_type="planning_depth_tweak",
+                        target="core/agents/planner.md",
+                        expected_effect="probe for id collision",
+                        diff_text="no-op",
+                        risk_level="low",
+                        suite_ref="smoke",
+                        seed=1,
+                        captured_by="test",
+                    )
+                    self.assertEqual(rc, 0)
+                files = list(episodes_root.glob("*.json"))
+                self.assertEqual(len(files), 10, "episode id collision: fewer files than calls")
+                ids = {json.loads(f.read_text())["episode_id"] for f in files}
+                self.assertEqual(len(ids), 10, "duplicate episode_id across rapid calls")
 
     def test_evolve_promote_and_rollback(self):
         with tempfile.TemporaryDirectory() as td:

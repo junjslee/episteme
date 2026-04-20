@@ -256,6 +256,43 @@ class FrictionAnalyzerTests(unittest.TestCase):
             numbered = [ln for ln in ranked_lines if ln[0].isdigit()]
             self.assertLessEqual(len(numbered), 3)
 
+    def test_negative_top_n_clamps_to_empty_ranked_sections(self):
+        """top_n = -1 previously sliced from the tail (ranked[:-1]) and
+        produced garbage output. Now clamps to 0 → no ranked entries but
+        the report still renders and exits 0."""
+        with tempfile.TemporaryDirectory() as td:
+            tdir = Path(td)
+            _write_jsonl(
+                tdir / "2026-04-20-audit.jsonl",
+                [
+                    _pred(
+                        "c1",
+                        op="git push",
+                        cmd="git push origin main",
+                        unknowns=["remote diverged since last pull sync"],
+                        disc="push rejected by remote protections or CI red",
+                        ts="2026-04-20T10:00:00+00:00",
+                    ),
+                    _out("c1", exit_code=1, ts="2026-04-20T10:00:05+00:00"),
+                ],
+            )
+            buf_neg = io.StringIO()
+            with redirect_stdout(buf_neg):
+                rc_neg = cli._evolve_friction(telemetry_dir=tdir, top_n=-1)
+            buf_zero = io.StringIO()
+            with redirect_stdout(buf_zero):
+                rc_zero = cli._evolve_friction(telemetry_dir=tdir, top_n=0)
+            self.assertEqual(rc_neg, 0)
+            self.assertEqual(rc_zero, 0)
+            # Both runs detect the friction event; neither produces a ranked list.
+            for out in (buf_neg.getvalue(), buf_zero.getvalue()):
+                self.assertIn("Friction events (exit_code ≠ 0 despite positive prediction): **1**", out)
+                self.assertIn("_(no unknowns recorded in failing runs)_", out)
+                self.assertIn("_(no op labels recorded)_", out)
+            # The unknown must not leak into output under negative top_n
+            # (which previously produced tail-sliced garbage).
+            self.assertNotIn("remote diverged since last pull sync", buf_neg.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

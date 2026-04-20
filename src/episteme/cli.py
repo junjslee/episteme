@@ -509,7 +509,10 @@ def _evolve_run(
         return 1
 
     ts = datetime.now(timezone.utc)
-    episode_id = f"ep-{ts.strftime('%Y%m%d-%H%M%S')}"
+    # 4-char uuid suffix avoids same-second collisions under fast loops
+    # or mocked-time in tests. Prefix ep-YYYYMMDD-HHMMSS still sorts
+    # lexicographically in wall-clock order for any reasonable reader.
+    episode_id = f"ep-{ts.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:4]}"
     before = _default_evaluation_report(seed=seed, suite_ref=suite_ref)
     after = _default_evaluation_report(seed=seed, suite_ref=suite_ref)
 
@@ -662,6 +665,10 @@ def _render_friction_report(
     (no unknowns, no disconfirmation) we skip it — the agent declined to
     commit to a prediction, so the failure is not a calibration signal.
     """
+    # Defensive clamp: argparse accepts negative ints without a min-value
+    # check, and Python list slicing with a negative stop silently slices
+    # from the tail. Treat any non-positive top_n as "no top-N section."
+    top_n = max(0, top_n)
     friction: list[tuple[str, dict, dict]] = []
     for cid, pred in predictions.items():
         out = outcomes.get(cid)
