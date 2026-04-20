@@ -2,39 +2,53 @@
 
 Current active plan for episteme development.
 
-**Core Question (this cycle):** How do we make episteme legible to systems engineers and enterprise adopters without diluting the epistemic depth of the kernel?
+**Core Question (this cycle):** Now that identity migration (cognitive-os → episteme) is closed, which kernel-limits gap do we close next to increase the kernel's enforceable scope?
 
 **Constraint regime:**
-- Allowed: augmenting kernel docs, README, issue templates, ops docs
+- Allowed: augmenting kernel docs, README, issue templates, ops docs, schema additions that extend (not reframe) existing invariants
 - Forbidden: modifying `templates/` or `labs/` scaffolds; breaking kernel invariants without Evolution Contract
-- Kernel changes require CHANGELOG.md entry first
+- Kernel changes require `kernel/CHANGELOG.md` entry first
 
 ---
 
-## Active milestone: 0.6.0 — Epistemic control plane positioning
+## Closed milestones
+
+### 0.8.0 — Identity migration (cognitive-os → episteme) — complete
+- Python package, runtime dir, env vars, GitHub repo, plugin/marketplace manifests, `pyproject.toml` all aligned to `episteme`.
+- Dynamic Python runtime (no hard Conda dependency).
+- `v0.8.0` tagged and pushed; marketplace install verified end-to-end.
+- See `kernel/CHANGELOG.md` 0.8.0 entry and `docs/PROGRESS.md` 0.8.0 block.
+
+### 0.7.0 — Real enforcement — complete
+- Audit log, `episteme inject`, strict blocking.
+
+### 0.6.0 — Epistemic control plane positioning — complete
+- DbC + feedforward + OPA framing; README governance rewrite; ops docs seeded.
+
+---
+
+## Active milestone: 0.9.0 — Kernel-limits gap closure (proposed, not yet scoped)
 
 ### Goal
-Translate the philosophical depth of episteme into language that maps to existing infrastructure-safety intuitions (DbC, OPA, zero-trust, feedforward control), while preserving the kernel's authority and tone.
+Close the two cheapest gaps in `kernel/KERNEL_LIMITS.md` that turn the kernel from advisory into self-observing.
 
-### Phases
+### Candidate phases (priority order)
 
-| Phase | Scope | Status |
-|-------|-------|--------|
-| 1 | Bug: fix `marketplace.json` source field schema | complete |
-| 2 | Cleanup: remove deprecated HTML viewer, update issue templates | complete |
-| 3 | Docs: propagate DbC + feedforward into `CONSTITUTION.md`, `FAILURE_MODES.md`, `KERNEL_LIMITS.md` | complete |
-| 4 | Enterprise positioning: README governance framing, zero-trust, human prompt debugging, agnostic-layer | complete |
-| 5 | Gap closure: `bug.yml`, `PULL_REQUEST_TEMPLATE.md`, ops docs, README diagram | complete |
+| Phase | Scope | Gap | Status |
+|-------|-------|-----|--------|
+| 1 | Calibration telemetry stub — append-only `decisions/*.md` log capturing predicted vs observed outcomes | A | not started |
+| 2 | `last_elicited` timestamp field in operator profile schema + adapter prompt when stale | B | not started |
+| 3 | Replace ASCII control-plane diagram in `README.md` with SVG asset | — | not started |
+| 4 | `tacit-call` decision marker in Reasoning Surface schema | D | not started |
+| 5 | Cynefin domain classification field in `reasoning-surface.json` | — | not started |
 
 ### Open assumptions
-- `marketplace.json` source field fix (`"."` → GitHub URL) is the correct schema change; unverified until tested against Claude Code's marketplace validator.
+- Gap A (calibration) is cheaper than Gap C (multi-operator) and produces more immediate feedback signal — unverified against operator cost.
+- SVG replacement is cosmetic but unblocks the README's legibility claim for enterprise readers.
 
 ---
 
-## Roadmap items (not in current cycle)
+## Deferred to later milestones
 
-- Calibration telemetry (Gap A in KERNEL_LIMITS.md)
-- Profile staleness signal — `last_elicited` field + adapter prompt (Gap B)
-- Multi-operator mode (Gap C)
-- `tacit-call` decision marker (Gap D)
-- Control-plane architecture diagram (SVG; replaces ASCII placeholder in README)
+- Multi-operator mode (Gap C) — requires profile schema rework.
+- Cross-runtime MCP proxy daemon (noted in 0.7.0 CHANGELOG rationale) — larger architectural bet; not scoped until calibration telemetry produces data worth proxying.

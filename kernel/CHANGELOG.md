@@ -11,6 +11,19 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## [0.8.0] — 2026-04-19 — Core migration: cognitive-os → episteme (name alignment + version reconciliation)
+
+- **Renamed** Python package `src/cognitive_os/` → `src/episteme/`; all imports and console script (`episteme = "episteme.cli:main"`) updated. `git mv` preserved history.
+- **Renamed** runtime directory convention `.cognitive-os/` → `.episteme/`; schema identifier `cognitive-os/reasoning-surface@1` → `episteme/reasoning-surface@1`.
+- **Renamed** GitHub repo `junjslee/cognitive-os` → `junjslee/episteme` (old URL 301-redirects); all in-repo references updated.
+- **Renamed** env vars `COGNITIVE_OS_CONDA_ROOT` → `EPISTEME_CONDA_ROOT` (legacy var still honored).
+- **Made dynamic** the Python runtime: `CONDA_ROOT` hardcoded path → `PYTHON_PREFIX` derived from `sys.prefix`. New vars `EPISTEME_PYTHON_PREFIX` / `EPISTEME_PYTHON` / `EPISTEME_REQUIRE_CONDA`. `episteme doctor` skips conda checks on non-conda runtimes unless explicitly required.
+- **Reconciled** versions: `pyproject.toml` (0.2.0 → 0.8.0), `.claude-plugin/plugin.json` (0.6.0 → 0.8.0), `.claude-plugin/marketplace.json` plugin (0.6.0 → 0.8.0). Three surfaces now agree.
+- **Added** `.gitignore` rules for `.episteme/` and legacy `.cognitive-os/` runtime dirs.
+- **Verified** `v0.8.0` git tag pushed to `origin`; `/plugin marketplace add junjslee/episteme` resolves.
+
+Rationale: the name `cognitive-os` implied a replacement OS-layer; the project is an epistemic *posture* that rides existing runtimes. `episteme` (ἐπιστήμη — "justified, audited knowledge") matches the kernel's actual claim: knowledge is provisional unless it can be traced to evidence and disconfirmation conditions. No kernel principle or schema field changed — this is a cosmetic/identity migration, hence minor-version bump despite touching every adapter surface.
+
 ## [0.7.0] — 2026-04-19 — Real enforcement: audit log, inject command, strict blocking
 
 - **Added** `_write_audit()` to `core/hooks/reasoning_surface_guard.py` — every reasoning-surface check (passed / advisory / blocked) now writes a structured entry to `~/.episteme/audit.jsonl`. Audit failure is silenced so it can never itself block an operation.
@@ -25,7 +38,7 @@ Architectural gap still open: enforcement scope is currently limited to Claude C
 
 ## [0.6.0] — 2026-04-19 — Epistemic control plane, DbC framing, zero-trust positioning
 
-- **Fixed** `.claude-plugin/marketplace.json` schema: `plugins[0].source` was `"."` (invalid relative path); corrected to `"https://github.com/junjslee/episteme"`. Plugin is now installable via `/plugin marketplace add junjslee/cognitive-os`.
+- **Fixed** `.claude-plugin/marketplace.json` schema: `plugins[0].source` was `"."` (invalid relative path); corrected to `"https://github.com/junjslee/episteme"`. Plugin is now installable via `/plugin marketplace add junjslee/episteme`.
 - **Removed** `src/episteme/viewer/index.html` — deprecated UI artifact; `episteme viewer` CLI command remains.
 - **Reframed** `README.md` opening with explicit governance positioning: episteme as a *deterministic control plane* and *epistemic policy engine*, not just a workflow tool. Added feedforward-vs-feedback contrast, DbC contract framing (Preconditions / Postconditions / Invariants), and OPA analogy.
 - **Added** "Zero-trust execution" section to `README.md`: maps OWASP Agentic AI Top 10 risks to Reasoning Surface counters (prompt injection → Core Question gate, overreach → constraint regime, hallucination → mandatory Unknowns, infinite loops → Disconfirmation).
