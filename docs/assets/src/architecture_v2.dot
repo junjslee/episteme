@@ -1,0 +1,183 @@
+// Figure 2 — control-plane interposition at the tool-call boundary.
+// Rebuild:
+//   dot -Tsvg docs/assets/src/architecture_v2.dot -o docs/assets/architecture_v2.svg
+//   dot -Tpng -Gdpi=144 docs/assets/src/architecture_v2.dot -o /tmp/fig2.png
+//
+// Arxiv ML-pipeline aesthetic. Three stratum-clusters (doxa / episteme / praxis)
+// laid out top-to-bottom. One accent (#7A2E2A) on the Guard + the BLOCK edge.
+// Phase 12 profile-audit loop drawn dashed / tan / labelled pending.
+
+digraph control_plane {
+  graph [
+    label     = <<br/><font point-size="18"><b>Figure 2 · Control-plane interposition at the tool-call boundary</b></font><br/><br/><font point-size="11" color="#5C5C5C">Tool-call intents cross <b>doxa → episteme</b> at PreToolUse; on <b>PASS</b>, outcomes cross <b>episteme → praxis</b> and are re-ingested by the memory tiers.</font><br/><font point-size="11" color="#5C5C5C">Phase 12 (dashed) closes the loop from <b>praxis → profile</b>. v0.11.0 · pending.</font><br/>>,
+    labelloc  = "b",
+    labeljust = "c",
+    fontname  = "Helvetica",
+    bgcolor   = "#FDFDFC",
+    rankdir   = "TB",
+    nodesep   = 0.45,
+    ranksep   = 0.9,
+    margin    = 0.4,
+    splines   = "spline",
+    pad       = 0.4,
+    compound  = true
+  ];
+
+  node [
+    shape     = "box",
+    style     = "filled,rounded",
+    fillcolor = "white",
+    color     = "#1A1A1A",
+    fontname  = "Helvetica",
+    fontsize  = 11,
+    fontcolor = "#1A1A1A",
+    penwidth  = 0.9,
+    margin    = "0.18,0.12"
+  ];
+
+  edge [
+    color      = "#1A1A1A",
+    fontname   = "Helvetica",
+    fontsize   = 9,
+    fontcolor  = "#5C5C5C",
+    penwidth   = 0.9,
+    arrowsize  = 0.7,
+    arrowhead  = "vee"
+  ];
+
+  // ═══════════════════ DOXA band ═══════════════════
+  subgraph cluster_doxa {
+    label     = <<b>DOXA</b>  ·  AGENT RUNTIME>;
+    fontname  = "Helvetica-Bold";
+    fontsize  = 10;
+    fontcolor = "#5C5C5C";
+    style     = "rounded,dashed";
+    color     = "#9A9A9A";
+    margin    = 18;
+    penwidth  = 0.7;
+
+    doxa_llm  [label = <<b>LLM reasoning</b><br/><font point-size="9" color="#5C5C5C">tokens → tool-call intent</font>>];
+    doxa_disp [label = <<b>Tool dispatcher</b><br/><font point-size="9" color="#5C5C5C">Bash · Write · Edit · MultiEdit</font>>];
+    doxa_env  [label = <<b>Tool-use envelope</b><br/><font point-size="9" color="#5C5C5C">stdin JSON → PreToolUse hook</font>>];
+
+    doxa_llm -> doxa_disp -> doxa_env [style = "invis", weight = 100];
+    { rank = same; doxa_llm; doxa_disp; doxa_env; }
+  }
+
+  // ═══════════════════ EPISTEME band ═══════════════════
+  subgraph cluster_episteme {
+    label     = <<b>EPISTEME</b>  ·  CONTROL PLANE>;
+    fontname  = "Helvetica-Bold";
+    fontsize  = 10;
+    fontcolor = "#7A2E2A";
+    style     = "rounded,dashed";
+    color     = "#7A2E2A";
+    margin    = 22;
+    penwidth  = 0.9;
+
+    // ── Row 1 · core hooks (top) ──
+    subgraph cluster_ep_row1 {
+      label    = "";
+      color    = "transparent";
+      margin   = 0;
+
+      guard [
+        label    = <<b>Reasoning-Surface Guard</b><br/><font point-size="9" color="#7A2E2A">PreToolUse · STRICT default</font><br/><font point-size="9" color="#5C5C5C">Knowns · Unknowns · Assumptions · Disconfirmation</font>>,
+        color    = "#7A2E2A",
+        penwidth = 1.4
+      ];
+      interceptor [label = <<b>Stateful Interceptor</b><br/><font point-size="9" color="#5C5C5C">PostToolUse · cross-call memory</font><br/><font point-size="9" color="#5C5C5C">sha256 + ts · deep-scan on execute</font>>];
+      telemetry   [label = <<b>Calibration Telemetry</b><br/><font point-size="9" color="#5C5C5C">pre ⇄ post · JSONL</font><br/><font point-size="9" color="#5C5C5C">correlation_id = tool_use_id</font>>];
+
+      { rank = same; guard; interceptor; telemetry; }
+      guard -> interceptor -> telemetry [style = "invis", weight = 100];
+    }
+
+    // ── Row 2 · v0.11 additions (bottom) ──
+    subgraph cluster_ep_row2 {
+      label    = "";
+      color    = "transparent";
+      margin   = 0;
+
+      derived  [label = <<b>Derived Knobs</b>  <font point-size="9" color="#7A2E2A"><b>phase 9</b></font><br/><font point-size="9" color="#5C5C5C">profile → runtime thresholds</font>>];
+      episodic [label = <<b>Episodic Writer</b>  <font point-size="9" color="#7A2E2A"><b>phase 10</b></font><br/><font point-size="9" color="#5C5C5C">per-action record + surface</font>>];
+      semantic [label = <<b>Semantic Promoter</b>  <font point-size="9" color="#7A2E2A"><b>phase 11</b></font><br/><font point-size="9" color="#5C5C5C">episodic → reflective proposals</font>>];
+
+      { rank = same; derived; episodic; semantic; }
+      derived -> episodic -> semantic [style = "invis", weight = 100];
+    }
+
+    // Row 1 above Row 2 — invisible down edges
+    guard       -> derived  [style = "invis", weight = 5];
+    interceptor -> episodic [style = "invis", weight = 5];
+    telemetry   -> semantic [style = "invis", weight = 5];
+
+    // Within-band visible flows
+    derived  -> guard    [label = "modulates\nthresholds"];
+    episodic -> semantic [label = "promote", constraint = false];
+
+    // Pending phase-12 loop (dashed, tan)
+    semantic -> derived [
+      label      = <<font color="#9A9A9A"><i>profile-audit loop</i></font><br/><font color="#9A9A9A"><i>v0.11.0 · pending</i></font>>,
+      style      = "dashed",
+      color      = "#B5A58A",
+      fontcolor  = "#9A9A9A",
+      constraint = false
+    ];
+  }
+
+  // ═══════════════════ PRAXIS band ═══════════════════
+  subgraph cluster_praxis {
+    label     = <<b>PRAXIS</b>  ·  HARDWARE · OPERATING SYSTEM>;
+    fontname  = "Helvetica-Bold";
+    fontsize  = 10;
+    fontcolor = "#5C5C5C";
+    style     = "rounded,dashed";
+    color     = "#9A9A9A";
+    margin    = 18;
+    penwidth  = 0.7;
+
+    praxis_proc   [label = <<b>Process</b><br/><font point-size="9" color="#5C5C5C">fork · exec · fd</font>>];
+    praxis_state  [label = <<b>Persistent state</b><br/><font point-size="9" color="#5C5C5C">fs · git tree · lockfile</font>>];
+    praxis_remote [label = <<b>Remote effect</b><br/><font point-size="9" color="#5C5C5C">push · publish · deploy</font>>];
+
+    praxis_proc -> praxis_state -> praxis_remote [style = "invis", weight = 100];
+    { rank = same; praxis_proc; praxis_state; praxis_remote; }
+  }
+
+  // ═══════════════════ Cross-band edges ═══════════════════
+
+  // Doxa → Guard (tool call)
+  doxa_env -> guard [label = "tool call"];
+
+  // BLOCK (accent) — guard back to dispatcher
+  guard -> doxa_disp [
+    label      = <<font color="#7A2E2A"><b>BLOCK · exit 2</b></font>>,
+    color      = "#7A2E2A",
+    fontcolor  = "#7A2E2A",
+    penwidth   = 1.4,
+    constraint = false
+  ];
+
+  // PASS — guard to praxis (minlen forces praxis below episteme row 2)
+  guard -> praxis_state [label = "PASS · exit 0", minlen = 3, weight = 3];
+
+  // Invisible spacers forcing praxis below episteme row 2
+  derived  -> praxis_proc   [style = "invis", weight = 5];
+  episodic -> praxis_state  [style = "invis", weight = 5];
+  semantic -> praxis_remote [style = "invis", weight = 5];
+
+  // PostToolUse record — praxis back up to episodic writer (dashed)
+  praxis_state -> episodic [
+    label      = "PostToolUse\nrecord",
+    style      = "dashed",
+    constraint = false
+  ];
+
+  // Stateful-interceptor memory loop — lateral, within row 1
+  interceptor -> guard [
+    label      = "deep-scan\non execute",
+    style      = "dashed",
+    constraint = false
+  ];
+}

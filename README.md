@@ -15,9 +15,9 @@ Advisory mode (warn-don't-block) is opt-in per-project: `touch .episteme/advisor
 
 > **Two demos · two halves of the posture.**
 >
-> **① Posture as thinking** — [`scripts/demo_posture.sh`](./scripts/demo_posture.sh) · ~75 s · cinematic differential. Same PM prompt, shown twice. Fluent default (*doxa*) vs. Reasoning Surface authored field-by-field (*episteme*). Climax: the **specificity ladder**, live-validated against the real Reasoning-Surface Guard — `"None"` **blocks**; a 43-char fluent-vacuous disconfirmation *passes the hot path* (the honest kernel limit); a concrete falsifiable pivot passes for the right reason. The memory loop closes it — phase 11 shipped; phase 12 (profile-audit) pending.
+> **① Posture as thinking** — *(gif above)* — [`scripts/demo_posture.sh`](./scripts/demo_posture.sh) · ~75 s · cinematic differential. Same PM prompt, shown twice. Fluent default (*doxa*) vs. Reasoning Surface authored field-by-field (*episteme*). Climax: the **specificity ladder**, live-validated against the real Reasoning-Surface Guard — `"None"` **blocks**; a 43-char fluent-vacuous disconfirmation *passes the hot path* (the honest kernel limit); a concrete falsifiable pivot passes for the right reason. The memory loop closes it — phase 11 shipped; phase 12 (profile-audit) pending.
 >
-> **② Posture as blocking** — *(gif above)* — [`scripts/demo_strict_mode.sh`](./scripts/demo_strict_mode.sh) · three acts: the lazy surface is caught; the stealthy `os.system("git push…")` inside an agent-written script is caught by the stateful interceptor across calls; `episteme evolve friction` ranks the unknowns the operator keeps under-naming.
+> **② Posture as blocking** — [`scripts/demo_strict_mode.sh`](./scripts/demo_strict_mode.sh) · three acts: the lazy surface is caught; the stealthy `os.system("git push…")` inside an agent-written script is caught by the stateful interceptor across calls; `episteme evolve friction` ranks the unknowns the operator keeps under-naming.
 >
 > Prose spine for both: [`docs/NARRATIVE.md`](./docs/NARRATIVE.md) — *doxa / episteme / praxis*, traversed by the grain (**결 · gyeol**). Recording instructions: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#recording-the-strict-mode-demo).
 
