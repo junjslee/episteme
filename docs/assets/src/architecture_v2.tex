@@ -22,6 +22,10 @@
 \definecolor{pending}{HTML}{B5A58A}
 \definecolor{bg}{HTML}{FDFDFC}
 
+% --- text macros (TikZ styles can't be used as font-switches inside nodes) ---
+\newcommand{\sub}[1]{{\color{ink2}\footnotesize #1}}
+\newcommand{\phasetag}[1]{{\color{accent}\bfseries\footnotesize #1}}
+
 \begin{document}
 \begin{tikzpicture}[
   x=1mm, y=1mm,
