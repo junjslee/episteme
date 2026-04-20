@@ -1,6 +1,17 @@
 # Design — v0.11 phase 12 · profile-audit loop
 
-Status: **draft for review** · Date: 2026-04-20 · Scope: one phase closing 0.11.0.
+Status: **approved** · Drafted 2026-04-20 · Approved 2026-04-20 · Scope: one phase closing 0.11.0.
+
+**Approval record.** Maintainer reviewed 2026-04-20 and signed off on all 6 open questions + the 4 D-countermeasures + the 4 worked axes + the `insufficient_evidence` cold-start behavior. Open-question decisions:
+
+1. **Lexicon governance → accept proposal.** Default lexicon ships in `kernel/PHASE_12_LEXICON.md`; operator override path at `core/memory/global/phase_12_lexicon.md`; audit run records which lexicon was in use.
+2. **Cadence marker → accept proposal.** Start with timestamp-inferred cadence; add a mandatory schema field only if inference proves too noisy against real data.
+3. **Window default → accept proposal.** 30d cold-start default; revisit to 90d after ~6 months of accumulated tier.
+4. **Acknowledgment semantics → accept proposal.** Per `(axis, run_id)`. Same drift in a later run is a new prompt. Drift cannot be permanently silenced by a single ack.
+5. **Cross-axis interactions → accept proposal.** Per-axis only for v0.11. Cross-axis consistency checks deferred to a follow-on.
+6. **"Done" definition → accept proposal.** Phase 12 ships when the 4 deeply-worked axes (dominant_lens, noise_signature, fence_discipline, asymmetry_posture) are implemented end-to-end. The remaining 11 ship as `insufficient_evidence` stubs pointing to this spec's sketch table. Full coverage of the 11 is 0.11.1 work.
+
+Implementation proceeds against this approved spec. Any deviation surfaces as a spec-amendment request before code lands, not silently.
 
 ## Why this exists
 
