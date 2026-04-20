@@ -176,6 +176,24 @@ fabricated-Knowns failure mode.
 
 ---
 
+## Problem domain classification (Cynefin)
+
+Before populating the Reasoning Surface, classify the problem domain using the Cynefin framework. The most common agent failure is treating *Complex* problems as *Complicated* ones—running analysis loops on a domain that requires probing, not analysis.
+
+| Domain | Nature | Agent posture |
+|--------|--------|---------------|
+| **Clear** | Cause-effect known; best practice exists | Apply directly; minimal surface needed |
+| **Complicated** | Cause-effect discoverable with analysis | Full Reasoning Surface; expert analysis applies |
+| **Complex** | Cause-effect only visible in retrospect | Probe → sense → respond; limit execution scope; flag in Unknowns |
+| **Chaotic** | No discernible cause-effect | Act first to stabilize; surface after, not before |
+
+- **Indicator of misclassification:** the agent fills in a confident Knowns section on a domain where the actual knowability is contested or context-dependent. Confident-sounding Knowns on a Complex problem are a fabrication failure, not a reasoning success.
+- **Correct response:** when the domain is Complex or Chaotic, the Reasoning Surface must explicitly name the domain classification in Unknowns and limit the execution plan to the smallest reversible probe. Full analysis plans on Complex problems should be rejected at the Core Question gate.
+
+The Cynefin classification does not replace the Reasoning Surface. It precedes it.
+
+---
+
 ## How to use this file
 
 When a decision feels like the kernel is fighting the work instead of

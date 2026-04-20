@@ -4,6 +4,8 @@
 
 A *posture* is how a reasoner holds themselves before a decision: which questions get asked, which unknowns get named, which options are pre-rejected, and which conditions force a pivot. Tools and memory stores cycle every 18–36 months — the posture does not. `cognitive-os` is the layer that installs the posture once and delivers it into every runtime and substrate you use.
 
+**Most AI frameworks focus on execution—giving agents memory and tools to act faster. cognitive-os focuses on governance.** It is a deterministic control plane that sits between the LLM and the runtime. By enforcing a strict cognitive contract (Design by Contract) and feedforward control, it forces agents to explicitly map knowns, validate assumptions, and declare disconfirmation conditions before a single line of code is written or a tool is called. It is the prefrontal cortex for your agentic stack—preventing fluent-wrong hallucinations and enabling zero-trust execution.
+
 **[What this installs →](./docs/POSTURE.md)** · **[Differential demo (off vs on) →](./demos/03_differential/)** · **[Install as plugin →](./.claude-plugin/README.md)** · **[Quick start ↓](#quick-start)**
 
 ---
@@ -100,6 +102,10 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 
 Structural stack: kernel (philosophy) → operator profile (personalization) → adapters (delivery) → runtime (execution).
 
+<!-- TODO: insert control-plane architecture diagram — LLM intent → cognitive-os policy gate (Reasoning Surface) → runtime execution. Illustrates the feedforward control layer and DbC contract enforcement point. -->
+
+**Works with any stack.** cognitive-os is an agnostic layer that operates independently of the LLM runtime—whether you use LangChain, CrewAI, Claude Code, Cursor, or MCP. The kernel is pure markdown; the operator profile is plain JSON; the workflow loop is vendor-neutral. The adapter layer (currently: Claude Code, Hermes) is pluggable. The kernel outlives the tooling.
+
 ---
 
 ## Quick start
@@ -194,8 +200,39 @@ Full reference: [`docs/README.md`](./docs/README.md).
 - **Hard authority boundary.** Repo docs + global memory are the source of truth; tool-native memories are acceleration, not authority.
 - **Declared limits.** [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) names when the kernel is the wrong tool. A discipline without a boundary is a creed.
 - **Coexistence, not replacement.** Self-evolving runtimes adapt fast locally; durable lessons get promoted into authoritative files, then re-synced. Managed runtimes (execution substrate) and cognitive-os (control plane) are complementary.
+- **Deterministic agent governance.** Pre-execution policy enforcement, not post-hoc correction. Knowns / Unknowns / Assumptions / Disconfirmation are structural gates, not suggestions.
+- **AI safety and guardrails by design.** We provide a deterministic cognitive sandbox to prevent agents from falling into fluent hallucinations and infinite loops before they write a single line of code.
+
+**Feedforward, not feedback.** Most AI agents rely on reactive feedback control—observe an error, correct after the fact. cognitive-os enforces *feedforward* cognitive control: failure modes are named and countered before execution begins. The Reasoning Surface is the feedforward gate. Nothing executes until Knowns, Unknowns, Assumptions, and Disconfirmation are declared.
+
+**Cognitive contract (Design by Contract).** The Reasoning Surface is a cognitive contract in the sense of Bertrand Meyer's *Design by Contract*: **Preconditions** (Knowns + validated Assumptions that must hold before execution), **Postconditions** (Verification step: what must be true at handoff), **Invariants** (the kernel itself—the four principles that cannot be suspended). Breach a precondition and the agent should not proceed.
+
+**Policy engine for agent cognition.** cognitive-os plays the same role for agent reasoning that OPA (Open Policy Agent) plays for cloud infrastructure: an independent policy layer that evaluates whether a proposed action complies with declared epistemic policy before it executes. The LLM is the runtime; cognitive-os is the policy engine.
 
 Memory model, Memory Contract v1, Evolution Contract v1, and managed-runtime coexistence: **[`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md)**.
+
+---
+
+## Zero-trust execution
+
+The OWASP Agentic AI Top 10 identifies prompt injection, goal hijacking, overreach, and unbounded action as the primary risk classes for autonomous agents. The Knowns / Unknowns / Assumptions / Disconfirmation structure is a structural counter to each:
+
+| OWASP Agentic Risk | cognitive-os counter |
+|--------------------|----------------------|
+| Prompt injection / goal hijacking | Core Question declared before execution begins; deviations surface as Unknowns |
+| Overreach / unbounded action | Constraint regime declared in Frame; reversible-first policy enforced |
+| Fluent hallucination | Unknowns field cannot be blank; assumptions must be named before acting on them |
+| Infinite planning loops | Disconfirmation condition required; loop exits when evidence fires |
+
+No assumption is trusted unless named. No action is taken unless the precondition (Knowns) and constraint regime are declared. The kernel is the verification layer between intent and execution.
+
+---
+
+## Human prompt debugging
+
+cognitive-os doesn't just govern the AI—it debugs the human's intent. When an agent maps Knowns vs. Unknowns against a user request, it exposes logical gaps in the *original prompt* before executing flawed assumptions. The Unknowns field is often where the human realizes their question was underspecified. The Disconfirmation field is often where they realize they have not thought about falsification at all.
+
+This is not a side effect. It is a design property. A system that forces the agent to declare what it does not know forces the human to confront what they did not specify.
 
 ---
 

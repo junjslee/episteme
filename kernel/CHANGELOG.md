@@ -11,6 +11,19 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## [0.6.0] — 2026-04-19 — Epistemic control plane, DbC framing, zero-trust positioning
+
+- **Fixed** `.claude-plugin/marketplace.json` schema: `plugins[0].source` was `"."` (invalid relative path); corrected to `"https://github.com/junjslee/cognitive-os"`. Plugin is now installable via `/plugin marketplace add junjslee/cognitive-os`.
+- **Removed** `src/cognitive_os/viewer/index.html` — deprecated UI artifact; `cognitive-os viewer` CLI command remains.
+- **Reframed** `README.md` opening with explicit governance positioning: cognitive-os as a *deterministic control plane* and *epistemic policy engine*, not just a workflow tool. Added feedforward-vs-feedback contrast, DbC contract framing (Preconditions / Postconditions / Invariants), and OPA analogy.
+- **Added** "Zero-trust execution" section to `README.md`: maps OWASP Agentic AI Top 10 risks to Reasoning Surface counters (prompt injection → Core Question gate, overreach → constraint regime, hallucination → mandatory Unknowns, infinite loops → Disconfirmation).
+- **Added** "Human prompt debugging" section to `README.md`: frames the Knowns/Unknowns mapping as a mechanism for exposing logical gaps in the *user's original intent* before execution proceeds.
+- **Added** interoperability statement and control-plane architecture diagram placeholder to `README.md`.
+- **Added** Cynefin problem-domain classification table to `KERNEL_LIMITS.md`: requires agents to classify Clear / Complicated / Complex / Chaotic before populating the Reasoning Surface. Closes the most common misuse pattern—running analysis loops on Complex domains.
+- **Updated** `.github/ISSUE_TEMPLATE/feature.yml`: added "Epistemic alignment" field requiring proposers to address kernel-principle impact, failure-mode mapping, and layer placement (kernel vs. profile vs. adapter). Replaced generic acceptance-criteria placeholder with falsifiable, disconfirmation-aware template.
+
+Rationale: 0.5.0 made the system installable and demonstrable. 0.6.0 makes it *legible to engineers and systems thinkers*—the governance positioning, DbC contract model, and zero-trust framing translate the epistemic depth into language that maps to existing infrastructure-safety intuitions. The Cynefin addition closes a real misuse gap: structured deliberation is only correct for Complicated domains; Complex domains need probes, not plans.
+
 ## [0.5.0] — 2026-04-19 — Posture framing, installability, differential proof
 
 - **Reframed** the top-of-repo lede and delivery pitch around *epistemic posture*. Added [`docs/POSTURE.md`](../docs/POSTURE.md) as the canonical statement of what cognitive-os installs (texture of thought / texture of action / rationale). README lede now reads "cognitive-os installs an epistemic posture."

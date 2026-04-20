@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "cognitive-os",
-      "source": ".",
+      "source": "https://github.com/junjslee/cognitive-os",
       "description": "Install the cognitive-os kernel, skills, agent personas, and safety hooks into Claude Code. Posture-first: structures Core Question + Knowns / Unknowns / Assumptions / Disconfirmation before high-impact actions.",
       "version": "0.5.0",
       "category": "productivity",

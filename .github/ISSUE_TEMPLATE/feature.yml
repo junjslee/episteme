@@ -30,19 +30,32 @@ body:
     validations:
       required: true
   - type: textarea
+    id: posture
+    attributes:
+      label: Epistemic alignment
+      description: |
+        Answer at least two of the following before submitting:
+        - How does this proposal strengthen the agent's cognitive posture?
+        - Does this feature violate any of the four kernel principles (Orientation, Loop, Surface, Lenses)?
+        - What failure mode does this counter—and is that failure mode already named in FAILURE_MODES.md?
+        - Does this belong in the kernel (invariant), the operator profile (preference), or an adapter (delivery)? Why?
+    validations:
+      required: true
+  - type: textarea
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: List testable conditions for completion.
+      description: List testable, falsifiable conditions for completion.
       placeholder: |
-        - [ ] ...
-        - [ ] ...
+        - [ ] Behavior X is observable in demo output
+        - [ ] Kernel invariants remain unbroken (cite the principle)
+        - [ ] Disconfirmation condition: what evidence would mean this feature failed?
     validations:
       required: true
   - type: textarea
     id: impact
     attributes:
       label: Scope and risk
-      description: Affected files/areas, migration impact, rollback plan.
+      description: Affected files/areas, migration impact, rollback plan. Note whether this touches the kernel (load-bearing) or an adapter (swappable).
     validations:
       required: true
