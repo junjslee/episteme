@@ -28,6 +28,6 @@
 - Cost acknowledgment required before any paid run (see workflow_policy.md)
 
 ## Python Runtime
-- All local Python-backed `episteme` work runs in Conda `base`.
-- Set `EPISTEME_CONDA_ROOT` to your Conda path (default: `~/miniconda3`).
-- Homebrew Python is not the supported runtime for `episteme`.
+- By default `episteme` uses the Python that invoked it (`sys.executable`).
+- To pin a specific runtime: `export EPISTEME_PYTHON_PREFIX=/path` (install root) or `export EPISTEME_PYTHON=/path/to/python` (exact binary).
+- To require Conda `base`: `export EPISTEME_REQUIRE_CONDA=1`.

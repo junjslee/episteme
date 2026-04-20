@@ -36,11 +36,18 @@ Each skill is a folder with a `SKILL.md`. See [`SKILLS_AND_PERSONAS.md`](./SKILL
 
 Edit scripts in `core/hooks/`. All hooks run under Conda `base` Python — no extra dependencies. Paths resolve dynamically so the same scripts work on any machine. See [`HOOKS.md`](./HOOKS.md) for the hook reference and governance packs.
 
-### Conda root override
+### Python runtime override
+
+By default the CLI uses whichever Python invoked it (`sys.executable`). To pin a specific runtime:
 
 ```bash
-export EPISTEME_CONDA_ROOT=/path/to/your/conda   # default: ~/miniconda3
+export EPISTEME_PYTHON_PREFIX=/path/to/prefix   # e.g. ~/miniconda3, .venv
+# or pick the binary directly:
+export EPISTEME_PYTHON=/path/to/bin/python
+# Legacy fallbacks still honored: EPISTEME_CONDA_ROOT, COGNITIVE_OS_CONDA_ROOT
 ```
+
+Set `EPISTEME_REQUIRE_CONDA=1` to make `episteme doctor` fail when Conda isn't present.
 
 ## Project scaffold
 

@@ -29,11 +29,15 @@ Packs are applied via `episteme sync` or `episteme setup --sync`.
 
 ## Customization
 
-Hook scripts live in `core/hooks/`. They run with Conda `base` Python. Paths resolve dynamically so the same scripts work on any machine. Override the Conda root via:
+Hook scripts live in `core/hooks/`. They run with whichever Python invoked the CLI (`sys.executable`). Paths resolve dynamically so the same scripts work on any machine. Pin a specific runtime via:
 
 ```bash
-export EPISTEME_CONDA_ROOT=/path/to/your/conda   # default: ~/miniconda3
+export EPISTEME_PYTHON_PREFIX=/path/to/prefix    # e.g. ~/miniconda3, .venv
+# or pick the binary directly:
+export EPISTEME_PYTHON=/path/to/bin/python
 ```
+
+Set `EPISTEME_REQUIRE_CONDA=1` to enforce Conda `base` in `episteme doctor`.
 
 ## Invariant mapping
 

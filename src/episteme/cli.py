@@ -16,13 +16,37 @@ from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOME = Path.home()
-CONDA_ROOT = Path(
-    os.environ.get(
-        "EPISTEME_CONDA_ROOT",
-        os.environ.get("EPISTEME_CONDA_ROOT_LEGACY", str(HOME / "miniconda3")),
-    )
-)
-EXPECTED_BASE_PREFIX = str(CONDA_ROOT)
+
+
+def _detect_python_prefix() -> Path:
+    """Resolve the Python prefix the CLI should report and check against.
+
+    Precedence: explicit override env → legacy conda env vars → running interpreter's prefix.
+    No hardcoded default path — works for conda, venv, pyenv, system Python, or anything else.
+    """
+    for var in ("EPISTEME_PYTHON_PREFIX", "EPISTEME_CONDA_ROOT", "COGNITIVE_OS_CONDA_ROOT"):
+        val = os.environ.get(var)
+        if val:
+            return Path(val)
+    return Path(sys.prefix)
+
+
+def _detect_runtime_kind(prefix: Path) -> str:
+    """Classify a Python prefix as conda / venv / system for reporting purposes."""
+    if (prefix / "conda-meta").is_dir():
+        return "conda"
+    if (prefix / "pyvenv.cfg").exists():
+        return "venv"
+    return "system"
+
+
+PYTHON_PREFIX = _detect_python_prefix()
+RUNTIME_KIND = _detect_runtime_kind(PYTHON_PREFIX)
+REQUIRE_CONDA = os.environ.get("EPISTEME_REQUIRE_CONDA", "").lower() in {"1", "true", "yes"}
+
+# Backward-compat aliases — older code paths still reference CONDA_ROOT.
+CONDA_ROOT = PYTHON_PREFIX
+EXPECTED_BASE_PREFIX = str(PYTHON_PREFIX)
 RUNTIME_MANIFEST = json.loads((REPO_ROOT / "core" / "runtime_manifest.json").read_text(encoding="utf-8"))
 HARNESSES_DIR = REPO_ROOT / "core" / "harnesses"
 GLOBAL_MEMORY_DIR = REPO_ROOT / "core" / "memory" / "global"
@@ -945,7 +969,9 @@ def _machine_context() -> dict[str, str]:
     return {
         "DATE": _today(),
         "HOME_PATH": str(HOME),
-        "CONDA_ROOT": str(CONDA_ROOT),
+        "CONDA_ROOT": str(PYTHON_PREFIX),
+        "PYTHON_PREFIX": str(PYTHON_PREFIX),
+        "RUNTIME_KIND": RUNTIME_KIND,
         "OS_VERSION": os_version,
         "OS_BUILD": os_build,
         "CPU": cpu,
@@ -956,7 +982,9 @@ def _machine_context() -> dict[str, str]:
         "GIT_VERSION": _tool_version(["git", "--version"]),
         "NODE_VERSION": _tool_version(["node", "-v"]),
         "NPM_VERSION": _tool_version(["npm", "-v"]),
-        "PYTHON_POLICY": f"All local Python-backed episteme commands run in Conda base at {CONDA_ROOT}.",
+        "PYTHON_POLICY": (
+            f"Local Python-backed episteme commands run in {RUNTIME_KIND} Python at {PYTHON_PREFIX}."
+        ),
     }
 
 
@@ -1389,50 +1417,29 @@ def _doctor() -> int:
     warnings: list[str] = []
     print("🧠 episteme Awareness Check")
     print(f"Project Core: {REPO_ROOT}")
-    print(f"Conda Vessel: {CONDA_ROOT}")
+    print(f"Python runtime: {sys.executable}")
+    print(f"Python prefix:  {PYTHON_PREFIX} ({RUNTIME_KIND})")
 
-    conda_bin = CONDA_ROOT / "bin" / "conda"
-    if not conda_bin.exists():
-        failures.append(f"missing conda binary at {conda_bin}")
+    # Conda checks: opt-in. Either the detected runtime is conda, or the operator
+    # explicitly requires it via EPISTEME_REQUIRE_CONDA=1.
+    if RUNTIME_KIND == "conda" or REQUIRE_CONDA:
+        conda_bin = PYTHON_PREFIX / "bin" / "conda"
+        if not conda_bin.exists():
+            msg = f"missing conda binary at {conda_bin}"
+            (failures if REQUIRE_CONDA else warnings).append(msg)
+        else:
+            print(f"[ok] conda binary: {conda_bin}")
+            try:
+                envs = _run([str(conda_bin), "info", "--envs"]).stdout
+                if re.search(r"^base\s+", envs, re.MULTILINE):
+                    print("[ok] conda base environment exists")
+                else:
+                    (failures if REQUIRE_CONDA else warnings).append("conda base environment not found")
+            except subprocess.CalledProcessError as exc:
+                (failures if REQUIRE_CONDA else warnings).append(f"failed to inspect conda envs: {exc}")
     else:
-        print(f"[ok] conda binary: {conda_bin}")
-
-    try:
-        envs = _run([str(conda_bin), "info", "--envs"]).stdout
-        if re.search(r"^base\s+", envs, re.MULTILINE):
-            print("[ok] conda base environment exists")
-        else:
-            failures.append("conda base environment not found")
-    except subprocess.CalledProcessError as exc:
-        failures.append(f"failed to inspect conda envs: {exc}")
-
-    try:
-        probe = _run(
-            [
-                str(conda_bin),
-                "run",
-                "-n",
-                "base",
-                "python",
-                "-c",
-                "import json,sys; print(json.dumps({'executable': sys.executable, 'prefix': sys.prefix}))",
-            ]
-        ).stdout.strip()
-        if probe:
-            payload = json.loads(probe.splitlines()[-1])
-            executable = payload["executable"]
-            prefix = payload["prefix"]
-            if EXPECTED_BASE_PREFIX not in executable or EXPECTED_BASE_PREFIX not in prefix:
-                failures.append(
-                    f"conda base python did not resolve under {EXPECTED_BASE_PREFIX}: "
-                    f"executable={executable} prefix={prefix}"
-                )
-            else:
-                print(f"[ok] conda base python: {executable}")
-        else:
-            failures.append("conda run probe returned no output")
-    except (subprocess.CalledProcessError, json.JSONDecodeError) as exc:
-        failures.append(f"failed to run conda base python probe: {exc}")
+        print(f"[info] non-conda runtime: skipping conda base checks "
+              f"(set EPISTEME_REQUIRE_CONDA=1 to enforce)")
 
     # Core tools — required on every machine
     for tool in ["claude", "git", "jq"]:
@@ -1526,8 +1533,9 @@ def _doctor() -> int:
 
         print("\nTips to fix:")
         if any("conda" in f.lower() for f in failures):
-            print("  • Ensure Conda is installed and EPISTEME_CONDA_ROOT is set correctly.")
-            print(f"    Current: export EPISTEME_CONDA_ROOT={CONDA_ROOT}")
+            print("  • Ensure Conda is installed and EPISTEME_PYTHON_PREFIX points to its root.")
+            print(f"    Current: export EPISTEME_PYTHON_PREFIX={PYTHON_PREFIX}")
+            print("    (Or unset EPISTEME_REQUIRE_CONDA to allow non-conda runtimes.)")
         if any("git" in f.lower() for f in failures):
             print("  • Ensure Git is installed and you are inside a repository.")
         return 1

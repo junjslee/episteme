@@ -80,7 +80,7 @@ PYTHONPATH=. pytest -q
 python3 -m py_compile src/episteme/cli.py
 ```
 
-All local Python work runs in **Conda `base`** (root: `~/miniconda3` or `$EPISTEME_CONDA_ROOT`). Homebrew Python is not supported.
+Local Python work runs in whichever Python invokes the CLI (`sys.executable`). Pin a specific runtime via `$EPISTEME_PYTHON_PREFIX` (install root) or `$EPISTEME_PYTHON` (exact binary). Set `EPISTEME_REQUIRE_CONDA=1` to enforce Conda `base`.
 
 ---
 

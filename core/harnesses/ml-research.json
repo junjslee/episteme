@@ -56,7 +56,7 @@
     "- Cost acknowledgment required before any paid inference or training run.",
     "- GPU memory is the primary constraint — log batch size and gradient accumulation settings.",
     "- Prefer remote GPU or cluster for training; local machine for exploration and debugging only.",
-    "- Use `EPISTEME_CONDA_ROOT` if running on a cluster that uses environment modules rather than conda."
+    "- On a cluster that uses environment modules rather than conda, `module load` the desired Python and set `EPISTEME_PYTHON_PREFIX` (or `EPISTEME_PYTHON`) to pin it."
   ],
   "workflow_notes": [
     "Use the `bounded-loop-runner` skill for hyperparameter sweeps and training loops.",
