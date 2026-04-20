@@ -7,9 +7,9 @@ Exact next actions, in priority order. Update this file at every handoff.
 ## Immediate (0.10.0 remainder → 0.10.0 GA)
 
 1. **Record the Strict Mode demo GIF** — first maintainer to run it produces `docs/assets/strict_mode_demo.gif` and `.cast`. Instructions in [`docs/CONTRIBUTING.md`](./CONTRIBUTING.md#recording-the-strict-mode-demo). Keep it a quick demo — a few beats of block → fix → pass, readable on GitHub without zoom.
-2. **First friction-report pass** — after ~1 week of real v0.10.0-α use, run `episteme evolve friction` against accumulated telemetry. Answer: do the ranked unknowns point at real calibration debt? Are the friction-prone ops the same ones humans are already suspicious of? Tune the heuristic (currently: skip empty envelopes; rank by raw frequency) if the top-N doesn't track intuition.
+2. **First friction-report pass** — after ~1 week of real v0.10.0 use, run `episteme evolve friction` against accumulated telemetry. Answer: do the ranked unknowns point at real calibration debt? Are the friction-prone ops the same ones humans are already suspicious of? Tune the heuristic (currently: skip empty envelopes; rank by raw frequency) if the top-N doesn't track intuition.
 3. **Stateful-interception FP audit** — scan `~/.episteme/audit.jsonl` for blocks carrying the new `via agent-written <path>` label. Any false positive here is a regression-budget hit; surface them fast.
-4. **Tag and push `v0.10.0-alpha`** after one-week soak if no FP spike and no telemetry anomalies.
+4. **Tag and push `v0.10.0`** after one-week soak if no FP spike and no telemetry anomalies.
 
 ## Short-term
 
@@ -20,11 +20,11 @@ Exact next actions, in priority order. Update this file at every handoff.
 ## Medium-term (roadmap)
 
 - Multi-operator mode design (Gap C) — deferred past 0.10.0; requires profile schema rework.
-- **Cross-runtime MCP proxy daemon — the next real Sovereign Kernel step.** v0.10.0-α gives the kernel *memory* across calls. The cross-runtime daemon gives the kernel *mediation* at the syscall boundary: pause execution between the write and the exec, inspect every subprocess fork, and refuse to return control to the agent until the contract is satisfied. This is what closes intra-call indirection (see below). Blocked on telemetry-informed demand evidence from v0.10.0-α.
+- **Cross-runtime MCP proxy daemon — the next real Sovereign Kernel step.** v0.10.0 gives the kernel *memory* across calls. The cross-runtime daemon gives the kernel *mediation* at the syscall boundary: pause execution between the write and the exec, inspect every subprocess fork, and refuse to return control to the agent until the contract is satisfied. This is what closes intra-call indirection (see below). Blocked on telemetry-informed demand evidence from v0.10.0.
 
-## Architectural bypass vectors — remaining open after v0.10.0-α
+## Architectural bypass vectors — remaining open after v0.10.0
 
-v0.10.0-α closed write-then-execute *across tool calls* (state tracker + deep-scan) and variable-indirection (`bash $F` against any recent tracked write). These remain:
+v0.10.0 closed write-then-execute *across tool calls* (state tracker + deep-scan) and variable-indirection (`bash $F` against any recent tracked write). These remain:
 
 1. **Intra-call write-then-execute.** `echo "git push" > s.sh && bash s.sh` as a single Bash tool call is caught today only by the in-command text scanner — state tracking fires PostToolUse, after the write has landed. Fix needs a cross-runtime proxy daemon. Targeted at 0.11+.
 2. **Dynamic shell assembly.** `A=git; B=push; $A $B` — unchanged from 0.8.1. Would require a lightweight shell parser, or a deny-by-default policy on `$()`/backticks (legitimate automation break). Deferred pending cost/benefit review.
@@ -33,14 +33,14 @@ v0.10.0-α closed write-then-execute *across tool calls* (state tracker + deep-s
 
 ---
 
-## Closed in 0.10.0-alpha
+## Closed in 0.10.0
 
 - **Stateful interception.** Cross-call memory shipped. `core/hooks/state_tracker.py` persists agent-written file paths + sha256 + ts to `~/.episteme/state/session_context.json` (24 h TTL). `reasoning_surface_guard.py` consults the store at execute time, deep-scanning recently-written files referenced by name OR by variable-indirection shape (`bash $F`).
 - **Heuristic friction analyzer.** `episteme evolve friction` pairs prediction↔outcome telemetry by `correlation_id`, flags `exit_code ≠ 0` despite positive predictions, ranks most-violated unknowns and friction-prone ops, emits a Markdown Friction Report. Seed for automated CONSTITUTION.md refinement.
 - **SVG control-plane diagram.** `docs/assets/architecture_v2.svg` replaces the ASCII diagram in `README.md`. Three-layer schematic; Stateful Interceptor loop and Calibration Telemetry feed visible.
 - **Gap B — `last_elicited`.** Required metadata on `operator_profile.md`, mirrored to generated JSON; `episteme sync` injects a stale-context warning block when absent or >30 days old. Schema doc updated.
 - **Final neutrality sweep.** No literal absolute-user-home strings remain in any committed doc.
-- **Version reconcile** — `pyproject.toml` 0.10.0a0, plugin 0.10.0-alpha, marketplace 0.10.0-alpha.
+- **Version reconcile** — `pyproject.toml`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` all at 0.10.0.
 - Tests 86 → 121. 0 regressions.
 
 ## Closed in 0.9.0-entry

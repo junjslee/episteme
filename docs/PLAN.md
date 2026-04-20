@@ -2,7 +2,7 @@
 
 Current active plan for episteme development.
 
-**Core Question (this cycle):** Now that v0.10.0-α ships stateful interception + a deterministic friction analyzer + a profile freshness gate, what is the smallest remaining gap that prevents episteme from being the reference governance layer any agent platform can adopt?
+**Core Question (this cycle):** Now that v0.10.0 ships stateful interception + a deterministic friction analyzer + a profile freshness gate, what is the smallest remaining gap that prevents episteme from being the reference governance layer any agent platform can adopt?
 
 **Constraint regime:**
 - Allowed: augmenting kernel docs, README, issue templates, ops docs, schema additions that extend (not reframe) existing invariants
@@ -13,16 +13,16 @@ Current active plan for episteme development.
 
 ## Closed milestones
 
-### 0.10.0-alpha — The Sovereign Kernel — complete
+### 0.10.0 — The Sovereign Kernel — complete
 
 - **Stateful interception** — new `core/hooks/state_tracker.py` (PostToolUse Write/Edit/MultiEdit + Bash) persists agent-written file paths + sha256 + ts to `~/.episteme/state/session_context.json` (24h TTL, atomic temp+rename, `fcntl.flock`). `reasoning_surface_guard.py` extended with a state-store consult: literal path/basename reference → deep-scan that file; variable-indirection shape (`bash $F`, `python $F`, `./$X`, `source $X`) → deep-scan every recent tracked write. Closes the write-then-execute-across-calls bypass and the `F=run.sh; bash $F` indirection shape.
 - **Heuristic friction analyzer** — new `episteme evolve friction` CLI subcommand pairs prediction↔outcome JSONL by `correlation_id`, flags `exit_code ≠ 0` against positive predictions, ranks most-violated unknowns and friction-prone ops, emits a Markdown Friction Report. Deterministic; seed for future automated CONSTITUTION.md refinement.
 - **SVG architecture diagram** — `docs/assets/architecture_v2.svg` replaces the ASCII control-plane diagram in `README.md`. Cybernetic-governance aesthetic, three-layer (Agent Runtime / Episteme Control Plane / Hardware · OS), with Stateful Interceptor loop and Calibration Telemetry feed visible.
 - **Gap B — `last_elicited` profile freshness.** Required `Last elicited: YYYY-MM-DD` metadata line on `operator_profile.md`; mirror field in `.generated/workstyle_profile.json`; `episteme sync` injects a visible "Stale Context Warning" block into the rendered CLAUDE.md when absent or older than 30 days. Schema doc updated.
 - **Final neutrality sweep** — historical narrative in `docs/PLAN.md`, `docs/PROGRESS.md`, and `kernel/CHANGELOG.md` no longer carries literal absolute user-home strings. Public `junjslee` GitHub identity retained intentionally.
-- **Version reconcile** — `pyproject.toml` 0.10.0a0, `.claude-plugin/plugin.json` 0.10.0-alpha, `.claude-plugin/marketplace.json` 0.10.0-alpha.
+- **Version reconcile** — `pyproject.toml` 0.10.0, `.claude-plugin/plugin.json` 0.10.0, `.claude-plugin/marketplace.json` 0.10.0.
 - Test suite 86 → 121 (35 new). Zero regressions.
-- See `kernel/CHANGELOG.md` 0.10.0-alpha entry and `docs/PROGRESS.md` 0.10.0-alpha block. Architectural gaps that remain open are listed honestly in both.
+- See `kernel/CHANGELOG.md` 0.10.0 entry and `docs/PROGRESS.md` 0.10.0 block. Architectural gaps that remain open are listed honestly in both.
 
 ### 0.9.0-entry — Calibration telemetry + visual proof + bypass hardening — complete
 

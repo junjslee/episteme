@@ -62,7 +62,7 @@
 
   <!-- Header -->
   <g transform="translate(60, 56)">
-    <text class="subtitle" x="0" y="0">EPISTEME · CONTROL PLANE · v0.10.0-α</text>
+    <text class="subtitle" x="0" y="0">EPISTEME · CONTROL PLANE · v0.10.0</text>
     <text class="title" x="0" y="30">Sovereign Kernel — three-layer interposition</text>
     <text class="meta" x="0" y="52">agent runtime ── [ reasoning-surface guard · stateful interceptor · calibration telemetry ] ── hardware / os</text>
   </g>

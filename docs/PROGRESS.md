@@ -4,9 +4,9 @@ Running log of completed work. Most recent first.
 
 ---
 
-## 0.10.0-alpha — 2026-04-20 — The Sovereign Kernel: stateful interception + heuristic friction analyzer + profile freshness gate
+## 0.10.0 — 2026-04-20 — The Sovereign Kernel: stateful interception + heuristic friction analyzer + profile freshness gate
 
-Four atomic commits, 35 new tests, full suite 121 passing, zero regressions. High-level framing: 0.9.0-entry proved telemetry could be paired locally; 0.10.0-α carries that same file-on-disk discipline across the execution boundary between Write and Bash — the kernel now remembers what the agent just wrote.
+Four atomic commits, 35 new tests, full suite 121 passing, zero regressions. High-level framing: 0.9.0-entry proved telemetry could be paired locally; 0.10.0 carries that same file-on-disk discipline across the execution boundary between Write and Bash — the kernel now remembers what the agent just wrote.
 
 ### Stateful interception (Phase 1)
 - New `core/hooks/state_tracker.py` — PostToolUse hook on Write/Edit/MultiEdit + Bash. Persists `{path → {sha256, ts, tool, source}}` to `~/.episteme/state/session_context.json`. 24 h rolling TTL, atomic `temp+os.replace`, `fcntl.flock` on a sibling lockfile.
@@ -38,10 +38,10 @@ Four atomic commits, 35 new tests, full suite 121 passing, zero regressions. Hig
 - `grep -r /Users/junlee episteme/` now returns zero matches.
 
 ### Version bumps + changelog
-- `pyproject.toml` 0.8.0 → 0.10.0a0.
-- `.claude-plugin/plugin.json` 0.8.0 → 0.10.0-alpha.
-- `.claude-plugin/marketplace.json` plugin 0.8.0 → 0.10.0-alpha.
-- `kernel/CHANGELOG.md` — new 0.10.0-alpha entry + retroactive 0.9.0-entry entry to bring the audit trail in line (the 0.9.0 work had landed without a kernel-changelog bump).
+- `pyproject.toml` 0.8.0 → 0.10.0.
+- `.claude-plugin/plugin.json` 0.8.0 → 0.10.0.
+- `.claude-plugin/marketplace.json` plugin 0.8.0 → 0.10.0.
+- `kernel/CHANGELOG.md` — new 0.10.0 entry + retroactive 0.9.0-entry entry to bring the audit trail in line (the 0.9.0 work had landed without a kernel-changelog bump).
 
 ### Residual architectural gaps — honest
 1. **Intra-call indirection.** A single Bash call that both writes and executes (`echo "git push" > s.sh && bash s.sh` as *one* tool-use) is caught today only by the existing in-command text scanner. State tracking adds no new coverage because the PostToolUse recorder fires *after* the call. The true fix needs a cross-runtime proxy daemon that can pause between the write and the exec — the 0.11+ Sovereign Kernel. Naming v0.10 "The Sovereign Kernel" is directional, not complete.

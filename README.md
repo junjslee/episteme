@@ -108,7 +108,7 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 
 Structural stack: kernel (philosophy) → operator profile (personalization) → adapters (delivery) → runtime (execution).
 
-### Control plane (v0.10.0-α · The Sovereign Kernel)
+### Control plane (v0.10.0 · The Sovereign Kernel)
 
 <p align="center">
   <img src="docs/assets/architecture_v2.svg" alt="episteme control plane — three-layer interposition: agent runtime, control plane, hardware/OS, with stateful interceptor loop and calibration telemetry feed" width="100%" />
