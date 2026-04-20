@@ -1,8 +1,9 @@
 # References
 
-**Operational summary — primary sources (14) and what they anchor:**
+**Operational summary — primary sources (23) and what they anchor:**
 - Kahneman → six-failure-mode taxonomy. Munger → latticework (Principle III). Boyd → OODA (Principle II + workflow tempo). Dalio → radical transparency (Assumptions without cover).
 - Popper → Disconfirmation field. Shannon → signal vs noise. Polanyi → tacit/explicit boundary (Kernel Limits 4). Meadows → orientation as system structure. Alexander → composable partial models. Deming → PDSA ancestry of the workflow loop. Simon → bounded rationality. Argyris & Schön → espoused vs in-use theory. Graham + Orwell → plain language as Principle I. Taleb → antifragility. Pearl → causal reasoning.
+- Ashby → requisite variety (why fixed rule-sets lose to general-capability agents; grounds escalation-by-default in the hook layer). Gall → working-simple precedes working-complex (grounds the evolution contract's incremental posture). Tetlock → calibration culture (what the telemetry loop is actually *measuring*; grounds the friction analyzer's target). Jaynes / Laplace → probabilistic inference (grounds the evidence-weighted update mechanic on assumptions). Goodhart / Strathern → measure-as-target drift (grounds scorecard audit discipline and the kernel's refusal to freeze the profile). Klein → recognition-primed decision (expert pattern-matching as legitimate tool, not System-1 failure; grounds the `tacit_call` marker). Chesterton → the fence (grounds constraint-preservation before removal; referenced in governance-layer failure modes). Feynman → self-deception as first-person failure mode (sharpens Principle I without renaming it). Festinger → cognitive dissonance (sharpens the confidence/accuracy counter — evidence conflicts with belief and belief usually wins).
 
 Full concept→kernel-wording maps below. Introducing a new load-bearing concept into kernel wording without a primary-source entry here violates Principle I.
 
@@ -254,6 +255,196 @@ risk-and-autonomy policy in operator workflow.
 
 ---
 
+## Control theory — requisite variety
+
+**W. Ross Ashby — *An Introduction to Cybernetics* (1956); *Design for a
+Brain* (1952).**
+
+Grounds the architectural claim in
+[KERNEL_LIMITS.md](./KERNEL_LIMITS.md) that a rule-based governance
+layer cannot constrain a general-capability agent through fixed pattern
+matches alone. Ashby's law — *only variety can destroy variety* — is the
+direct explanation for why the hook layer must escalate to human
+judgment when an action's shape exceeds the controller's declared
+coverage, rather than silently failing open.
+
+| Source term                     | Kernel wording                                                    |
+|---------------------------------|-------------------------------------------------------------------|
+| Law of requisite variety        | "controller coverage must match the controlled system's variety"  |
+| Ultrastability                  | "kernel invariants that survive local rule updates"               |
+| Regulator theorem               | "escalate-by-default when action class exceeds rule coverage"     |
+
+Without Ashby, the hook architecture reads as a security layer. With
+Ashby, it reads as a cognitive-governance layer aware of its own
+coverage gap.
+
+---
+
+## Working-simple precedes working-complex
+
+**John Gall — *Systemantics* (1975); later *The Systems Bible*.**
+
+Grounds the evolution-contract posture: a working complex system evolves
+from a working simple system. Complex systems designed from scratch do
+not work and cannot be patched into working. The kernel's insistence on
+incremental, small-reversible changes — and its refusal to accept
+large, ungated frame changes — is Gall's observation applied to
+cognitive infrastructure.
+
+| Source term                          | Kernel wording                                                         |
+|--------------------------------------|------------------------------------------------------------------------|
+| Gall's law (working → complex)       | "smallest reversible action that produces new information"             |
+| Axioms of systemantics               | "the kernel compresses itself when stakes compress" (KERNEL_LIMITS 1)  |
+
+---
+
+## Calibration under uncertainty
+
+**Philip Tetlock — *Expert Political Judgment* (2005);
+*Superforecasting: The Art and Science of Prediction* (2015, with Dan
+Gardner).**
+
+Grounds what the calibration telemetry layer is actually *measuring*.
+Tetlock's finding — that accuracy on forecastable questions is a
+trainable skill, and that confidence uncorrelated with accuracy is the
+dominant failure — is the empirical backing for the kernel's claim that
+Assumptions + Disconfirmation + outcome logging produces better
+decisions over time. The friction analyzer exists to surface the
+Tetlock-style gap between predicted and observed.
+
+| Source term                      | Kernel wording                                                    |
+|----------------------------------|-------------------------------------------------------------------|
+| Calibration (forecast accuracy)  | "predicted vs observed outcomes, joined by correlation_id"        |
+| Granularity of probability       | "sharp unknowns over vague ones"                                  |
+| Update-in-proportion-to-evidence | "move assumption to known only when evidence is decisive"         |
+| Active open-mindedness           | "disconfirmation as required field, not optional field"           |
+
+---
+
+## Probabilistic inference
+
+**Edwin Jaynes — *Probability Theory: The Logic of Science* (2003);
+Pierre-Simon Laplace — *Essai philosophique sur les probabilités*
+(1814).**
+
+Grounds the evidence-weighted update mechanic described in
+[REASONING_SURFACE.md](./REASONING_SURFACE.md). Assumptions are not
+boolean claims that flip to "Known" on first contact with evidence;
+they are weighted beliefs whose plausibility is updated in proportion
+to the likelihood of the observation under competing hypotheses. The
+kernel adopts the *discipline* of proportional updating without
+requiring formal probabilistic machinery.
+
+| Source term                       | Kernel wording                                                   |
+|-----------------------------------|------------------------------------------------------------------|
+| Posterior update                  | "updated plausibility + sharpened falsification condition"       |
+| Likelihood ratio                  | "weight new evidence against competing hypotheses"               |
+| Prior as inductive bias           | "semantic tier proposes; never autofills"                        |
+
+---
+
+## Measurement integrity — the law of the target
+
+**Charles Goodhart — "Problems of Monetary Management" (1975);
+Marilyn Strathern's formulation (1997) — *"When a measure becomes a
+target, it ceases to be a good measure."***
+
+Grounds the scorecard audit discipline in
+[OPERATOR_PROFILE_SCHEMA.md](./OPERATOR_PROFILE_SCHEMA.md) and
+[KERNEL_LIMITS.md](./KERNEL_LIMITS.md). A profile axis that is elicited
+and then frozen becomes the operator's aspirational image, not their
+operating posture. The kernel treats each axis as a hypothesis about
+the operator — periodically re-audited against episodic evidence,
+re-elicited if drift is observed. This is the counter to a failure mode
+the kernel itself would otherwise introduce.
+
+| Source term                     | Kernel wording                                                    |
+|---------------------------------|-------------------------------------------------------------------|
+| Goodhart's law                  | "no measure survives being targeted unchanged"                    |
+| Measure-target drift            | "scorecard audited against outcome data, not frozen at elicitation"|
+
+---
+
+## Naturalistic decision making
+
+**Gary Klein — *Sources of Power: How People Make Decisions* (1998);
+*The Power of Intuition* (2003).**
+
+The nuance on dual-process theory: not all fast pattern-matching is
+System-1 failure. Expert recognition — Klein's recognition-primed
+decision (RPD) — is fast, mostly accurate within the expert's calibrated
+domain, and destroyed if forced through deliberate rule-following.
+
+Grounds the `tacit_call` marker on decision records (Gap D in
+KERNEL_LIMITS) and the `expertise_map` field in the operator profile.
+The kernel honors both failure modes at once: confident wrongness from
+naive pattern-matching, *and* destruction-of-skill from forcing
+articulated reasoning over calibrated intuition.
+
+| Source term                             | Kernel wording                                                       |
+|-----------------------------------------|----------------------------------------------------------------------|
+| Recognition-primed decision (RPD)       | "expert pattern-match as legitimate basis, recorded not fabricated"  |
+| Mental simulation                       | "probe → sense → respond" (Complex-domain posture)                   |
+| Expertise as calibrated intuition       | "expertise_map: domain → level + preferred_mode"                     |
+
+---
+
+## Constraint preservation
+
+**G.K. Chesterton — *The Thing* (1929), the "fence" essay.**
+
+Grounds the Fence-Check gate in the governance-layer failure modes
+([FAILURE_MODES.md](./FAILURE_MODES.md)). Chesterton's rule — do not
+remove a constraint until you can explain why it was put there —
+translates directly into an agent-specific risk: models fluently
+rationalize removing constraints they do not understand. The counter is
+not "never remove" but "name the constraint's purpose before removing,
+or route the removal to a human."
+
+| Source term                     | Kernel wording                                                    |
+|---------------------------------|-------------------------------------------------------------------|
+| Chesterton's fence              | "no constraint is removed until its reason is named"              |
+
+---
+
+## Self-deception
+
+**Richard Feynman — Caltech commencement address *"Cargo Cult Science"*
+(1974); *Surely You're Joking, Mr. Feynman!* (1985).**
+
+Sharpens Principle I without adding a new principle. Feynman's single
+sentence — *"the first principle is that you must not fool yourself,
+and you are the easiest person to fool"* — is the first-person form of
+the kernel's confident-wrongness concern. Attribution is named here
+because the phrasing shows up in kernel-adjacent writing and would
+otherwise drift into "common sense."
+
+| Source term                     | Kernel wording                                                    |
+|---------------------------------|-------------------------------------------------------------------|
+| Self-deception as first-person  | "the agent's model of itself is the first thing to audit"         |
+| Cargo-cult form                 | "discipline that cannot name its own boundary is a creed"         |
+
+---
+
+## Motivated reasoning
+
+**Leon Festinger — *A Theory of Cognitive Dissonance* (1957).**
+
+Sharpens the counter to confidence-exceeding-accuracy in
+[FAILURE_MODES.md](./FAILURE_MODES.md). When evidence conflicts with a
+prior commitment, the cheaper resolution for a fluent reasoner is
+reinterpretation of the evidence, not revision of the commitment.
+Assumptions with falsification conditions are the kernel's defense:
+the falsification was named *before* the commitment, which makes
+after-the-fact reinterpretation visibly a move against the record.
+
+| Source term                     | Kernel wording                                                    |
+|---------------------------------|-------------------------------------------------------------------|
+| Cognitive dissonance            | "evidence conflicts with commitment; the cheaper fix is narrative"|
+| Belief perseverance             | "Assumptions with falsification named *in advance*"               |
+
+---
+
 ## Causal reasoning — the ladder of causation
 
 **Judea Pearl — *Causality* (2000, 2nd ed. 2009);
@@ -404,6 +595,27 @@ authoritative docs over chat-native memory.
 Loop* (2007).** Self-reference and strange loops as deep structure of
 cognition; appears whenever the kernel claims that the agent inhabits a
 worldview rather than merely follows rules.
+
+**Endel Tulving — *Elements of Episodic Memory* (1983); Larry Squire
+— work on declarative vs procedural memory (1987–).** Grounds the
+memory tier taxonomy in [MEMORY_ARCHITECTURE.md](./MEMORY_ARCHITECTURE.md)
+— working, episodic, semantic, procedural. The kernel adapts the
+human-memory taxonomy without importing the research terminology, and
+adds a "reflective" tier by analogy with metacognition research.
+
+**David Snowden — Cynefin framework (1999–).** The problem-domain
+classification (Clear / Complicated / Complex / Chaotic) used as the
+*domain* marker on the Reasoning Surface and in
+[KERNEL_LIMITS.md](./KERNEL_LIMITS.md). The kernel borrows the
+taxonomy; the *domain precedes the Surface* posture is the kernel's
+own.
+
+**Ludwig Wittgenstein — *Tractatus Logico-Philosophicus* (1921);
+*Philosophical Investigations* (1953).** The limits of explicit
+language as a medium for certain kinds of truth — the companion to
+Polanyi on tacit knowledge. Cited for the Kernel Limits stance that
+forcing legibility where language cannot carry it produces a legible
+fabrication, not understanding.
 
 ---
 

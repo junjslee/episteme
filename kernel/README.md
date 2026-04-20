@@ -30,7 +30,16 @@ growing, the fix is in the kernel's portability, not in more adapter code.
 
 - **[OPERATOR_PROFILE_SCHEMA.md](./OPERATOR_PROFILE_SCHEMA.md)** — the
   schema for encoding an operator's cognitive preferences so they travel
-  with the agent across tools and sessions.
+  with the agent across tools and sessions. Two scorecard layers (process
+  + cognitive-style), per-axis metadata, expertise map, and the derived
+  behavior knobs adapters compute from the axes.
+
+- **[MEMORY_ARCHITECTURE.md](./MEMORY_ARCHITECTURE.md)** — the memory
+  contract. Five tiers (working / episodic / semantic / procedural /
+  reflective), retrieval by situation-match, gated promotion from
+  episodic through semantic to profile-drift proposal, and declared
+  forgetting per tier. The layer that turns a session-bound agent into an
+  operator-persistent one.
 
 - **[REFERENCES.md](./REFERENCES.md)** — external sources that informed
   the kernel's contents. The kernel body does not import jargon from these

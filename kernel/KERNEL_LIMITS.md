@@ -6,9 +6,11 @@
 3. Orientation over-fit (profile is stale; re-elicit).
 4. Tacit knowledge dominates (mark decision as judgment-driven; do not fabricate legible Knowns).
 5. Multi-operator loops (single-operator assumption breaks; name authority per decision class).
-6. Unvalidated claims about the kernel itself (no calibration telemetry yet; recommendations rest on coherence).
+6. Unvalidated claims about the kernel itself (calibration telemetry shipping in 0.10+; recommendations still partly rest on coherence).
+7. Rule-based governance against general-capability agents (controller coverage < action space; escalate rather than default-allow or default-deny).
+8. Scorecard as target (the profile starts describing who the operator thinks they should be rather than how they actually reason).
 
-Declared gaps (known, not yet closed): calibration telemetry · profile staleness · team/pair mode · tacit-call decision mode.
+Declared gaps (known, not yet closed): multi-operator mode · semantic-tier retrieval · drift-signal audit loop · fence-check enforcement in hooks.
 
 ---
 
@@ -123,6 +125,56 @@ notebook.
   with falsification conditions, marked outcomes, running hit rate.
   A kernel that does not track its own calibration cannot distinguish
   discipline from superstition.
+
+### 7. Rule-based governance against general-capability agents
+
+The hook layer is a rule-based controller: a fixed set of patterns,
+filenames, and action verbs wrapped around the agent's tool calls. The
+agent's action space is open-ended — any combination of tool, argument,
+and indirection shape the underlying model can produce. For any fixed
+rule set, the gap between declared coverage and actual action space is
+always nonzero, and every bypass vector the kernel has closed is an
+instance of that gap surfacing.
+
+A controller with fewer states than the system it governs cannot
+regulate it by pattern matching. Either the controller gains variety
+(more rules, more patterns — always behind the agent's creative
+combinations), or the governance layer escalates to something with
+enough variety: human judgment.
+
+- Indicator: a stream of small bypass-vector fixes that each close one
+  shape while similar-shaped bypasses keep appearing.
+- Correct response: **escalate-by-default** for action classes that
+  fall outside the controller's declared coverage. Not default-allow
+  (the current hidden policy for unrecognized shapes) and not
+  default-deny (which breaks legitimate work). Named escalation:
+  "this action is outside my coverage; confirming before proceeding."
+  The explicit admission of coverage gaps is what distinguishes a
+  governance layer from a security theater.
+
+### 8. Scorecard as target
+
+The operator profile's scored axes (`testing_rigor`,
+`risk_tolerance`, etc.) exist so adapters can make non-contextual
+behavioral choices. But once a score is visible and actionable, the
+cheap path for the operator is to report the score they want to be
+true, not the one that is true. Over time, the profile describes the
+operator's aspirational image, not their operating posture.
+
+This is the kernel introducing the very failure mode it elsewhere
+counters: a measure that has become a target has ceased to be a good
+measure.
+
+- Indicator: the profile is high-scoring across axes in ways that
+  would be difficult to verify from the operator's actual episodic
+  record — documentation_rigor: 3 claimed, but the last twenty
+  high-impact actions show no accompanying docs update.
+- Correct response: treat each scored axis as a hypothesis about the
+  operator, periodically audited against outcome evidence from the
+  episodic tier. Drift is allowed. The kernel prefers a noisy,
+  honestly reported profile to a clean, aspirational one. When
+  claimed value and observed behavior diverge for N consecutive
+  cycles, the axis is flagged for re-elicitation, not silently kept.
 
 ---
 

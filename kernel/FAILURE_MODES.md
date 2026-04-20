@@ -1,6 +1,6 @@
 # Failure Modes and Their Counters
 
-**Operational summary — six modes ↔ counters:**
+**Operational summary — six reasoner modes ↔ counters, plus three governance-layer modes:**
 
 | # | Failure mode                          | Counter artifact                                      |
 |---|---------------------------------------|-------------------------------------------------------|
@@ -10,6 +10,9 @@
 | 4 | Story-fit over evidence               | Facts / inferences / preferences split                |
 | 5 | Systematic underestimation of risk    | Failure-first + 30–50% buffer (high-impact)           |
 | 6 | Confidence exceeding accuracy         | Assumptions field + weight-by-track-record            |
+| 7 | Constraint removal without understanding | Fence-Check before any constraint is removed      |
+| 8 | Measure-as-target drift (scorecard)   | Periodic audit vs outcome evidence; drift is allowed |
+| 9 | Controller-variety mismatch (hooks)   | Escalate-by-default for out-of-coverage action shapes|
 
 Removing or bypassing a counter means naming which mode is now unprotected. If the answer is "none," the counter was not earning its place.
 
@@ -141,6 +144,83 @@ Uncertainty is dispreferred even when uncertainty is the correct signal.
   source with demonstrated accuracy on this class of problem over the
   source that is loudest, fastest, or most assertive. Loud and right are
   different signals.
+
+---
+
+## Governance-layer failure modes
+
+The six modes above are Kahneman-derived — they address how a fluent
+reasoner produces confidently wrong *answers*. The kernel itself is also
+a system, and a system has its own failure modes. These three are not
+modes of the reasoner; they are modes of the governance layer wrapped
+around it. They are named separately to keep the six-mode taxonomy
+intact while acknowledging the kernel's own exposure.
+
+### 7. Constraint removal without understanding
+
+**The mode.** An agent encounters a rule, a policy, or a piece of code
+whose purpose is not immediately obvious. The cheapest narrative is that
+the constraint is legacy, unnecessary, or in the way. The removal is
+fluent, the justification is coherent, and the original reason — often a
+paid-for lesson from a prior failure — is gone.
+
+**Why fluent models are especially vulnerable.** Constraint-removal is
+almost always a short-term local improvement: fewer rules, less
+friction, cleaner code. The cost shows up later, elsewhere, under
+conditions the current context window does not contain.
+
+**The counter.** A **Fence-Check** before any constraint is removed:
+name the reason the constraint was put there, from evidence available
+now. If the reason cannot be reconstructed, the removal is not ready —
+either route it to a human who may know, or leave the constraint and
+add a ticket to investigate. "I don't see why it's there" is not a
+reason to remove; it is a reason to investigate.
+
+### 8. Measure-as-target drift
+
+**The mode.** The kernel scores axes of the operator profile
+(`testing_rigor`, `risk_tolerance`, etc.) so adapters can make
+non-contextual behavioral choices. Once a score becomes visible and
+actionable, it becomes something to optimize for rather than a reading
+to report honestly. Over time, the scorecard describes what the
+operator thinks they should be, not how they actually reason.
+
+**Why a cognitive kernel is especially vulnerable.** The profile is
+both the measurement *and* the control signal. That is the exact
+configuration under which measurements stop being faithful.
+
+**The counter.** Scorecard axes are periodically re-audited against
+outcome evidence from the episodic tier (did the operator actually act
+with the testing rigor their score claims?), and drift is allowed — the
+kernel would rather carry a noisy but honest profile than a clean but
+aspirational one. The friction analyzer's output is one signal; the
+episodic tier's record of the operator's actual behavior under pressure
+is another. A profile axis whose claimed value and observed behavior
+diverge for N consecutive cycles is flagged for re-elicitation, not
+silently kept.
+
+### 9. Controller-variety mismatch
+
+**The mode.** The hook layer (the rule-based governance surface around
+the agent) has a fixed coverage of action shapes: a set of patterns, a
+set of filenames, a set of verbs. A general-capability agent has a much
+larger action space. When the action's shape falls outside the
+controller's declared coverage, the controller cannot refuse — it
+defaults open because it has nothing to match against.
+
+**Why rule-based layers are especially vulnerable.** Every closed rule
+set is a claim about what the agent can do. The agent's actual action
+space is open. The gap between them is always nonzero, and it is where
+the interesting failures live.
+
+**The counter.** **Escalate-by-default** for action classes outside the
+controller's declared coverage: route to human review rather than
+silently allow. This is a weaker position than "block everything
+unrecognized" (which breaks work) and a stronger position than "allow
+everything unrecognized" (which is the failure mode). The controller's
+coverage itself is a living document; what was out-of-coverage yesterday
+may be in-coverage tomorrow once the rule is written, but never by the
+rule silently expanding to fit an action it had no basis to evaluate.
 
 ---
 

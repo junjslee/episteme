@@ -4,6 +4,60 @@ Running log of completed work. Most recent first.
 
 ---
 
+## 0.11.0-entry — 2026-04-20 — Kernel depth pass: attribution surface expansion, operator profile v2, memory architecture contract
+
+Docs-only landing. No code paths touched; hook enforcement and adapter wiring of the new behavior knobs are phases 9–12 of the 0.11.0 plan and remain not-started.
+
+### Attribution surface expansion — `kernel/REFERENCES.md`
+- Nine new primary sources added: Ashby (requisite variety → grounds escalate-by-default in hook layer); Gall (working-simple precedes working-complex → grounds evolution posture); Tetlock (calibration culture → grounds telemetry loop target); Laplace/Jaynes (probabilistic inference → grounds evidence-weighted plausibility update); Goodhart / Strathern (measure-as-target drift → grounds scorecard audit discipline); Klein (recognition-primed decision → grounds `tacit_call` + `expertise_map`); Chesterton (the fence → grounds Fence-Check gate); Feynman (self-deception → sharpens Principle I); Festinger (cognitive dissonance → sharpens confidence/accuracy counter).
+- Four secondary sources added: Tulving / Squire (memory-tier taxonomy), Snowden (Cynefin domain marker), Wittgenstein (limits of explicit language).
+- Primary-source count: 14 → 23. Operational summary at top of REFERENCES.md rewritten.
+
+### Body-doc weaves — no buzzwords, only concepts
+- `CONSTITUTION.md` — added variety-match and fence-check lenses to Principle III stack; added "a working complex system evolves from a working simple one" paragraph to Principle IV; added "not a frozen measurement of the operator" caveat to *What it is not*.
+- `FAILURE_MODES.md` — new section "Governance-layer failure modes" holding three non-Kahneman modes (constraint removal w/o understanding, measure-as-target drift, controller-variety mismatch) separated from the six primary so the Kahneman taxonomy stays intact. Operational-summary table updated.
+- `REASONING_SURFACE.md` — three additions: evidence-weighted update mechanic (Assumption plausibility updates; moves to Known only on decisive evidence), the `domain` marker (Clear/Complicated/Complex/Chaotic — precedes the four fields), the `tacit_call` boolean marker (closes Gap D — relaxes Knowns for judgment-driven calls without relaxing accountability).
+- `KERNEL_LIMITS.md` — added limits 7 (rule-based governance against general-capability agents → escalate-by-default) and 8 (scorecard as target → per-axis audit against episodic record; drift is allowed). Operational summary updated.
+
+### Operator profile schema v2 — `kernel/OPERATOR_PROFILE_SCHEMA.md` (rewrite)
+- Two scorecard layers now: (a) process axes widened to 0–5 with anchor text per level; (b) new cognitive-style layer — nine typed axes: `dominant_lens`, `noise_signature`, `abstraction_entry`, `decision_cadence`, `explanation_depth`, `feedback_mode`, `uncertainty_tolerance` (0–5), `asymmetry_posture`, `fence_discipline` (0–5).
+- Per-axis metadata: `value`, `confidence` (elicited / inferred / default), `last_observed`, `evidence_refs[]`, optional `drift_signal` (0.0–1.0). Replaces the single `Last elicited` file-level line: staleness is now per-axis because axes drift at different rates.
+- `expertise_map` field: `{ domain → { level, preferred_mode } }`. Closes the "scaffold an expert" / "go terse on a learner" default failures.
+- New section: *Derived behavior knobs* — the declared set of control signals adapters compute from axes (`default_autonomy_class`, `disconfirmation_specificity_min`, `preferred_lens_order`, `noise_watch_set`, `explanation_form`, `checkpoint_frequency`, `scaffold_vs_terse`, `fence_check_strictness`). Bridges "profile is documentation" → "profile is control signal."
+- New section: *Audit discipline* — the counter to measure-as-target drift. Scored axes are hypotheses about the operator, not signed contracts; periodically audited against the episodic record; divergence over N cycles flags re-elicitation, never auto-updates.
+
+### Memory architecture — new doc `kernel/MEMORY_ARCHITECTURE.md`
+- Five tiers declared with purpose / lifetime / writer / reader:
+  1. **Working** — session scratchpad, compresses under context pressure; nothing persists past session end.
+  2. **Episodic** — per-decision records (Reasoning Surface + action + observed outcome + Disconfirmation state); 90-day raw + compacted summary afterward. Write triggers declared: high-impact action, hook-blocked or escalated action, Disconfirmation fired (full or partial), operator-elected record.
+  3. **Semantic** — cross-session patterns derived from episodic; persistent; pruned on contradicting evidence. Proposes priors to the Frame stage; never autofills the Surface.
+  4. **Procedural** — operator-specific reusable action templates, distinct from universal workflow policy and project-local templates.
+  5. **Reflective** — memory about memory (staleness, drift signals, elicitation queue). Derivable; materialized view, not source of truth.
+- Retrieval contract: query-by-situation (Reasoning Surface shape-match), not query-by-key. Ranking: `similarity × recency_decay × outcome_weight`. No-match is a valid output; spurious priors are more costly than no priors.
+- Promotion contract: episodic → semantic requires pattern recurrence + outcome stability; semantic → profile-drift proposal requires long-window conviction + divergence from claimed axis value. Both gated. Profile-drift proposals go into reflective tier for operator review at next SessionStart; the kernel never auto-merges a profile update.
+- Forgetting contract: per-tier TTL + compaction rule declared. Two categories never written: secrets (detected at write, rejected) and operator-identifying paths (normalized before write).
+- Write/read discipline: each workflow stage has a declared write responsibility and read set. Frame reads profile + semantic priors + recent episodic; Handoff writes the episodic record + updates authoritative docs.
+- Integrity guarantees: episodic is append-only (compaction produces new records via `supersedes`/`superseded_by`); promotion is idempotent; forgetting is itself logged in reflective.
+
+### Summary / README updates
+- `kernel/SUMMARY.md` — six-modes table expanded to nine (six reasoner + three governance-layer); new Operator-profile-v2 paragraph; new Memory-architecture paragraph; scope boundary updated with limits 7 and 8; *next load* list adds `MEMORY_ARCHITECTURE.md`.
+- `kernel/README.md` — file list adds `MEMORY_ARCHITECTURE.md` with a one-line description; `OPERATOR_PROFILE_SCHEMA.md` description updated to reflect v2 structure.
+
+### What did *not* land in this pass (explicit)
+- No code changes. Hook layer does not yet read the derived behavior knobs; episodic records are not yet written by the Handoff stage; semantic promotion job does not exist. These are phases 9–12 of the 0.11.0 plan.
+- `kernel/MANIFEST.sha256` is stale as of this commit — will be regenerated after all 0.11.0 kernel doc edits settle (phase 14). `episteme doctor` will emit drift warnings until then.
+- `kernel/CHANGELOG.md` entry deferred until the implementation phases land (so the changelog reflects both the docs and the wiring). Current `CHANGELOG.md` still reads 0.10.0.
+- Version strings in `pyproject.toml` / `plugin.json` / `marketplace.json` unchanged at 0.10.0 — bump pinned to 0.11.0 tag readiness (after phases 9–14).
+
+### Residual architectural gaps — still honest
+1. **Intra-call indirection** — unchanged from 0.10.0. Still needs a cross-runtime proxy daemon.
+2. **Dynamic shell assembly** (`A=git; B=push; $A $B`) — unchanged.
+3. **Heredocs with variable terminators** — unchanged.
+4. **Scripts > scan cap** — unchanged.
+5. **Governance-layer failure mode 9 (controller-variety mismatch)** is now named and documented; the *enforcement* (escalate-by-default for out-of-coverage action classes) is not built. Presently no-op — the kernel admits the gap and does not silently paper over it.
+
+---
+
 ## 0.10.0 — 2026-04-20 — The Sovereign Kernel: stateful interception + heuristic friction analyzer + profile freshness gate
 
 Four atomic commits, 35 new tests, full suite 121 passing, zero regressions. High-level framing: 0.9.0-entry proved telemetry could be paired locally; 0.10.0 carries that same file-on-disk discipline across the execution boundary between Write and Bash — the kernel now remembers what the agent just wrote.

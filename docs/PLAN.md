@@ -11,6 +11,38 @@ Current active plan for episteme development.
 
 ---
 
+## Active milestone: 0.11.0 — Kernel depth + personalization + memory architecture (in flight)
+
+### Goal
+Close the two structural weak legs identified in the v0.10 retrospective: the personalization layer (operator profile was 6 thin axes, mostly process-shaped) and the memory architecture (schemas existed but tiering/retrieval/promotion contract did not). Also expand the kernel's attribution surface to cover frameworks now load-bearing but previously uncited — requisite variety, Gall's law, Tetlock calibration, Laplace/Jaynes probabilistic update, Goodhart's law, Klein's RPD, Chesterton's fence, Feynman's self-deception, Festinger's dissonance. Body docs stay jargon-free; attribution lives only in `REFERENCES.md`.
+
+### Phases
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | `kernel/REFERENCES.md` — add 9 primary sources, 4 secondary (Tulving/Squire, Snowden, Wittgenstein, etc.). Bumps primary-source count 14 → 23. | **complete** |
+| 2 | `kernel/CONSTITUTION.md` — variety-match and fence-check lenses added to Principle III stack; working-simple-precedes-working-complex note added to Principle IV; "not a frozen measurement" caveat added to *What it is not*. No buzzwords in body. | **complete** |
+| 3 | `kernel/FAILURE_MODES.md` — added "Governance-layer failure modes" section with three new modes (constraint-removal, measure-as-target drift, controller-variety mismatch) as a separate layer so the Kahneman six-mode taxonomy stays intact. | **complete** |
+| 4 | `kernel/REASONING_SURFACE.md` — evidence-weighted update mechanic, `domain` marker (Clear/Complicated/Complex/Chaotic), `tacit_call` boolean. Closes Gap D and the Cynefin gap. | **complete** |
+| 5 | `kernel/KERNEL_LIMITS.md` — added limits 7 (rule-based governance against general-capability agents) and 8 (scorecard as target). | **complete** |
+| 6 | `kernel/OPERATOR_PROFILE_SCHEMA.md` v2 — rewrote with two scorecard layers (process 0–5 + cognitive-style 9 typed axes), per-axis metadata (`confidence`, `last_observed`, `evidence_refs[]`, `drift_signal`), `expertise_map`, declared *derived behavior knobs* adapters compute from axes, and the Audit Discipline section that counters measure-as-target drift. | **complete** |
+| 7 | `kernel/MEMORY_ARCHITECTURE.md` (new) — five tiers (working / episodic / semantic / procedural / reflective) with purpose / lifetime / writer / reader each. Retrieval contract (query-by-situation, similarity scoring). Promotion contract (episodic → semantic → profile-drift proposal, gated). Forgetting contract (TTL + compaction per tier). Write/read discipline per workflow stage. Integrity guarantees (episodic append-only, promotion idempotent, forgetting logged). | **complete** |
+| 8 | `kernel/SUMMARY.md` + `kernel/README.md` — pointer updates to new docs; summary table expanded (six modes + three governance-layer modes; two scorecard layers; five memory tiers). | **complete** |
+| 9 | Implementation: hook-layer consumption of derived behavior knobs. Adapter reads per-axis metadata; hooks modulate `disconfirmation_specificity_min`, `default_autonomy_class`, `noise_watch_set` off the profile rather than using universal defaults. | not started |
+| 10 | Implementation: episodic-tier writer — Handoff stage writes a record per high-impact decision with the Reasoning Surface snapshot + observed outcome. Schema exists; the write path does not. | not started |
+| 11 | Implementation: semantic-tier promotion job (deterministic; runs on demand). Episodic cluster detection → semantic proposal into reflective tier. | not started |
+| 12 | Implementation: profile-audit loop — compares claimed axis values against episodic record; flags drift for operator re-elicitation. Counters measure-as-target drift operationally, not just by doc. | not started |
+| 13 | `kernel/CHANGELOG.md` 0.11.0 entry. Version reconcile across `pyproject.toml`, `plugin.json`, `marketplace.json`. | not started |
+| 14 | `kernel/MANIFEST.sha256` regenerated (`episteme kernel update`) after all kernel edits land. | not started |
+
+### Open assumptions
+- No-buzzword-in-body discipline survives contact with the new memory architecture doc. If a reader has to import `Tulving` or `Snowden` as prior knowledge to read the body text, the attribution-only rule failed and the body text needs another pass.
+- The derived-behavior-knobs table is the right bridge between profile and hooks. Unverified until phase 9 actually wires a hook to read one of the knobs; may need to retreat to a smaller set if the wiring surface is bigger than expected.
+- Per-axis `last_observed` is worth the metadata overhead vs the single `Last elicited` line. Expected yes because axes drift at different rates, but no runtime evidence yet.
+- The 90-day episodic TTL with compaction is a reasonable default. Compaction rules (what the summary preserves) not yet specified in code.
+
+---
+
 ## Closed milestones
 
 ### 0.10.0 — The Sovereign Kernel — complete

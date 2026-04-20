@@ -125,6 +125,17 @@ different disciplines. A minimum stack:
   not care.
 - **Buffer.** What is the margin if assumptions slip by 30–50%? If the
   outcome becomes unacceptable under that slip, the buffer is too thin.
+- **Variety-match.** Does the controller (the rule, the policy, the
+  heuristic about to be applied) have at least as many states as the
+  situation it is meant to govern? A rule set narrower than the problem it
+  governs does not reduce risk; it hides it. When the action's shape
+  exceeds the rule's coverage, escalate rather than default-allow or
+  default-deny. This lens is the one most often missed when a governance
+  layer is designed without its own boundary stated.
+- **Fence-check.** Before removing a constraint, name the reason the
+  constraint was put there. A fluent model will rationalize removing any
+  constraint it does not understand the purpose of. If the purpose cannot
+  be reconstructed, the removal is not ready.
 
 The same principle is the reason the kernel separates facts from inferences
 from preferences. Treating them as one type of input is a single-lens error.
@@ -144,6 +155,14 @@ defers the cost of the error to a later stage, where it compounds.
 
 Speed of iteration beats size of any individual step. The smallest reversible
 action that produces new information is usually the correct next move.
+
+A working complex system evolves from a working simple system. A complex
+system designed from scratch — agent architecture, governance policy,
+cognitive protocol — does not work out of the gate and cannot be patched
+into working. This is why the kernel refuses ungated frame changes:
+promotion of a lesson into authoritative policy is an edit to the system
+that is currently working, and the correction opportunity is lost if the
+promotion happens in one step.
 
 The control architecture is **feedforward**, not feedback. Feedback control
 corrects after an error is observed. Feedforward control names the failure
@@ -218,6 +237,15 @@ The kernel is what travels in it.
 **Not universally applicable.** The kernel has a declared boundary. See
 [KERNEL_LIMITS.md](./KERNEL_LIMITS.md) for the conditions under which it
 should be suspended, relaxed, or replaced.
+
+**Not a frozen measurement of the operator.** Every scored axis in the
+operator profile is a hypothesis about how the operator currently thinks
+and works. The moment a measure becomes a target — the moment it is
+optimized for rather than reported honestly — it stops being an accurate
+reading. The kernel treats scored axes as auditable against outcome
+evidence, periodically re-elicited, and explicitly allowed to drift.
+A profile that never updates is not stable; it is a portrait of who the
+operator used to be.
 
 ---
 
