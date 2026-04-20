@@ -8,16 +8,17 @@ A *posture* is how a reasoner holds themselves before a decision: which question
 
 Advisory mode (warn-don't-block) is opt-in per-project: `touch .episteme/advisory-surface`.
 
-**[What this installs →](./docs/POSTURE.md)** · **[Differential demo (off vs on) →](./demos/03_differential/)** · **[Install as plugin →](./.claude-plugin/README.md)** · **[Quick start ↓](#quick-start)**
+**[What this installs →](./docs/POSTURE.md)** · **[The narrative spine →](./docs/NARRATIVE.md)** · **[Differential demo (off vs on) →](./demos/03_differential/)** · **[Install as plugin →](./.claude-plugin/README.md)** · **[Quick start ↓](#quick-start)**
 
 ![Episteme Strict Mode Block](docs/assets/strict_mode_demo.gif)
 
-> **Quick demo above, three acts:**
-> **① The posture.** A lazy agent writes `disconfirmation: "None"` and attempts `git push` → **blocked, exit 2**. It rewrites a valid surface with a concrete disconfirmation → **passes**.
-> **② The kernel remembers.** The agent tries to hide `git push` inside a `stealth.py` it just wrote — `os.system("git push...")`, never named in the Bash call. The v0.10 stateful interceptor remembers the write, deep-scans on execute → **blocked** with `git push via agent-written stealth.py`.
-> **③ The kernel learns.** `episteme evolve friction` pairs predictions with outcomes, ranks the unknowns the operator keeps under-naming, and names the ops with recurring calibration debt.
+> **Two demos · two halves of the posture.**
 >
-> Reproduce it yourself: [`scripts/demo_strict_mode.sh`](./scripts/demo_strict_mode.sh). Recording instructions: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#recording-the-strict-mode-demo).
+> **① Posture as thinking** — [`scripts/demo_posture.sh`](./scripts/demo_posture.sh) · ~75 s · cinematic differential. Same PM prompt, shown twice. Fluent default (*doxa*) vs. Reasoning Surface authored field-by-field (*episteme*). Climax: the **specificity ladder**, live-validated against the real Reasoning-Surface Guard — `"None"` **blocks**; a 43-char fluent-vacuous disconfirmation *passes the hot path* (the honest kernel limit); a concrete falsifiable pivot passes for the right reason. The memory loop closes it — phase 11 shipped; phase 12 (profile-audit) pending.
+>
+> **② Posture as blocking** — *(gif above)* — [`scripts/demo_strict_mode.sh`](./scripts/demo_strict_mode.sh) · three acts: the lazy surface is caught; the stealthy `os.system("git push…")` inside an agent-written script is caught by the stateful interceptor across calls; `episteme evolve friction` ranks the unknowns the operator keeps under-naming.
+>
+> Prose spine for both: [`docs/NARRATIVE.md`](./docs/NARRATIVE.md) — *doxa / episteme / praxis*, traversed by the grain (**결 · gyeol**). Recording instructions: [`docs/CONTRIBUTING.md`](./docs/CONTRIBUTING.md#recording-the-strict-mode-demo).
 
 ---
 
@@ -26,7 +27,8 @@ Advisory mode (warn-don't-block) is opt-in per-project: `touch .episteme/advisor
 | Goal                                                | Command / pointer                                                   |
 |-----------------------------------------------------|---------------------------------------------------------------------|
 | Understand what this is in 3 minutes                | [`docs/POSTURE.md`](./docs/POSTURE.md) · [`kernel/SUMMARY.md`](./kernel/SUMMARY.md) |
-| See the posture *off vs on* on the same prompt      | [`demos/03_differential/`](./demos/03_differential/)                |
+| Read the structural spine (doxa · episteme · praxis · 결)  | [`docs/NARRATIVE.md`](./docs/NARRATIVE.md)                     |
+| See the posture *off vs on* on the same prompt      | [`demos/03_differential/`](./demos/03_differential/) · [`scripts/demo_posture.sh`](./scripts/demo_posture.sh) |
 | See what it produces end-to-end                     | [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) · [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) |
 | Install as a Claude Code plugin (one line)          | `/plugin marketplace add junjslee/episteme`                     |
 | Install on my machine (CLI + editable kernel)       | `pip install -e . && episteme init` — see [`INSTALL.md`](./INSTALL.md) |
@@ -93,10 +95,11 @@ Start at **[`kernel/`](./kernel/)**. Pure markdown. No code. No vendor lock-in.
 | File                                                              | What it defines                                              |
 |-------------------------------------------------------------------|--------------------------------------------------------------|
 | [`SUMMARY.md`](./kernel/SUMMARY.md)                               | 30-line operational distillation                             |
-| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md)                     | Root claim, four principles, six failure modes               |
+| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md)                     | Root claim, four principles, nine failure modes              |
 | [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md)           | Knowns / Unknowns / Assumptions / Disconfirmation protocol   |
-| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Six fluent-agent failure modes ↔ counter artifacts           |
+| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Nine fluent-agent failure modes ↔ counter artifacts (6 Kahneman · 3 governance) |
 | [`OPERATOR_PROFILE_SCHEMA.md`](./kernel/OPERATOR_PROFILE_SCHEMA.md) | Schema for encoding an operator's cognitive preferences   |
+| [`MEMORY_ARCHITECTURE.md`](./kernel/MEMORY_ARCHITECTURE.md)       | Five memory tiers (working / episodic / semantic / procedural / reflective) |
 | [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md)                   | When the kernel is the wrong tool; declared gaps             |
 | [`REFERENCES.md`](./kernel/REFERENCES.md)                         | Attribution for every load-bearing borrowed concept          |
 | [`CHANGELOG.md`](./kernel/CHANGELOG.md)                           | Versioned kernel history                                     |
@@ -105,23 +108,23 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 
 ---
 
-## System overview
+## Figure 1 · Structural stratification of the epistemic posture
 
 <p align="center">
-  <img src="docs/assets/system-overview.svg" alt="episteme system overview" width="100%" />
+  <img src="docs/assets/system-overview.svg" alt="Figure 1 — structural stratification of the epistemic posture. Three bands: doxa (what enters) lists the nine named failure modes with their counters; episteme (what the kernel demands) holds the four principles, seven kernel markdown files, and the runtime components grouped by role (texture of thought, texture of action, rationale, memory); praxis (what lands) holds the four canonical artifacts and four delivery adapters. Traversed by the grain (결 · gyeol) of epistemic discipline." width="100%" />
 </p>
 
-Structural stack: kernel (philosophy) → operator profile (personalization) → adapters (delivery) → runtime (execution).
+Three strata, ancient Greek vocabulary, load-bearing: **doxa** (default output before discipline — nine named failure modes taxonomize it), **episteme** (what the kernel demands before irreversible action — four principles, seven kernel artifacts, four component roles), **praxis** (effects that land with their authorizing understanding intact — four canonical artifacts). They are traversed by the grain — **결** (*gyeol*) — the ordering of the Reasoning Surface fields: *settled → open → provisional → falsification-condition*. Prose counterpart: [`docs/NARRATIVE.md`](./docs/NARRATIVE.md).
 
-### Control plane (v0.10.0 · The Sovereign Kernel)
+## Figure 2 · Control-plane interposition at the tool-call boundary
 
 <p align="center">
-  <img src="docs/assets/architecture_v2.svg" alt="episteme control plane — three-layer interposition: agent runtime, control plane, hardware/OS, with stateful interceptor loop and calibration telemetry feed" width="100%" />
+  <img src="docs/assets/architecture_v2.svg" alt="Figure 2 — control-plane interposition. Doxa band (top): LLM reasoning, Tool dispatcher, Tool-use envelope. Episteme band (middle, six components): row 1 — Reasoning-Surface Guard (core), Stateful Interceptor, Calibration Telemetry; row 2 — Derived Knobs (phase 9), Episodic Writer (phase 10), Semantic Promoter (phase 11). Praxis band (bottom): Process, Persistent state, Remote effect. PASS arrow from Guard to Praxis; BLOCK arrow accent-stroked back to Doxa. Dashed phase-12 profile-audit loop from Semantic Promoter back to Derived Knobs, labelled pending." width="100%" />
 </p>
 
-Three layers. **Agent runtime** issues tool calls (Bash / Write / Edit / MultiEdit). The **episteme control plane** mediates every one of them via a **Reasoning-Surface Guard** (strict by default — blocks high-impact ops without a declared surface), a **Stateful Interceptor** (persists sha256+ts of agent-written files to `~/.episteme/state/session_context.json`, closing the write-then-execute bypass across calls), and a **Calibration Telemetry** feed (pairs pre-call predictions with post-call exit codes, JSONL, local-only). Only after PASS does **hardware / OS** observe any effect. On BLOCK (exit 2) the tool dispatcher returns the guard's reason and the effect never reaches the filesystem, the git remote, or the cloud.
+Tool-call intents cross **doxa → episteme** at PreToolUse. The posture conditions their admission through six components — the **Reasoning-Surface Guard** (strict by default · BLOCK exit 2 / PASS exit 0), the **Stateful Interceptor** (cross-call memory · deep-scan on execute), and **Calibration Telemetry** (prediction ⇄ outcome · JSONL) in row 1; the v0.11.0 additions **Derived Knobs** (phase 9 · profile axes modulate runtime thresholds), **Episodic Writer** (phase 10 · per-action record paired with the surface), and **Semantic Promoter** (phase 11 · episodic → reflective proposals) in row 2. On PASS, effects cross **episteme → praxis** and are re-ingested by the memory tiers for calibration. The **phase 12 profile-audit loop** (drawn dashed, labelled *pending*) closes the circuit from praxis back to the operator profile — *episteme auditing praxis to detect when a claimed axis has drifted into doxa*. When phase 12 ships, the dashed stroke solidifies; no structural rework.
 
-**Works with any stack.** Episteme is an agnostic layer that operates independently of the LLM runtime—whether you use LangChain, CrewAI, Claude Code, Cursor, or MCP. The kernel is pure markdown; the operator profile is plain JSON; the workflow loop is vendor-neutral. The adapter layer (currently: Claude Code, Hermes) is pluggable. The kernel outlives the tooling.
+**Works with any stack.** Episteme is an agnostic layer that operates independently of the LLM runtime — LangChain, CrewAI, Claude Code, Cursor, MCP. Kernel is pure markdown; operator profile is plain JSON; workflow loop is vendor-neutral. Adapter layer (Claude Code, Hermes, OMO/OMX) is pluggable. The kernel outlives the tooling.
 
 ---
 
