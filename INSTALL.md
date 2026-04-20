@@ -35,7 +35,7 @@ Your authoritative files (`core/memory/global/*.md`, project `docs/*.md`) are un
 ## 2. Full clone + CLI install (for operators who want to edit the kernel)
 
 ```bash
-git clone https://github.com/junjslee/cognitive-os ~/episteme
+git clone https://github.com/junjslee/episteme ~/episteme
 cd ~/episteme
 pip install -e .
 
@@ -58,7 +58,7 @@ What this gets you beyond path (1):
 For contributors testing changes to the plugin without publishing:
 
 ```bash
-git clone https://github.com/junjslee/cognitive-os ~/episteme
+git clone https://github.com/junjslee/episteme ~/episteme
 claude --plugin-dir ~/episteme
 ```
 

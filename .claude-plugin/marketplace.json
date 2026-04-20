@@ -11,7 +11,7 @@
       "name": "episteme",
       "source": {
         "source": "url",
-        "url": "https://github.com/junjslee/cognitive-os.git"
+        "url": "https://github.com/junjslee/episteme.git"
       },
       "description": "Install the episteme kernel, skills, agent personas, and safety hooks into Claude Code. Posture-first: structures Core Question + Knowns / Unknowns / Assumptions / Disconfirmation before high-impact actions.",
       "version": "0.6.0",
@@ -24,7 +24,7 @@
         "memory-contract",
         "operator-profile"
       ],
-      "homepage": "https://github.com/junjslee/cognitive-os",
+      "homepage": "https://github.com/junjslee/episteme",
       "license": "MIT"
     }
   ]

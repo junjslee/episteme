@@ -4,21 +4,12 @@ Exact next actions, in priority order. Update this file at every handoff.
 
 ---
 
-## Immediate (post-rename, before promoting 0.8.0)
+## Immediate (post-rename)
 
-1. **Reinstall the CLI under the new name** — the `cognitive-os` entry point is gone.
-   ```bash
-   pip install -e .        # registers `episteme` console script
-   which episteme
-   episteme doctor
-   ```
+1. **Verify marketplace install path** — `/plugin marketplace add junjslee/episteme`
+   (GitHub repo renamed; old `junjslee/cognitive-os` URL still 301-redirects).
 
-2. **Update shell env var** — replace `COGNITIVE_OS_CONDA_ROOT` with `EPISTEME_CONDA_ROOT` in ~/.zshrc or equivalent. (Git pre-commit hook falls back to the old name for now, but the CLI and docs do not.)
-
-3. **Verify marketplace install path still works** — `/plugin marketplace add junjslee/cognitive-os`
-   (repo URL preserved; only display name changed to `episteme`).
-
-4. **Run push-readiness checklist**
+2. **Run push-readiness checklist**
    ```bash
    PYTHONPATH=src:. pytest -q
    python3 -m py_compile src/episteme/cli.py
@@ -26,13 +17,7 @@ Exact next actions, in priority order. Update this file at every handoff.
    episteme doctor
    ```
 
-5. **Tag the migration** — `git tag v0.8.0-episteme && git push --tags`
-
----
-
-## Carried from 0.7.0
-
-1. **Verify marketplace source fix** — run `/plugin marketplace add junjslee/cognitive-os` in a clean Claude Code session. Unverified assumption carried from 0.6.0.
+3. **Tag the migration** — `git tag v0.8.0 && git push --tags`
 
 2. **Run push-readiness checklist**
    ```bash

@@ -60,7 +60,7 @@ Running log of completed work. Most recent first.
 - `docs/PLAN.md`, `docs/PROGRESS.md`, `docs/NEXT_STEPS.md` — created (ops docs were absent; hook advisory fired on every kernel edit)
 
 ### Initial pass
-- `.claude-plugin/marketplace.json` — fixed `source: "."` → `"https://github.com/junjslee/cognitive-os"` (schema fix; unverified against live validator)
+- `.claude-plugin/marketplace.json` — fixed `source: "."` → `"https://github.com/junjslee/episteme"` (schema fix; unverified against live validator)
 - `src/episteme/viewer/index.html` — removed (deprecated UI artifact)
 - `.github/ISSUE_TEMPLATE/feature.yml` — added "Epistemic alignment" field; improved acceptance criteria template
 - `README.md` — added governance/control-plane opening paragraph; feedforward + DbC + OPA framing in "Why this architecture"; "Zero-trust execution" section with OWASP counter-mapping table; "Human prompt debugging" section; interoperability statement; ASCII control-plane diagram

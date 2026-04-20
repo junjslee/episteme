@@ -25,7 +25,7 @@ Architectural gap still open: enforcement scope is currently limited to Claude C
 
 ## [0.6.0] — 2026-04-19 — Epistemic control plane, DbC framing, zero-trust positioning
 
-- **Fixed** `.claude-plugin/marketplace.json` schema: `plugins[0].source` was `"."` (invalid relative path); corrected to `"https://github.com/junjslee/cognitive-os"`. Plugin is now installable via `/plugin marketplace add junjslee/cognitive-os`.
+- **Fixed** `.claude-plugin/marketplace.json` schema: `plugins[0].source` was `"."` (invalid relative path); corrected to `"https://github.com/junjslee/episteme"`. Plugin is now installable via `/plugin marketplace add junjslee/cognitive-os`.
 - **Removed** `src/episteme/viewer/index.html` — deprecated UI artifact; `episteme viewer` CLI command remains.
 - **Reframed** `README.md` opening with explicit governance positioning: episteme as a *deterministic control plane* and *epistemic policy engine*, not just a workflow tool. Added feedforward-vs-feedback contrast, DbC contract framing (Preconditions / Postconditions / Invariants), and OPA analogy.
 - **Added** "Zero-trust execution" section to `README.md`: maps OWASP Agentic AI Top 10 risks to Reasoning Surface counters (prompt injection → Core Question gate, overreach → constraint regime, hallucination → mandatory Unknowns, infinite loops → Disconfirmation).

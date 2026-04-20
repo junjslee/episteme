@@ -138,7 +138,7 @@ Structural stack: kernel (philosophy) → operator profile (personalization) →
 ## Quick start
 
 ```bash
-git clone https://github.com/junjslee/cognitive-os ~/episteme
+git clone https://github.com/junjslee/episteme ~/episteme
 cd ~/episteme
 pip install -e .
 

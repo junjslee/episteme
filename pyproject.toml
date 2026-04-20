@@ -27,9 +27,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/junjslee/cognitive-os"
-Repository = "https://github.com/junjslee/cognitive-os"
-Issues = "https://github.com/junjslee/cognitive-os/issues"
+Homepage = "https://github.com/junjslee/episteme"
+Repository = "https://github.com/junjslee/episteme"
+Issues = "https://github.com/junjslee/episteme/issues"
 
 [project.scripts]
 episteme = "episteme.cli:main"
