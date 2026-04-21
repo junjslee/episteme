@@ -463,5 +463,376 @@ class TextReportRendererTests(unittest.TestCase):
         self.assertNotIn("## Aligned", text)
 
 
+# ---------------------------------------------------------------------------
+# Axis C · fence_discipline (checkpoint 2)
+# ---------------------------------------------------------------------------
+#
+# These tests exercise:
+#   - _is_constraint_removal glob + verb co-occurrence
+#   - _has_reconstruction / _has_counterfactual text probes
+#   - insufficient_evidence below the 5-record minimum
+#   - aligned when both S1 and S2 clear thresholds
+#   - drift on S1-only catastrophic miss (named D1 exception)
+#   - drift on S2-only catastrophic miss (named D1 exception)
+#   - evidence_refs capture + 20-item cap
+#   - signature_predictions shape per claim level
+#   - end-to-end via run_audit against the fence_discipline axis
+
+def _make_removal_record(
+    command: str,
+    *,
+    correlation_id: str,
+    knowns: list[str] | None = None,
+    assumptions: list[str] | None = None,
+    unknowns: list[str] | None = None,
+    disconfirmation: str | None = None,
+) -> dict:
+    """Build an episodic record shaped like core/hooks/episodic_writer.py's
+    output, with a reasoning-surface snapshot attached."""
+    surface: dict = {}
+    if knowns is not None:
+        surface["knowns"] = knowns
+    if assumptions is not None:
+        surface["assumptions"] = assumptions
+    if unknowns is not None:
+        surface["unknowns"] = unknowns
+    if disconfirmation is not None:
+        surface["disconfirmation"] = disconfirmation
+
+    details: dict = {
+        "tool": "Bash",
+        "command": command,
+        "cwd": "/tmp/fixture",
+        "exit_code": 0,
+        "status": "success",
+        "high_impact_patterns_matched": [],
+    }
+    if surface:
+        details["reasoning_surface"] = surface
+
+    return {
+        "id": f"fixture-{correlation_id}",
+        "memory_class": "episodic",
+        "summary": "fixture: constraint removal",
+        "details": details,
+        "provenance": {
+            "source_type": "agent",
+            "source_ref": "tests/test_profile_audit.py",
+            "captured_at": "2026-04-20T00:00:00+00:00",
+            "captured_by": "fixture",
+            "confidence": "high",
+            "evidence_refs": [f"correlation_id:{correlation_id}"],
+        },
+        "status": "active",
+        "version": "memory-contract-v1",
+        "tags": ["high-impact", "bash"],
+        "session_id": "fixture-session",
+        "event_type": "action",
+    }
+
+
+class FenceDisciplineConstraintDetectionTests(unittest.TestCase):
+    """_is_constraint_removal: path-glob AND removal-verb co-occurrence."""
+
+    def test_rm_on_episteme_policy_is_removal(self):
+        rec = _make_removal_record("rm .episteme/policy.md", correlation_id="r1")
+        self.assertTrue(pa._is_constraint_removal(rec))
+
+    def test_git_rm_on_core_hooks_is_removal(self):
+        rec = _make_removal_record(
+            "git rm core/hooks/reasoning_surface_guard.py", correlation_id="r2"
+        )
+        self.assertTrue(pa._is_constraint_removal(rec))
+
+    def test_sed_inplace_on_constitution_is_removal(self):
+        rec = _make_removal_record(
+            "sed -i 's/must/may/' kernel/CONSTITUTION.md", correlation_id="r3"
+        )
+        self.assertTrue(pa._is_constraint_removal(rec))
+
+    def test_lockfile_overwrite_is_removal(self):
+        rec = _make_removal_record(
+            "echo '{}' > package-lock.json", correlation_id="r4"
+        )
+        self.assertTrue(pa._is_constraint_removal(rec))
+
+    def test_removal_verb_without_constraint_path_does_not_match(self):
+        rec = _make_removal_record("rm /tmp/garbage.txt", correlation_id="r5")
+        self.assertFalse(pa._is_constraint_removal(rec))
+
+    def test_constraint_path_without_removal_verb_does_not_match(self):
+        # Reading / greping a constraint file is not a removal.
+        rec = _make_removal_record(
+            "grep -n 'must' kernel/CONSTITUTION.md", correlation_id="r6"
+        )
+        self.assertFalse(pa._is_constraint_removal(rec))
+
+    def test_append_redirect_is_not_removal(self):
+        # `>>` append must not trip the `>` overwrite regex.
+        rec = _make_removal_record(
+            "echo 'note' >> .episteme/notes.md", correlation_id="r7"
+        )
+        self.assertFalse(pa._is_constraint_removal(rec))
+
+    def test_non_bash_record_is_not_removal(self):
+        rec = {"details": {"tool": "Read", "path": ".episteme/policy.md"}}
+        self.assertFalse(pa._is_constraint_removal(rec))
+
+    def test_malformed_record_does_not_crash(self):
+        self.assertFalse(pa._is_constraint_removal({}))
+        self.assertFalse(pa._is_constraint_removal({"details": "nope"}))
+        self.assertFalse(pa._is_constraint_removal({"details": {}}))
+
+
+class FenceDisciplineTextProbeTests(unittest.TestCase):
+    """_has_reconstruction + _has_counterfactual on reasoning-surface fields."""
+
+    def test_reconstruction_phrase_in_knowns_detected(self):
+        rec = _make_removal_record(
+            "rm .episteme/forbidden.txt",
+            correlation_id="t1",
+            knowns=[
+                "This constraint exists because we had a leaked-token "
+                "incident on 2026-02-03 (see audit entry)."
+            ],
+        )
+        self.assertTrue(pa._has_reconstruction(rec))
+
+    def test_commit_sha_in_knowns_detected_as_reconstruction(self):
+        rec = _make_removal_record(
+            "rm .episteme/legacy.md",
+            correlation_id="t2",
+            knowns=["Added in commit 9c26201 per review discussion."],
+        )
+        self.assertTrue(pa._has_reconstruction(rec))
+
+    def test_bare_knowns_without_reconstruction_fails(self):
+        rec = _make_removal_record(
+            "rm .episteme/legacy.md",
+            correlation_id="t3",
+            knowns=["we no longer need this file"],
+        )
+        self.assertFalse(pa._has_reconstruction(rec))
+
+    def test_missing_surface_fails_reconstruction_and_counterfactual(self):
+        rec = _make_removal_record("rm .episteme/x", correlation_id="t4")
+        self.assertFalse(pa._has_reconstruction(rec))
+        self.assertFalse(pa._has_counterfactual(rec))
+
+    def test_counterfactual_in_assumptions_detected(self):
+        rec = _make_removal_record(
+            "rm .episteme/guard.md",
+            correlation_id="t5",
+            assumptions=["If we remove this, the pre-commit check no longer fires."],
+        )
+        self.assertTrue(pa._has_counterfactual(rec))
+
+    def test_counterfactual_in_unknowns_detected(self):
+        rec = _make_removal_record(
+            "rm .episteme/guard.md",
+            correlation_id="t6",
+            unknowns=["What would break if removed: the telemetry stops capturing exit codes."],
+        )
+        self.assertTrue(pa._has_counterfactual(rec))
+
+    def test_counterfactual_blast_radius_phrase(self):
+        rec = _make_removal_record(
+            "rm core/hooks/legacy.py",
+            correlation_id="t7",
+            assumptions=["blast radius: downstream hook x, y, z"],
+        )
+        self.assertTrue(pa._has_counterfactual(rec))
+
+
+class FenceDisciplineHandlerTests(unittest.TestCase):
+    """End-to-end on _axis_fence_discipline dispatched via _AXIS_HANDLERS."""
+
+    @staticmethod
+    def _aligned_record(correlation_id: str) -> dict:
+        return _make_removal_record(
+            f"rm .episteme/rule_{correlation_id}.md",
+            correlation_id=correlation_id,
+            knowns=[
+                f"this constraint exists because of incident {correlation_id} "
+                f"(see audit entry)"
+            ],
+            assumptions=[
+                "if we remove this, the ingest pipeline no longer fails closed"
+            ],
+        )
+
+    @staticmethod
+    def _s1_missing_record(correlation_id: str) -> dict:
+        # No reconstruction, but has counterfactual — S1 catastrophic miss.
+        return _make_removal_record(
+            f"rm .episteme/rule_{correlation_id}.md",
+            correlation_id=correlation_id,
+            knowns=["no longer needed"],
+            assumptions=["removing this would impact the ingest pipeline"],
+        )
+
+    @staticmethod
+    def _s2_missing_record(correlation_id: str) -> dict:
+        # Reconstruction present, no counterfactual — S2 catastrophic miss.
+        return _make_removal_record(
+            f"rm .episteme/rule_{correlation_id}.md",
+            correlation_id=correlation_id,
+            knowns=[
+                f"this constraint exists because of incident {correlation_id}"
+            ],
+            assumptions=["housekeeping"],
+        )
+
+    def test_insufficient_evidence_below_minimum(self):
+        records = [self._aligned_record(f"r{i}") for i in range(4)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["verdict"], "insufficient_evidence")
+        self.assertEqual(out["evidence_count"], 4)
+        self.assertEqual(out["signatures"], {})
+        self.assertIn("Only 4 constraint-removal", out["reason"])
+        self.assertIn("DESIGN_V0_11_PHASE_12", out["reason"])
+        # Claim-dependent predictions are still populated so the record is
+        # readable even when verdict is insufficient_evidence.
+        self.assertIn("S1_reconstruction_rate", out["signature_predictions"])
+        self.assertEqual(
+            out["signature_predictions"]["S1_reconstruction_rate"], [0.90, 1.00]
+        )
+
+    def test_non_removal_records_do_not_count_toward_minimum(self):
+        # Seven records, but none are constraint-removals → evidence_count=0.
+        records = [
+            _make_removal_record("git push origin main", correlation_id=f"r{i}")
+            for i in range(7)
+        ]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["verdict"], "insufficient_evidence")
+        self.assertEqual(out["evidence_count"], 0)
+
+    def test_aligned_when_both_signatures_above_threshold(self):
+        records = [self._aligned_record(f"r{i}") for i in range(8)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["verdict"], "aligned")
+        self.assertEqual(out["evidence_count"], 8)
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 1.0)
+        self.assertEqual(out["signatures"]["S2_review_trace_rate"], 1.0)
+        self.assertIsNone(out["suggested_reelicitation"])
+        # Confidence rises with evidence: medium below 10, high at/above 10.
+        self.assertEqual(out["confidence"], "medium")
+
+    def test_confidence_is_high_at_or_above_ten_records(self):
+        records = [self._aligned_record(f"r{i}") for i in range(12)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["confidence"], "high")
+
+    def test_drift_on_s1_only_miss_catastrophic_exception(self):
+        # All 6 records carry counterfactual (S2 passes) but none carry
+        # reconstruction (S1 = 0% < 70%). Spec §Axis C explicitly permits
+        # single-signature flagging on this axis.
+        records = [self._s1_missing_record(f"r{i}") for i in range(6)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["verdict"], "drift")
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.0)
+        self.assertEqual(out["signatures"]["S2_review_trace_rate"], 1.0)
+        self.assertIn("reconstruction rate", out["reason"])
+        self.assertIn("single-signature flagging", out["reason"])
+        self.assertIsNotNone(out["suggested_reelicitation"])
+
+    def test_drift_on_s2_only_miss_catastrophic_exception(self):
+        # All 6 records carry reconstruction (S1 passes) but none carry
+        # counterfactual (S2 = 0% < 50%).
+        records = [self._s2_missing_record(f"r{i}") for i in range(6)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["verdict"], "drift")
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 1.0)
+        self.assertEqual(out["signatures"]["S2_review_trace_rate"], 0.0)
+        self.assertIn("review-trace rate", out["reason"])
+
+    def test_s1_at_exactly_threshold_does_not_drift(self):
+        # 7/10 = 70% — at the boundary; < means drift, so equal is aligned.
+        records: list[dict] = []
+        for i in range(7):
+            records.append(self._aligned_record(f"pass-{i}"))
+        for i in range(3):
+            records.append(self._s1_missing_record(f"fail-{i}"))
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.7)
+        # S2 is 10/10 here (all records carry assumptions — the s1_missing
+        # records carry a counterfactual phrase). Boundary on S1 → aligned.
+        self.assertEqual(out["verdict"], "aligned")
+
+    def test_evidence_refs_capped_at_twenty(self):
+        # Build 25 removal records; only 20 refs should make it into the output.
+        records = [self._aligned_record(f"r{i:03d}") for i in range(25)]
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["evidence_count"], 25)
+        self.assertEqual(len(out["evidence_refs"]), 20)
+        # First 20 in insertion order (fixture is deterministic).
+        self.assertEqual(out["evidence_refs"][0], "r000")
+        self.assertEqual(out["evidence_refs"][19], "r019")
+
+
+class FenceDisciplinePredictionsTests(unittest.TestCase):
+    """Claim-dependent prediction shape."""
+
+    def test_claim_4_predicts_high_reconstruction(self):
+        p = pa._fence_discipline_predictions(4)
+        self.assertEqual(p["S1_reconstruction_rate"], [0.90, 1.00])
+        self.assertEqual(p["S2_review_trace_rate"], [0.50, 1.00])
+
+    def test_claim_5_predicts_perfect(self):
+        p = pa._fence_discipline_predictions(5)
+        self.assertEqual(p["S1_reconstruction_rate"], [1.00, 1.00])
+        self.assertEqual(p["S2_review_trace_rate"], [1.00, 1.00])
+
+    def test_claim_0_predicts_near_absent(self):
+        p = pa._fence_discipline_predictions(0)
+        self.assertEqual(p["S1_reconstruction_rate"], [0.0, 0.30])
+
+    def test_no_claim_returns_empty_predictions(self):
+        self.assertEqual(pa._fence_discipline_predictions(None), {})
+        self.assertEqual(pa._fence_discipline_predictions("4"), {})
+
+
+class FenceDisciplineEndToEndTests(unittest.TestCase):
+    """run_audit surfaces Axis C correctly alongside the 14 stubbed axes."""
+
+    def test_run_audit_routes_fence_discipline_to_real_handler(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            # Seed episodic dir with 6 aligned removal records.
+            epi = root / "episodic"
+            epi.mkdir()
+            lines = [
+                json.dumps(FenceDisciplineHandlerTests._aligned_record(f"r{i}"))
+                for i in range(6)
+            ]
+            (epi / "2026-04-20.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+            # Minimal profile declaring fence_discipline: 4.
+            prof = root / "profile.md"
+            prof.write_text(
+                "```\nfence_discipline:\n  value: 4\n  confidence: inferred\n```\n",
+                encoding="utf-8",
+            )
+            result = pa.run_audit(
+                episodic_dir=epi,
+                reflective_dir=root / "reflective",
+                profile_path=prof,
+                lexicon_path=root / "lex.md",  # missing → empty lexicon, fine for Axis C
+                since_days=3650,  # large window so the fixture passes any ts filter
+            )
+
+        axes_by_name = {a["axis_name"]: a for a in result["axes"]}
+        fd = axes_by_name["fence_discipline"]
+        self.assertEqual(fd["verdict"], "aligned")
+        self.assertEqual(fd["claim"], 4)
+        self.assertEqual(fd["evidence_count"], 6)
+        # The other 14 axes are still stubbed.
+        stubbed = [a for name, a in axes_by_name.items() if name != "fence_discipline"]
+        self.assertEqual(len(stubbed), 14)
+        for a in stubbed:
+            self.assertEqual(a["verdict"], "insufficient_evidence")
+
+
 if __name__ == "__main__":
     unittest.main()
