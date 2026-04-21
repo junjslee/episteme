@@ -692,10 +692,11 @@ class FenceDisciplineHandlerTests(unittest.TestCase):
         self.assertIn("Only 4 constraint-removal", out["reason"])
         self.assertIn("DESIGN_V0_11_PHASE_12", out["reason"])
         # Claim-dependent predictions are still populated so the record is
-        # readable even when verdict is insufficient_evidence.
+        # readable even when verdict is insufficient_evidence. For claim 4
+        # the S1 band is [0.70, 1.00] — low bound doubles as drift floor.
         self.assertIn("S1_reconstruction_rate", out["signature_predictions"])
         self.assertEqual(
-            out["signature_predictions"]["S1_reconstruction_rate"], [0.90, 1.00]
+            out["signature_predictions"]["S1_reconstruction_rate"], [0.70, 1.00]
         )
 
     def test_non_removal_records_do_not_count_toward_minimum(self):
@@ -772,25 +773,105 @@ class FenceDisciplineHandlerTests(unittest.TestCase):
 
 
 class FenceDisciplinePredictionsTests(unittest.TestCase):
-    """Claim-dependent prediction shape."""
+    """Claim-dependent prediction bands. The [low, high] shape now means
+    [drift_floor, ideal_ceiling] — observed < low ⇒ drift, within ⇒
+    aligned. This frames the threshold as claim-relative, matching
+    spec's 'drift is the delta between claim and reality' principle."""
 
-    def test_claim_4_predicts_high_reconstruction(self):
+    def test_claim_4_matches_spec_axis_c_absolute_threshold(self):
+        # Spec §Axis C names absolute thresholds 0.70 / 0.50 for claim 4.
+        # The predictions band anchors here, so claim 4 reproduces the
+        # spec's exact threshold as its drift floor.
         p = pa._fence_discipline_predictions(4)
-        self.assertEqual(p["S1_reconstruction_rate"], [0.90, 1.00])
+        self.assertEqual(p["S1_reconstruction_rate"], [0.70, 1.00])
         self.assertEqual(p["S2_review_trace_rate"], [0.50, 1.00])
 
-    def test_claim_5_predicts_perfect(self):
+    def test_claim_5_is_tightest(self):
         p = pa._fence_discipline_predictions(5)
-        self.assertEqual(p["S1_reconstruction_rate"], [1.00, 1.00])
-        self.assertEqual(p["S2_review_trace_rate"], [1.00, 1.00])
+        self.assertEqual(p["S1_reconstruction_rate"], [0.90, 1.00])
+        self.assertEqual(p["S2_review_trace_rate"], [0.90, 1.00])
 
-    def test_claim_0_predicts_near_absent(self):
+    def test_claim_0_has_zero_floor_cannot_drift(self):
+        # User-specified semantic: claim 0 + 10% observed = aligned.
+        # Floor at 0.0 makes drift mathematically impossible for claim 0 —
+        # the operator's own declaration already names near-absent practice.
         p = pa._fence_discipline_predictions(0)
-        self.assertEqual(p["S1_reconstruction_rate"], [0.0, 0.30])
+        self.assertEqual(p["S1_reconstruction_rate"], [0.00, 0.30])
+        self.assertEqual(p["S2_review_trace_rate"], [0.00, 0.15])
+
+    def test_claim_3_has_intermediate_floor(self):
+        p = pa._fence_discipline_predictions(3)
+        self.assertEqual(p["S1_reconstruction_rate"], [0.50, 0.80])
+
+    def test_out_of_range_claim_clamps(self):
+        # Defensive: a malformed profile claiming fence_discipline: 99
+        # still yields a usable band rather than a KeyError.
+        p_high = pa._fence_discipline_predictions(99)
+        self.assertEqual(p_high["S1_reconstruction_rate"], [0.90, 1.00])
+        p_low = pa._fence_discipline_predictions(-3)
+        self.assertEqual(p_low["S1_reconstruction_rate"], [0.00, 0.30])
 
     def test_no_claim_returns_empty_predictions(self):
         self.assertEqual(pa._fence_discipline_predictions(None), {})
         self.assertEqual(pa._fence_discipline_predictions("4"), {})
+
+
+class FenceDisciplineClaimRelativeDriftTests(unittest.TestCase):
+    """Drift is the delta between claim and lived record — it MUST scale
+    with the declared score. An operator who claims poor fence discipline
+    and exhibits poor practice is aligned; an operator who claims strong
+    practice and exhibits poor practice drifts. These tests pin that
+    semantic so absolute-threshold drift cannot sneak back in."""
+
+    def test_claim_0_with_low_reconstruction_is_aligned(self):
+        # 10% reconstruction rate against claim=0 (band floor 0.0) is
+        # aligned — the operator's claim already names this behavior.
+        # Under the old absolute-threshold code this would have drifted.
+        records: list[dict] = []
+        for i in range(9):
+            records.append(FenceDisciplineHandlerTests._s1_missing_record(f"m{i}"))
+        records.append(FenceDisciplineHandlerTests._aligned_record("a0"))
+        out = pa._axis_fence_discipline("fence_discipline", 0, records, {})
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.1)
+        self.assertEqual(out["verdict"], "aligned")
+
+    def test_claim_4_with_same_low_reconstruction_is_drift(self):
+        # Same behavior (10% reconstruction), different claim (4). The
+        # band floor for claim=4 is 0.70, so 10% is catastrophic drift.
+        # This is the point of claim-relative thresholds.
+        records: list[dict] = []
+        for i in range(9):
+            records.append(FenceDisciplineHandlerTests._s1_missing_record(f"m{i}"))
+        records.append(FenceDisciplineHandlerTests._aligned_record("a0"))
+        out = pa._axis_fence_discipline("fence_discipline", 4, records, {})
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.1)
+        self.assertEqual(out["verdict"], "drift")
+        self.assertIn("claim=4", out["reason"])
+        self.assertIn("70% floor", out["reason"])
+
+    def test_claim_3_intermediate_behavior_aligned(self):
+        # 60% reconstruction against claim=3 (floor 0.50) is aligned.
+        records: list[dict] = []
+        for i in range(6):
+            records.append(FenceDisciplineHandlerTests._aligned_record(f"a{i}"))
+        for i in range(4):
+            records.append(FenceDisciplineHandlerTests._s1_missing_record(f"m{i}"))
+        out = pa._axis_fence_discipline("fence_discipline", 3, records, {})
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.6)
+        self.assertEqual(out["verdict"], "aligned")
+
+    def test_null_claim_never_drifts_but_surfaces_observations(self):
+        # Profile with no declared fence_discipline value — the audit
+        # cannot compute a delta, so it does not flag. It still reports
+        # the observed rates so the operator can decide whether to
+        # elicit a value.
+        records = [FenceDisciplineHandlerTests._s1_missing_record(f"m{i}") for i in range(6)]
+        out = pa._axis_fence_discipline("fence_discipline", None, records, {})
+        self.assertEqual(out["verdict"], "aligned")
+        self.assertIn("No numeric fence_discipline claim", out["reason"])
+        self.assertEqual(out["signature_predictions"], {})
+        # Signatures are still computed — the record is informational.
+        self.assertEqual(out["signatures"]["S1_reconstruction_rate"], 0.0)
 
 
 class FenceDisciplineEndToEndTests(unittest.TestCase):

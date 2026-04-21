@@ -368,40 +368,43 @@ def _collect_evidence_refs(records: list[dict], cap: int = 20) -> list[str]:
     return refs
 
 
-# Absolute drift thresholds — anchored to fence_discipline = 4 per spec
-# §Axis C. We apply them uniformly: the spec frames these as the minimum
-# acceptable practice regardless of claim; a lower claim with actually-
-# lower behavior is its own conversation, surfaced via the claim-aware
-# signature_predictions, not via the verdict.
-_S1_DRIFT_THRESHOLD = 0.70
-_S2_DRIFT_THRESHOLD = 0.50
 _EVIDENCE_MINIMUM = 5
 
 
-def _fence_discipline_predictions(claim: Any) -> dict[str, list[float]]:
-    """Claim-dependent predicted [low, high] ranges per signature.
+# Claim-to-band map. Each band is [drift_floor, ideal_ceiling] — observed
+# rate below drift_floor = drift; within the band = aligned. The floor
+# doubles as the threshold so there is no magic absolute constant; the
+# claim IS the threshold.
+#
+# Anchored at claim 4 to the spec's §Axis C absolute values (S1 floor
+# 0.70, S2 floor 0.50), so the maintainer's declared `fence_discipline: 4`
+# produces exactly the spec's named threshold. Lower claims scale the
+# floor down — e.g. an operator declaring `fence_discipline: 0` cannot
+# drift by under-performing because the floor is 0.0: the claim already
+# names near-absent practice, so 10% reconstruction is aligned with that
+# claim, not a drift signal. The spec's principle — drift is the delta
+# between claim and lived record — becomes load-bearing in this table.
+_FENCE_BANDS_BY_CLAIM: dict[int, dict[str, list[float]]] = {
+    0: {"S1_reconstruction_rate": [0.00, 0.30], "S2_review_trace_rate": [0.00, 0.15]},
+    1: {"S1_reconstruction_rate": [0.10, 0.45], "S2_review_trace_rate": [0.05, 0.25]},
+    2: {"S1_reconstruction_rate": [0.25, 0.65], "S2_review_trace_rate": [0.15, 0.40]},
+    3: {"S1_reconstruction_rate": [0.50, 0.80], "S2_review_trace_rate": [0.30, 0.55]},
+    4: {"S1_reconstruction_rate": [0.70, 1.00], "S2_review_trace_rate": [0.50, 1.00]},
+    5: {"S1_reconstruction_rate": [0.90, 1.00], "S2_review_trace_rate": [0.90, 1.00]},
+}
 
-    Anchored to the spec's baseline paragraph:
-    `0` < 0.30 reconstruction · `3` ~ 0.70 · `4` ≥ 0.90 · `5` = 1.00.
-    Review-trace scales with the same shape but is a weaker requirement
-    below score 4. Values below are interpolations of the spec's anchor
-    points and provide informational context for the audit reader; they
-    do NOT change the drift threshold.
-    """
+
+def _fence_discipline_predictions(claim: Any) -> dict[str, list[float]]:
+    """Claim-dependent [drift_floor, ideal_ceiling] bands per signature.
+
+    Non-integer or missing claim ⇒ empty dict, which downstream signals
+    "no numeric claim to audit against" (we compute signatures for the
+    operator's information but cannot compute drift)."""
     if not isinstance(claim, int):
         return {}
-    if claim <= 0:
-        return {"S1_reconstruction_rate": [0.0, 0.30], "S2_review_trace_rate": [0.0, 0.15]}
-    if claim == 1:
-        return {"S1_reconstruction_rate": [0.20, 0.50], "S2_review_trace_rate": [0.10, 0.30]}
-    if claim == 2:
-        return {"S1_reconstruction_rate": [0.40, 0.65], "S2_review_trace_rate": [0.20, 0.40]}
-    if claim == 3:
-        return {"S1_reconstruction_rate": [0.60, 0.80], "S2_review_trace_rate": [0.30, 0.55]}
-    if claim == 4:
-        return {"S1_reconstruction_rate": [0.90, 1.00], "S2_review_trace_rate": [0.50, 1.00]}
-    # claim >= 5
-    return {"S1_reconstruction_rate": [1.00, 1.00], "S2_review_trace_rate": [1.00, 1.00]}
+    key = max(0, min(5, claim))
+    # Copy so callers cannot mutate the shared table.
+    return {k: list(v) for k, v in _FENCE_BANDS_BY_CLAIM[key].items()}
 
 
 def _axis_fence_discipline(
@@ -443,22 +446,48 @@ def _axis_fence_discipline(
         "S1_reconstruction_rate": round(s1_rate, 3),
         "S2_review_trace_rate": round(s2_rate, 3),
     }
-
-    s1_drift = s1_rate < _S1_DRIFT_THRESHOLD
-    s2_drift = s2_rate < _S2_DRIFT_THRESHOLD
     confidence: Confidence = "high" if n >= 10 else "medium"
+
+    if not predictions:
+        # No numeric claim declared — nothing to drift against. The
+        # record surfaces the observed rates so the operator can
+        # elicit a value, but the audit does not flag.
+        return AxisAuditResult(
+            axis_name=axis_name,
+            claim=claim,
+            verdict="aligned",
+            evidence_count=n,
+            signatures=signatures,
+            signature_predictions={},
+            confidence=confidence,
+            evidence_refs=evidence_refs,
+            reason=(
+                f"Across {n} constraint-removal record(s): "
+                f"reconstruction rate {s1_rate:.0%}, review-trace rate "
+                f"{s2_rate:.0%}. No numeric fence_discipline claim "
+                f"declared, so no drift can be computed; report is "
+                f"informational. Declare a 0-5 score in the operator "
+                f"profile to enable drift detection."
+            ),
+            suggested_reelicitation=None,
+        )
+
+    s1_floor = predictions["S1_reconstruction_rate"][0]
+    s2_floor = predictions["S2_review_trace_rate"][0]
+    s1_drift = s1_rate < s1_floor
+    s2_drift = s2_rate < s2_floor
 
     if s1_drift or s2_drift:
         misses: list[str] = []
         if s1_drift:
             misses.append(
                 f"reconstruction rate {s1_rate:.0%} < "
-                f"{_S1_DRIFT_THRESHOLD:.0%} threshold"
+                f"{s1_floor:.0%} floor for claim={claim!r}"
             )
         if s2_drift:
             misses.append(
                 f"review-trace rate {s2_rate:.0%} < "
-                f"{_S2_DRIFT_THRESHOLD:.0%} threshold"
+                f"{s2_floor:.0%} floor for claim={claim!r}"
             )
         reason = (
             f"Across {n} constraint-removal record(s): "
@@ -496,9 +525,9 @@ def _axis_fence_discipline(
         evidence_refs=evidence_refs,
         reason=(
             f"Across {n} constraint-removal record(s): reconstruction "
-            f"rate {s1_rate:.0%} ≥ {_S1_DRIFT_THRESHOLD:.0%}, "
-            f"review-trace rate {s2_rate:.0%} ≥ {_S2_DRIFT_THRESHOLD:.0%}. "
-            f"Claim holds against lived record."
+            f"rate {s1_rate:.0%} ≥ {s1_floor:.0%} floor, review-trace "
+            f"rate {s2_rate:.0%} ≥ {s2_floor:.0%} floor for "
+            f"claim={claim!r}. Claim holds against lived record."
         ),
         suggested_reelicitation=None,
     )
