@@ -190,6 +190,31 @@ Substrate-only delivery per the spec's CP2 scope ("No behavior change until CP5 
 
 ---
 
+## Event 10 — 2026-04-21 — Go-To-Market README realignment
+
+Docs-only, zero-code, zero-kernel-change pass executed between CP3 (shipped) and CP4 (not started). Motivation: the existing `README.md` opened with dense philosophical framing (*"episteme installs an epistemic posture"* → prefrontal-cortex metaphor → Kahneman six-mode taxonomy in paragraph form) that was optimal for governance-internal readers and suboptimal for GTM surface — newcomers could not reach the product value ("Thinking Framework forces context-fit protocol extraction from conflicting sources") without reading past three dense paragraphs first.
+
+**Change landed (commit `c1d5da7`):**
+
+- **New accessible opening.** One-line positioning ("Sovereign Cognitive Kernel that installs a mandatory Thinking Framework"), anchor nav, plain-English TL;DR anchored on *context-blindness* (not capability failure — modern AI is capable, the gap is context-fit), "The problem · the solution" section with the five-field table inline, and a "Protocol Synthesis & Active Guidance — the ultimate vision" section that walks the five-step loop (detect conflict → decompose → synthesize → guide actively → self-maintain) with explicit pointer to `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`.
+- **Moved down into "Architecture & philosophy".** The doxa · episteme · praxis triad, 결 · gyeol vocabulary, lifecycle ASCII diagram, and four-strata Mermaid diagram now live in a bottom section. No content was deleted — readers who want the philosophical spine still get it after the accessible framing. Kernel files table (`SUMMARY.md`, `CONSTITUTION.md`, `REASONING_SURFACE.md`, etc.) moved into the same section.
+- **Kept prominent and unchanged in substance:** `I want to… → do this` table (reordered — demos first), "See it in 60 seconds" (demo 03 lead, simplified differential explanation), Quick start, `How episteme compares` (added "Know-how extraction" row), Zero-trust / OWASP mapping, Human prompt debugging, Repository layout, CLI surface, Why this architecture, Push-readiness checklist.
+- **No kernel or spec surface touched.** `kernel/` files and `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` retain their technical vocabulary — those surfaces control the LLM's posture and cannot be simplified without degrading the control signal.
+
+**Tone-discipline boundary (codified by this event).** Plain-English / newcomer-friendly framing is a README + marketing-surface discipline only. `kernel/`, `docs/DESIGN_*.md`, `docs/PLAN.md`, `docs/PROGRESS.md`, `docs/NEXT_STEPS.md`, `docs/COGNITIVE_SYSTEM_PLAYBOOK.md`, and `AGENTS.md` remain technical, precise, and rigorous by design. Cross-linking from README into the technical surfaces is how newcomers graduate; the technical surfaces do not bend inward to meet them.
+
+**Diff stats:** 1 file · 227 insertions · 178 deletions (405 → 441 lines net). Load-bearing content preserved; structural reordering only.
+
+**What did NOT happen:**
+
+- No changes to `kernel/` files. No changes to `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`. No CP4 code. No test runs required — docs-only change.
+- No `CHANGELOG.md` entry — this is a README/GTM surface pass, not a kernel version bump.
+- Local-only commit per maintainer instruction; no push.
+
+**Relation to CP flow.** This event is parallel to the CP track, not part of it. CP3 remains the last shipped CP; CP4 (Layer 3 blueprint-aware grounding) remains the next executable unit. The README realignment does not change any load-bearing spec constraint, blueprint, pillar, or verification gate.
+
+---
+
 ## 0.11.0-rc-track — 2026-04-20 — Framing shift + RC-gate fixes + Phase 12 CP1 scaffolding
 
 One long session. Five commits. Repository's narrative posture and engineering posture realigned around the same thesis the code has always been enforcing: **the cognitive framework is the product; the file-system blocker is the uncompromising enforcer, not the pitch.** Engineering fixes close concrete v1.0.0 RC-blockers; Phase 12 foundation lands so Checkpoint 2 (first real cognitive-drift signature) can start from a scaffolded, tested base.
