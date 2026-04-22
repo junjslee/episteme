@@ -86,6 +86,10 @@ from _guidance import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     query as _guidance_query,
     format_advisory as _guidance_format_advisory,
 )
+from _blueprint_d import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    validate_blueprint_d as _validate_blueprint_d,
+    write_cascade_deferred_discoveries as _write_cascade_deferred_discoveries,
+)
 import _fence_synthesis  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 
@@ -521,7 +525,8 @@ def _layer2_classify_blueprint_fields(
     """
     try:
         blueprint_name = _detect_scenario(
-            pending_op, surface_text=None, project_context={}
+            pending_op, surface_text=None, project_context={},
+            surface=surface,
         )
         blueprint = _load_registry().get(blueprint_name)
     except (_BlueprintParseError, _BlueprintValidationError, KeyError, OSError) as exc:
@@ -993,13 +998,24 @@ def main() -> int:
     # gate — Fence's compound AND (removal-verb ∧ constraint-path) is
     # the specificity gate that makes admitting the op FP-averse.
     if not label:
+        # Scenario-detector dispatch for BYOS ops that bypass
+        # HIGH_IMPACT_BASH but should reach surface validation. Reads
+        # the surface once so Blueprint D's self-escalation trigger
+        # can inspect flaw_classification. Cascade > Fence > generic
+        # priority per the scenario detector.
+        _probe_cwd = Path(payload.get("cwd") or os.getcwd())
+        _probe_surface = _read_surface(_probe_cwd)
         try:
-            if _detect_scenario(
-                payload, surface_text=None, project_context={}
-            ) == "fence_reconstruction":
-                label = "fence:constraint-removal"
+            _probe_scenario = _detect_scenario(
+                payload, surface_text=None, project_context={},
+                surface=_probe_surface,
+            )
         except Exception:
-            pass  # graceful degrade — non-Fence ops fall through
+            _probe_scenario = None
+        if _probe_scenario == "architectural_cascade":
+            label = "cascade:architectural"
+        elif _probe_scenario == "fence_reconstruction":
+            label = "fence:constraint-removal"
     if not label:
         return 0
 
@@ -1039,7 +1055,8 @@ def main() -> int:
             if status == "ok":
                 try:
                     blueprint_name = _detect_scenario(
-                        payload, surface_text=None, project_context={}
+                        payload, surface_text=None, project_context={},
+                        surface=layer2_surface,
                     ) or "generic"
                 except Exception as exc:  # graceful degrade — keep default
                     sys.stderr.write(
@@ -1160,6 +1177,57 @@ def main() -> int:
                             # Fence + L4 have already validated;
                             # synthesis is advisory-in-aggregate.
                             pass
+
+                # Blueprint D · CP10 — architectural cascade
+                # structural validation. Runs when the scenario
+                # detector picked architectural_cascade AND Layers
+                # 1-3 left status at "ok". Graceful degrade: any
+                # exception in Blueprint D machinery downgrades to
+                # a stderr fallback and leaves Layers 1-3 as the
+                # ultimate enforcer.
+                if status == "ok" and blueprint_name == "architectural_cascade":
+                    try:
+                        bd_verdict, bd_detail = _validate_blueprint_d(
+                            layer2_surface
+                        )
+                    except Exception as exc:  # graceful degrade
+                        sys.stderr.write(
+                            f"[episteme] Blueprint D fallback: "
+                            f"{exc.__class__.__name__}; Layers 1-3 still "
+                            f"enforced.\n"
+                        )
+                        bd_verdict, bd_detail = ("pass", "")
+                    if bd_verdict == "reject":
+                        status = "incomplete"
+                        detail = bd_detail
+                    elif bd_verdict in (
+                        "advisory-theater", "advisory-other",
+                        "advisory-theater-plus-other",
+                    ):
+                        sys.stderr.write(f"[episteme advisory] {bd_detail}\n")
+
+                    # On admission, hash-chain every
+                    # deferred_discoveries[] entry immediately.
+                    # CP10 plan Q7 — writer failure never blocks
+                    # admission.
+                    if status == "ok":
+                        try:
+                            _cmd_for_cid = (
+                                _bash_command(payload)
+                                if tool_name == "Bash" else ""
+                            )
+                            _cid = _correlation_id(
+                                payload, _cmd_for_cid,
+                                datetime.now(timezone.utc).isoformat(),
+                            )
+                            _write_cascade_deferred_discoveries(
+                                layer2_surface,
+                                correlation_id=_cid,
+                                op_label=label,
+                                cwd=cwd,
+                            )
+                        except Exception:
+                            pass  # bookkeeping never blocks.
 
                 # Layer 4 · CP6 — generic verification_trace. Runs when
                 # the blueprint declares verification_trace_required:

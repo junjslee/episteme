@@ -166,6 +166,7 @@ def detect_scenario(
     pending_op: dict[str, Any],
     surface_text: str | None = None,
     project_context: dict[str, Any] | None = None,
+    surface: dict[str, Any] | None = None,
 ) -> str:
     """Return the blueprint name that shapes this op's Reasoning Surface.
 
@@ -174,27 +175,51 @@ def detect_scenario(
     pending_op
         The tool-call payload under consideration. Shape depends on the
         runtime adapter; common keys include `tool_name`, `command`,
-        `file_path`. The detector is tool-agnostic per the BYOS stance
-        (spec § What episteme is — and what it is not) — it reads from
-        a normalized shape the hook layer provides.
+        `file_path`. The detector is tool-agnostic per the BYOS stance.
     surface_text
-        The Reasoning Surface text (if present in cwd). Used by CP10's
-        self-escalation selector to detect an explicit
-        `flaw_classification` declaration from the agent. Unused at CP5.
+        Legacy-None placeholder. CP10 passes the full surface dict via
+        the new ``surface`` kwarg instead; ``surface_text`` remains in
+        the signature for backwards compatibility.
     project_context
-        Project-level signals: cwd, git state, recent diff, etc. Unused
-        at CP5 (Fence fires on Bash command text alone; CP10 will add
-        diff-based triggers for Blueprint D).
+        Project-level signals. Unused at RC; reserved for later
+        cascade-detector triggers that might need diff state.
+    surface
+        The parsed Reasoning Surface dict (if present in cwd). CP10's
+        self-escalation trigger reads ``flaw_classification`` from it.
 
     Returns
     -------
     str
-        Blueprint name. At CP5: `"fence_reconstruction"` when the
-        compound trigger matches (removal-verb lexicon AND
-        constraint-bearing path both present in the same Bash command);
-        `"generic"` otherwise.
+        Blueprint name. Priority: Blueprint D (architectural cascade)
+        > Fence Reconstruction > generic fallback. CP10 dispatches
+        cascade first because its triggers cover architectural
+        edits that might otherwise slip through as generic
+        high-impact Bash ops.
     """
-    del surface_text, project_context  # reserved for CP10
+    del surface_text, project_context  # reserved for post-v1.0 triggers
+
+    # Priority: Fence (constraint removal) > Blueprint D (architectural
+    # cascade) > generic. Fence fires on a tighter compound-AND
+    # signal (removal-verb at command head AND constraint-bearing
+    # path in the same Bash command) so it's the more specific
+    # match when both could apply. Blueprint D catches the broader
+    # cascade class — refactor lexicon, sensitive-path Edit/Write,
+    # generated-artifact symbol references — that Fence doesn't touch.
     if _fence_fires(pending_op):
         return FENCE_RECONSTRUCTION
+
+    # CP10 · Blueprint D cascade detector — four triggers, short-circuit
+    # on first match. Graceful degrade inside detect_cascade returns
+    # None on any internal exception.
+    try:
+        from _cascade_detector import (  # type: ignore  # pyright: ignore[reportMissingImports]
+            detect_cascade as _detect_cascade,
+            ARCHITECTURAL_CASCADE,
+        )
+        cascade = _detect_cascade(pending_op, surface=surface)
+        if cascade == ARCHITECTURAL_CASCADE:
+            return ARCHITECTURAL_CASCADE
+    except ImportError:
+        pass  # cascade detector unavailable; fall through to generic.
+
     return GENERIC_FALLBACK

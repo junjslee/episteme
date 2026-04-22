@@ -103,11 +103,16 @@ class DetectorStub(unittest.TestCase):
         self.assertEqual(result, GENERIC_FALLBACK)
 
     def test_signature_is_stable(self):
-        # CP3 commits to this exact signature. Any rename or reorder is
-        # a governance event; this test locks it in.
+        # CP3 committed the original three-param signature. CP10 added
+        # the `surface` kwarg for Blueprint D self-escalation detection.
+        # Any rename, reorder, or removal of existing params is still
+        # a governance event; this test locks the current shape in.
         sig = inspect.signature(detect_scenario)
         params = list(sig.parameters.keys())
-        self.assertEqual(params, ["pending_op", "surface_text", "project_context"])
+        self.assertEqual(
+            params,
+            ["pending_op", "surface_text", "project_context", "surface"],
+        )
 
     def test_generic_fallback_constant_matches_blueprint_name(self):
         reg = load_registry()

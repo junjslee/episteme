@@ -485,7 +485,9 @@ class BlueprintStubsStructural(unittest.TestCase):
         ):
             self.assertIn(f, bp.required_fields)
         self.assertTrue(bp.synthesis_arm)
-        self.assertEqual(bp.selector_triggers, ())  # CP10 populates
+        # CP10 populated selector_triggers with the compound-class
+        # descriptor pointing at _cascade_detector.py.
+        self.assertGreater(len(bp.selector_triggers), 0)
 
     def test_generic_blueprint_requires_verification_trace(self):
         bp = load_registry().get("generic")

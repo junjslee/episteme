@@ -184,12 +184,26 @@ Hooks to (a) Munger's second-order thinking (blast radius = second-order effect)
 
 Selector triggers (CP10, see *Implementation sequencing*):
 
-- Proposed diff touches a schema file, policy file, or kernel doc without companion edits in doc / CLI / test / visualization surfaces that reference the changed entity (git-grep cross-reference check at scenario-detector time).
-- Operator or agent uses `refactor`, `cleanup`, `rename`, `deprecate`, or `migrate` in the op context against a file path with ≥ 2 cross-surface references.
-- Agent explicitly declares `flaw_classification` in the surface (self-escalation — always fires regardless of other signals).
-- Proposed diff renames or deletes a symbol whose exported name appears in generated artifacts (MANIFEST.sha256, CHANGELOG.md).
+**Selector triggers (CP10 implementation in ``core/hooks/_cascade_detector.py``):**
 
-Pillar 3 synthesis arm. On successful Blueprint D resolution (all blast-radius surfaces updated coherently within the declared window; no orphan-reference regression detected retrospectively), the blueprint emits a **context-specific cascade protocol** to the framework: *"In context `<project + subsystem + flaw_class>`, posture `<patch|refactor>` with blast-radius class `<surfaces>` resolved without divergence because `<observable>`."* Over time, the framework accumulates architectural know-how about *how this specific system cascades* — which renames actually propagate, which schema changes break visualizations, which doc sections rot when CLI flags change. This is the same synthesis loop Axiomatic Judgment and Fence Reconstruction ride on; Blueprint D writes at a different scope (system-architecture-level rather than per-op-decision-level).
+- **Trigger 1 · self-escalation** — surface declares ``flaw_classification`` (non-empty string). Fires regardless of tool type. Always-decisive, cheapest first.
+- **Trigger 2 · sensitive-path target** — op's target matches one of: ``core/schemas/``, ``core/hooks/``, ``kernel/[A-Z_]+\.md``, ``.episteme/``, ``pyproject.toml``, ``policy[/_-]``, ``security[/_-]``. For Bash, matches command text tokens; for Edit/Write, matches ``file_path``.
+- **Trigger 3 · refactor lexicon + cross-ref ≥ 2** — command head matches ``git mv`` / ``git rename`` / ``rename`` / ``deprecate`` / ``migrate`` / ``sed -i`` / ``cleanup`` AND at least one path-shaped token in the command has basename appearing ≥ 2 times in the project's bounded content blob (reusing Layer 3's warm fingerprint cache). Threshold = exactly 2 per CP10 plan Q1.
+- **Trigger 4 · generated-artifact symbol reference** — command head is a rename/delete verb (``git mv`` / ``git rm`` / ``rm -rf`` / ``unlink`` / ``rename``) targeting a ``.py`` source file whose basename stem (≥ 5 chars, word-boundary match per CP10 post-dogfood tightening) appears in ``kernel/MANIFEST.sha256`` or ``kernel/CHANGELOG.md`` or ``CHANGELOG.md``. Strict scope per CP10 plan Q3.
+
+**Kernel-state-file exemption (CP10 live-dogfood learning).** Writes/edits targeting ``.episteme/reasoning-surface.json`` or ``.episteme/advisory-surface`` bypass cascade detection entirely — operator metadata is not an architectural cascade. Discovered live during CP10's own commit when self-escalation fired on the kernel's own surface-refresh attempts, creating a circular block.
+
+**Scenario-dispatch priority.** Fence > Blueprint D > generic. Fence fires on a tighter compound-AND (removal verb at command head AND constraint-bearing path), so `rm kernel/FAILURE_MODES.md` routes to Fence; Blueprint D catches the broader cascade class (refactor lexicon, sensitive-path Edit/Write, generated-artifact symbol references) Fence doesn't touch.
+
+**Cascade-theater advisory.** When every ``blast_radius_map[]`` entry is marked ``not-applicable`` with rationale, the validator returns ``advisory-theater`` — op is admitted with a stderr hint. Layer 8's 2× sampling on ``blueprint_d_resolution`` multiplier + the ``cascade_integrity`` verdict dimension (``real_sync`` / ``theater`` / ``partial``) close sustained theater at verdict time.
+
+**`other` classification advisory.** ``flaw_classification == "other"`` admits with an advisory naming "Phase 12 audit vocabulary expansion candidate" per CP10 plan Q5. The deferred-discovery entry associated with the firing preserves the free-text description for post-soak vocab review.
+
+**Retrospective sync-plan verification (v1.0.1 scope).** CP10 ships structural validation of ``blast_radius_map[]`` + ``sync_plan[]`` at write time. Cross-surface orphan-reference detection (did the resulting diff actually touch every named surface?) is spec-deferred to v1.0.1 Phase 12 extensions — requires diff parsing not available at PreToolUse hot-path latency.
+
+Pillar 3 synthesis arm. On successful Blueprint D resolution (all blast-radius surfaces updated coherently within the declared window; no orphan-reference regression detected retrospectively), the blueprint emits a **context-specific cascade protocol** to the framework: *"In context `<project + subsystem + flaw_class>`, posture `<patch|refactor>` with blast-radius class `<surfaces>` resolved without divergence because `<observable>`."* Over time, the framework accumulates architectural know-how about *how this specific system cascades* — which renames actually propagate, which schema changes break visualizations, which doc sections rot when CLI flags change. Writes protocols at system-architecture scope via CP7's chained `_framework.write_protocol`; CP9's `episteme guide` surfaces them.
+
+**Deferred-discovery immediate write (CP10).** Every ``deferred_discoveries[]`` entry in an admitted Blueprint D surface is hash-chained to ``~/.episteme/framework/deferred_discoveries.jsonl`` via ``_framework.write_deferred_discovery`` at PreToolUse. CP9's `episteme guide --deferred` lists the accumulating log. Writer failure swallows silently — bookkeeping never blocks admission.
 
 ### Generic maximum-rigor fallback (Goodhart closer)
 

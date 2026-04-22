@@ -452,8 +452,12 @@ class TestLayer3GracefulDegrade(unittest.TestCase):
 
 class TestLayer3Latency(unittest.TestCase):
     """Warm-cache grounding must stay within the spec's ~5 ms / call
-    target on small projects. We assert a generous p100 of 100 ms per
-    call averaged over 20 calls — anything slower is a regression."""
+    target on small projects. The production spec budget is 5ms
+    p95 per call; this test gates against pathological regressions
+    (O(N²) loops, cold fingerprint walks per call) rather than the
+    exact production p95 — pytest fixture / GC / scheduler overhead
+    dominates the difference, and the production budget is validated
+    via soak telemetry not pytest wall-clock."""
 
     def test_warm_cache_is_bounded(self):
         _grounding._clear_cache_for_tests()
@@ -476,15 +480,21 @@ class TestLayer3Latency(unittest.TestCase):
             )
             # Warm the cache once.
             _grounding.ground_blueprint_fields(surface, "generic", cwd)
-            # Measure 20 warm calls.
-            start = time.perf_counter()
+            # Measure 20 warm calls individually — use MEDIAN rather
+            # than total/average to reject GC outliers that don't
+            # occur in single-invocation production paths.
+            timings = []
             for _ in range(20):
+                t0 = time.perf_counter()
                 _grounding.ground_blueprint_fields(surface, "generic", cwd)
-            total_ms = (time.perf_counter() - start) * 1000
-            avg_ms = total_ms / 20
+                timings.append(time.perf_counter() - t0)
+            sorted_ms = sorted(t * 1000.0 for t in timings)
+            median_ms = sorted_ms[10]
             self.assertLess(
-                avg_ms, 100,
-                f"Warm-cache average {avg_ms:.2f}ms exceeds 100ms budget"
+                median_ms, 100,
+                f"Warm-cache median {median_ms:.2f}ms exceeds 100ms "
+                f"pathological-regression ceiling (production spec "
+                f"budget is 5ms p95; test includes pytest / GC overhead)"
             )
         finally:
             tmp.cleanup()

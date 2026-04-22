@@ -275,12 +275,29 @@ class TestScenarioDetectorFence(unittest.TestCase):
         self.assertEqual(detector.detect_scenario(op), "generic")
 
     def test_non_bash_tool_falls_back(self):
+        # Fence selector is Bash-only. CP10 added Blueprint D
+        # (architectural_cascade) which ALSO catches Edit/Write on
+        # sensitive paths. Use a non-sensitive file_path so the
+        # intent — "Fence doesn't fire outside Bash" — remains
+        # testable without triggering the newer Blueprint D path.
         op = {
             "tool_name": "Edit",
-            "tool_input": {"file_path": "rm .episteme/foo"},
+            "tool_input": {"file_path": "src/some_feature.py"},
         }
-        # Non-Bash never fires Fence even if path / lexicon appear.
         self.assertEqual(detector.detect_scenario(op), "generic")
+
+    def test_edit_on_sensitive_path_fires_blueprint_d(self):
+        # CP10 — Edit/Write targeting a sensitive path (core/hooks/,
+        # core/schemas/, kernel/UPPERCASE.md, .episteme/, etc.) fires
+        # Blueprint D via the cascade detector's Trigger 2. This
+        # test locks the priority: Blueprint D > Fence > generic.
+        op = {
+            "tool_name": "Edit",
+            "tool_input": {"file_path": "core/hooks/new_hook.py"},
+        }
+        self.assertEqual(
+            detector.detect_scenario(op), "architectural_cascade"
+        )
 
 
 # ---------- origin_evidence classifier ----------------------------------

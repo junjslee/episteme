@@ -33,8 +33,8 @@ description: >
   + blast_radius_map (enumerated surfaces; not-applicable entries must
   carry a reason) + sync_plan (one concrete action per map entry) +
   deferred_discoveries (adjacent gaps hash-chained into the framework).
-  Structure-only at CP6; selector (four trigger classes) + field-level
-  validation + hash-chained deferred_discovery writes land at CP10.
+  CP10 ships the four-trigger cascade detector, structural validation,
+  and immediate hash-chained writes of deferred_discoveries entries.
   Retrospective sync-plan orphan-reference detection lands in v1.0.1.
 version: 1
 required_fields:
@@ -48,4 +48,7 @@ optional_fields:
   - verification_trace
 synthesis_arm: true
 verification_trace_required: false
-selector_triggers: []
+selector_triggers:
+  - trigger_class: architectural_cascade_compound
+    applies_to: "Bash,Edit,Write,MultiEdit"
+    reason: "Four-class cascade detector in core/hooks/_cascade_detector.py — self_escalation (surface declares flaw_classification) / sensitive_path (op touches core/schemas/ | core/hooks/ | kernel/UPPERCASE.md | .episteme/ | pyproject.toml | policy | security) / refactor_lexicon (git mv/rename/deprecate/migrate/sed -i/cleanup at command head AND target basename has >= 2 cross-refs in project content blob) / generated_artifact_reference (rename/delete of source file whose basename appears in kernel/MANIFEST.sha256 or CHANGELOG.md). FP-averse per CP5 dogfood lesson: lexicon anchored to command head."
