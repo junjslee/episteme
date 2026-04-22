@@ -784,6 +784,42 @@ The ten-CP implementation arc is complete. The RC cycle moves to soak-window ver
 
 ---
 
+## Event 18 — 2026-04-22 — GTM site + visualization dashboard scaffolded (`web/`, v1 static data strategy)
+
+Separate work stream from the v1.0 RC kernel cycle. A Next.js 16 / React 19 / Tailwind 4 application scaffolded at `web/` to carry the episteme go-to-market narrative and an interactive kernel-telemetry dashboard. No kernel code touched; RC soak gates unaffected. Build green (`pnpm build` — both `/` and `/dashboard` statically prerendered).
+
+### Delivery
+
+- **Scaffold.** `web/` created via `pnpm dlx create-next-app@latest --typescript --tailwind --app --src-dir --turbopack --eslint --use-pnpm`. Resolved a local corepack signature-verification blocker by upgrading corepack (`npm i -g corepack@latest`) before `corepack enable pnpm` — captured so subsequent operators don't repeat the diagnosis.
+- **Typography.** `Fraunces` (variable serif, Google) for display, `Satoshi` (Fontshare; variable woff2 self-hosted under `web/public/fonts/satoshi/` with FFL license bundled) for body, `JetBrains Mono` (Google) for data/code. Explicit exclusion of Inter / Roboto / Space-Grotesk per operator's anti-AI-slop constraint.
+- **Design tokens.** `web/src/app/globals.css` declares `@theme` with a near-black substrate (`--color-void: #07080a`), bone-white text, and four scarce signal colors (`verified / unknown / disconfirm / chain`). No gradients. Single hairline grid overlay + low-opacity SVG noise layer for atmosphere.
+- **Domain types.** `web/src/lib/types/episteme.ts` models the live `episteme/reasoning-surface@1` schema (knowns / unknowns / assumptions / disconfirmation / blast_radius_map / sync_plan / deferred_discoveries), plus `ChainEntry` (Pillar 2 shape), `Protocol` (Pillar 3 shape with because-chain), `CascadeSignal` (Blueprint D four-trigger state), `TelemetryEvent`.
+- **Hero visuals.**
+  - `ReasoningMatrix` (`web/src/components/viz/ReasoningMatrix.tsx`) — 2×2 K/U/A/D quadrants, live counts, 3-item preview, hover/click to expand; Unknowns quadrant carries the ambient amber pulse that visualizes the "cannot proceed while empty" constraint.
+  - `HashChainStream` (`web/src/components/viz/HashChainStream.tsx`) — vertical append-only column, per-entry prev→this hash display, new-entry blue flash, tamper-suspected flash on broken `prev_hash` linkage; driven by `markChainIntegrity()` in `web/src/lib/parsers/chain.ts`.
+- **Supporting viz.** `ProtocolNode` (hover reveals because-chain), `TelemetryTicker` (terminal-style event log), `CascadeDetector` (four-trigger LED row — dashboard-only per GTM scope decision).
+- **Site surfaces.** Marketing landing (`web/src/app/page.tsx`) composed from `Header / Hero / PillarsGrid / LiveExhibit / FrameworkExplainer / ProtocolsSection / CodeSample / CTASection / Footer`. Operator-console dashboard (`web/src/app/dashboard/page.tsx`) composed from the viz primitives plus cascade detector. Numbered section headers (`01 / THREE PILLARS`, etc.) via `Sectioned` ui primitive. Copy bans `guardrail / blocker / safety / compliance`; favors `framework / substrate / protocol / cortex`.
+- **Data strategy (v1 static).** `web/scripts/build-fixtures.mjs` emits `public/data/chain.jsonl` (14 entries with deterministic display-hashes), `public/data/protocols.jsonl` (4 protocols), `public/data/reasoning-surface.json` (blueprint-D-shaped). Mirror TS fixtures under `web/src/lib/fixtures/` drive the components at build time; swapping to `fetch('/data/*.jsonl')` or an API handler reading the real kernel on disk is a prop-in-place change because every viz component accepts `data` as a prop.
+
+### Planned ramp (captured in NEXT_STEPS)
+
+- **v2** — route handlers at `web/src/app/api/{chain,surface,protocols}/route.ts` read from the live `.episteme/*.jsonl` on disk (path-scoped to the repo via an env var); ISR.
+- **v3** — SSE from an `episteme serve` daemon, so the matrix and chain react live to real kernel activity. Scoped for post-v1.0-GA.
+
+### What did NOT happen
+
+- No kernel code touched. No RC soak gates affected.
+- No live wiring to `.episteme/` yet — v1 ships as a standalone web artifact with static fixtures. v2 wires it.
+- Satoshi automated download worked through Fontshare's public download endpoint this session; fragile, and should be captured as a deferred discovery if it fails on CI.
+
+### Blueprint D self-check
+
+`web/` is a new surface, not a cascade edit. The `rm -rf /tmp/satoshi-dl` form was blocked by `core/hooks/block_dangerous.py` (the kernel caught a broad delete against an ephemeral temp dir and forced a switch to `mktemp -d`); worth noting that the substrate's own guard fired honestly against the kernel's operator during GTM work, proving the `block_dangerous` layer is not context-scoped to kernel paths. Exemption is not warranted — the stricter path is correct.
+
+**Commit plan:** atomic commit for GTM site scaffold, message subject `feat(web): GTM site + dashboard scaffolding (Next.js 16 + Tailwind 4 + static v1 data)`. Kernel repo untouched; web/ directory self-contained.
+
+---
+
 ## 0.11.0-rc-track — 2026-04-20 — Framing shift + RC-gate fixes + Phase 12 CP1 scaffolding
 
 One long session. Five commits. Repository's narrative posture and engineering posture realigned around the same thesis the code has always been enforcing: **the cognitive framework is the product; the file-system blocker is the uncompromising enforcer, not the pitch.** Engineering fixes close concrete v1.0.0 RC-blockers; Phase 12 foundation lands so Checkpoint 2 (first real cognitive-drift signature) can start from a scaffolded, tested base.

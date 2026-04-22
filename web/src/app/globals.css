@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────────────────────────────────
+   episteme — operator console tokens
+   Colors are scarce by construction. Signal colors earn their brightness
+   by being rare. No gradients. No saturated blues. Bone white, not pure.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Substrate */
+  --color-void: #07080a;
+  --color-surface: #0d0f13;
+  --color-elevated: #14171d;
+  --color-hairline: #1a1e26;
+  --color-line: #272c36;
+  --color-line-strong: #3a404c;
+
+  /* Type on substrate */
+  --color-bone: #e8e9ec;
+  --color-ash: #8b909b;
+  --color-muted: #4f5562;
+  --color-whisper: #373c45;
+
+  /* Signals — used sparingly for state communication */
+  --color-verified: #7de0b0;
+  --color-unknown: #f5b764;
+  --color-disconfirm: #e87464;
+  --color-chain: #64a0f5;
+
+  /* Fonts wired via next/font in layout.tsx */
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-satoshi);
+  --font-mono: var(--font-jetbrains);
+
+  /* Motion */
+  --ease-enter: cubic-bezier(0, 0, 0.2, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Base reset anchored to the substrate */
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-bone);
+}
+
+body {
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "ss01" on, "ss02" on, "cv01" on;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-chain);
+  color: var(--color-void);
+}
+
+/* Hairline grid overlay — 1px, 4% opacity, 48px cadence.
+   Rendered once in <body>, pointer-events none, z-index -1. */
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+}
+
+/* Noise layer — very low opacity film grain */
+.noise-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scrollbar — thin, muted */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-void);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-hairline);
+  border-radius: 1px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-line);
+}
+
+/* Utility: ambient pulse for unknown quadrants */
+@keyframes pulse-unknown {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 183, 100, 0); }
+  50% { box-shadow: 0 0 24px -4px rgba(245, 183, 100, 0.25); }
+}
+.pulse-unknown {
+  animation: pulse-unknown 4.2s var(--ease-standard) infinite;
+}
+
+/* Hash chain new-entry flash */
+@keyframes flash-chain {
+  0% { background: rgba(100, 160, 245, 0.22); border-color: rgba(100, 160, 245, 0.6); }
+  100% { background: transparent; border-color: var(--color-hairline); }
+}
+.flash-chain {
+  animation: flash-chain 420ms var(--ease-exit) forwards;
+}
+
+/* Broken-link alert */
+@keyframes flash-break {
+  0%, 100% { background: rgba(232, 116, 100, 0.18); }
+  50% { background: rgba(232, 116, 100, 0.28); }
+}
+.flash-break {
+  animation: flash-break 1.8s var(--ease-standard) infinite;
+}
