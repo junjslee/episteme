@@ -29,7 +29,7 @@ the hot path missed at write; phase 12 (profile-audit) is the loop
 that audits *the operator's claimed cognitive profile* against the
 lived episodic record.
 
-GIF: [`docs/assets/posture_demo.gif`](./assets/posture_demo.gif).
+GIF: [`docs/assets/demo_posture.gif`](./assets/demo_posture.gif).
 
 ## ② Posture as enforcement of the surface
 
@@ -73,10 +73,11 @@ Both scripts run hermetically against a tempdir HOME so re-recording
 does not touch real `~/.episteme/` state.
 
 ```bash
-asciinema rec -c ./scripts/demo_posture.sh \
-  docs/assets/posture_demo.cast
-agg docs/assets/posture_demo.cast docs/assets/posture_demo.gif \
-  --cols 100 --rows 36 --font-size 15 --theme monokai
+asciinema rec --cols 100 --rows 32 --idle-time-limit 2 \
+  -c ./scripts/demo_posture.sh \
+  docs/assets/demo_posture.cast
+agg --speed 0.8 --cols 100 --rows 32 --font-size 15 --theme monokai \
+  docs/assets/demo_posture.cast docs/assets/demo_posture.gif
 
 asciinema rec -c ./scripts/demo_strict_mode.sh \
   docs/assets/strict_mode_demo.cast

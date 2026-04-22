@@ -1100,6 +1100,46 @@ Event 17 logged DD #2 as *"`scripts/demo_posture.sh` narration references 'phase
 
 ---
 
+## Event 23 — 2026-04-22 — Post-deploy hotfix: README GIF reference + stale asset cleanup
+
+After the first Vercel push, the operator reported the landing README still rendered the v0.11-era demo even though v1.0 content was committed. Root cause: `README.md:7` still referenced the OLD filename `docs/assets/posture_demo.gif`. The new Cognitive Cascade recording was committed under the NEW filename `docs/assets/demo_posture.gif` (matching the renamed `scripts/demo_posture.sh`), so the two artifacts coexisted in the tree without the README ever pointing at the new one.
+
+### Hotfix delivery
+
+- **`README.md:7`** — image src flipped from `docs/assets/posture_demo.gif` → `docs/assets/demo_posture.gif`. Single character change; huge visible delta.
+- **`docs/DEMOS.md`** — the `## ① Posture as thinking` section's GIF link flipped to `demo_posture.gif`; the recording block rewritten to the v1.0 RC contract (`asciinema rec --cols 100 --rows 32 --idle-time-limit 2` + `agg --speed 0.8 --theme monokai`) matching the new `scripts/demo_posture.sh` header.
+- **`demos/03_differential/README.md`** — recording instruction rewritten: describes the four-act Cognitive Cascade, references `demo_posture.{cast,gif}`, includes the `--speed 0.8` agg invocation. The prior "four narrated beats · phase 12 will close" narrative (v0.11 language) is gone.
+- **Deleted three obsolete asset files:**
+  - `docs/assets/posture_demo.cast` (v0.11 recording, 10 KB) — superseded by `demo_posture.cast`
+  - `docs/assets/posture_demo.gif` (v0.11 recording, 1.1 MB) — the stale GIF the user was still seeing
+  - `strict_demo.cast` at repo root (v0.11 scratch, 3 KB) — no live references anywhere; legacy from before `docs/assets/strict_mode_demo.*` became canonical
+- **Kept** (audited, not deleted):
+  - `docs/assets/architecture_v2.svg` + `system-overview.svg` — both live-referenced in `docs/NARRATIVE.md` + `docs/ARCHITECTURE.md` + `demos/01_attribution-audit/handoff.md`
+  - `docs/assets/architecture_v2.png` + `system-overview.png` — rasterization outputs from Event 21; not currently embedded anywhere but trivial to wire into a README hero block later; 1 MB total; easily regeneratable via the `dot -Tsvg` + `rsvg-convert` commands captured in the DOT-source header comment
+  - `docs/assets/setup-demo.svg` — only referenced by `kernel/CHANGELOG.md` (immutable per historical-record policy); keeping avoids an archival orphan
+  - `docs/assets/src/architecture_v2.tex` — the TikZ sibling source, preserved per Event 21 DD #1 (sync-on-demand)
+  - `docs/assets/strict_mode_demo.{cast,gif}` — still live-referenced in `docs/CONTRIBUTING.md` and `docs/DEMOS.md`
+
+### On the GitHub render staleness
+
+GitHub serves repo-embedded images through its camo proxy which caches on the image's URL path. Two mechanisms were in play for the operator's "still see the same" observation:
+1. **Primary (fixed this pass):** `README.md` URL pointed at a filename whose content was genuinely unchanged (`posture_demo.gif`). No cache was at fault; the README was correctly serving the file it pointed at.
+2. **Secondary (orthogonal):** even after a file's content changes at the same URL, camo may serve the cached render for up to ~24 h. The URL flip in this pass (`posture_demo.gif` → `demo_posture.gif`) also acts as a natural cache bust — the new URL has no cache history.
+
+### Smoke
+
+- `grep -nR "posture_demo\." .` across `**/*.md` returns only the two archival references: one in PROGRESS Event 22 prose (historical narrative, preserved) and one in `docs/DESIGN_V0_11_COHERENCE_PASS.md` (v0.11 archival spec, immutable).
+- `ls docs/assets/` no longer shows `posture_demo.*`; `ls /` no longer shows `strict_demo.cast`.
+- No live surface points at a deleted file.
+
+### Deferred
+
+- **Rasterized PNGs kept pending a README hero decision.** If v1.1 adds a static "architecture at a glance" panel to the landing README, the PNGs are the embed target. If not, a follow-up cleanup pass can delete them and rely on the SVG links only.
+
+**Commit plan:** atomic hotfix, message subject `fix(docs): README GIF → demo_posture.gif + purge v0.11 demo artifacts (posture_demo.cast/.gif, root strict_demo.cast)`.
+
+---
+
 ## 0.11.0-rc-track — 2026-04-20 — Framing shift + RC-gate fixes + Phase 12 CP1 scaffolding
 
 One long session. Five commits. Repository's narrative posture and engineering posture realigned around the same thesis the code has always been enforcing: **the cognitive framework is the product; the file-system blocker is the uncompromising enforcer, not the pitch.** Engineering fixes close concrete v1.0.0 RC-blockers; Phase 12 foundation lands so Checkpoint 2 (first real cognitive-drift signature) can start from a scaffolded, tested base.

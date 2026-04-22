@@ -12,10 +12,10 @@ This demo is the one that convinces skeptics. The kernel's value is not a fix af
 
 ## See it in motion (75 seconds)
 
-The artifacts below are the static form of this demo. A cinematic version walks through them in four narrated beats — the prompt, doxa vs episteme field-by-field, the specificity ladder (validated live against the real Reasoning-Surface Guard), and the memory loop that phase 11 ships and phase 12 will close:
+The artifacts below are the static form of this demo. The v1.0 RC cinematic version walks through a four-act Cognitive Cascade — Blueprint B fence reconstruction, Blueprint D architectural cascade, and Pillar 3 active guidance firing on the next matching op:
 
-- **Script:** [`scripts/demo_posture.sh`](../../scripts/demo_posture.sh) — hermetic; sets `HOME` to a tempdir; runs end-to-end in ~75 s.
-- **Recording:** `asciinema rec -c ./scripts/demo_posture.sh docs/assets/posture_demo.cast`, then `agg docs/assets/posture_demo.cast docs/assets/posture_demo.gif --cols 100 --rows 36 --font-size 15 --theme monokai`.
+- **Script:** [`scripts/demo_posture.sh`](../../scripts/demo_posture.sh) — cinematic; runs in any clean bash environment (all kernel output simulated); ~49 s live.
+- **Recording:** `asciinema rec --cols 100 --rows 32 --idle-time-limit 2 -c ./scripts/demo_posture.sh docs/assets/demo_posture.cast`, then `agg --speed 0.8 --cols 100 --rows 32 --font-size 15 --theme monokai docs/assets/demo_posture.cast docs/assets/demo_posture.gif`.
 - **Pair with:** [`scripts/demo_strict_mode.sh`](../../scripts/demo_strict_mode.sh) — the blocking-story demo (same kernel, different audience question: *how does it refuse?* vs. *how does it think?*).
 
 ## How to read

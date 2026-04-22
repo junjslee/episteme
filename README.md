@@ -4,7 +4,7 @@
 
 **[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)**
 
- ![Episteme — the Thinking Framework in motion](docs/assets/posture_demo.gif)
+ ![Episteme — the Thinking Framework in motion](docs/assets/demo_posture.gif)
 
 ---
 
