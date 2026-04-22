@@ -50,7 +50,7 @@ export function CodeSample() {
           <code className="font-display">episteme guide</code>
           <br />
           <span className="text-ash">
-            reads your surface and tells you what's missing.
+            reads your surface and tells you what&apos;s missing.
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">

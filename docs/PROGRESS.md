@@ -1034,6 +1034,72 @@ Wrote a fresh `.episteme/reasoning-surface.json` at session open — core_questi
 
 ---
 
+## Event 22 — 2026-04-22 — Cognitive Cascade demo rewritten + recorded · Vercel launch prep · DD #2 closed
+
+Final GTM pass before the v1.0 live push. Four concrete deliveries plus one deferred-discovery close-out.
+
+### Delivery
+
+- **`scripts/demo_posture.sh`** rewritten end-to-end. The prior v0.11-era narration (phase-12-pending, four-beat specificity-ladder demo) is replaced with a four-act **Cognitive Cascade** showing the shipped v1.0 RC three-pillar flow: (1+2) Blueprint B Fence Reconstruction — agent tries `sed '/request_timeout/d'` → EXIT 2 block with `fence_discipline` rationale → agent rewrites as a circuit breaker → PASS → Pillar 3 synthesizes `circuit-breaker-before-timeout-removal` to the chain at `seq 0011 · sha256:a3c9f1b2`; (3) Blueprint D Architectural Cascade — `mv core/hooks/_network.py _circuit_breaker.py` trips T2 (sensitive-path) + T3 (refactor-lexicon + cross-ref ≥ 2) → agent writes a six-field surface with a 6-entry `blast_radius_map[]` + 4-entry `sync_plan[]` + 3 `deferred_discoveries[]` → PASS → three DDs hash-chained at `dd-seq 0001–0003`; (4) Active Guidance — three weeks later, agent writes `src/services/payments_client.py` with `httpx.Client(timeout=...)` → PreToolUse framework query matches Act 2's protocol by context signature → `[episteme guide]` stderr advisory fires (conf 0.92, chain `seq 0011 · sha256:a3c9f1b2`, posture `advisory · never blocks`). 381 lines; all kernel output simulated (no real hooks invoked, runs in any clean bash shell); no local aliases referenced. Live wall-clock runtime ≈ 49s; target GIF length at `agg --speed 0.8` ≈ 61s.
+- **`scripts/demo_posture.sh` cinematic helpers.** `type_out` per-char typing (28ms default, env-tunable), `prompt` bold-cyan `agent@episteme:~/project$`, `thinking` dimmed italic pause-with-dots, `block_open/close` red-ruled kernel blocks with `[tag] EXIT N` headers, `pass_badge` bright-green PASS line with correlation id, `chain_line` blue `●` chain-advance, `synth_line` magenta `✦` protocol synth, `guide_line` bright-magenta `[episteme guide]` advisory, `act` monospace rule + `ACT N · title` card, `narrate` dimmed `# comment`. Recording contract baked into the top-of-file comment block (`asciinema rec --cols 100 --rows 32` + `agg --speed 0.8 --theme monokai`).
+- **GIF recorded and committed** by the operator. Replaces the prior `strict_demo.cast` at the repo root; the new cast / GIF lands under `docs/assets/demo_posture.{cast,gif}` per the recording contract.
+- **Vercel launch prep for `web/`.**
+  - **`web/next.config.ts`** hardened: `reactStrictMode: true`, `poweredByHeader: false`, `experimental.serverActions.bodySizeLimit: "1mb"` (no Server Actions ship today; the limit prevents future silent blob acceptance). Inline comment documents that the three API routes require the Node.js runtime (fs-based reads) and must not move to Edge without replacing the reader.
+  - **`web/package.json`** untouched — the `build` / `dev` / `start` / `lint` scripts are already Vercel-compatible.
+  - **`EPISTEME_MODE` fallback re-verified.** `web/src/lib/server/mode.ts` resolves to `"fixtures"` when `NODE_ENV === "production"` AND `EPISTEME_MODE` is unset — the Vercel-safe default. No kernel-state access attempted on the serverless infrastructure; the landing + dashboard render the TS fixtures under `src/lib/fixtures/`. Explicit `EPISTEME_MODE=live` overrides (and requires `$EPISTEME_HOME` to resolve to an absolute path that the server can read). Matrix documented in `web/README.md`.
+  - **`web/README.md`** rewritten as the deploy contract: local-dev quickstart, Vercel Options A (point at `web/` as root) and B (CLI from inside `web/`), environment variable matrix (`NODE_ENV × EPISTEME_MODE → resolved mode`), framework-specific notes (Node runtime requirement, self-hosted fonts ship with FFL, images CDN'd from `public/`), preview-deploy behavior, build verification expected output, file layout tree, and cross-references back to `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` + `docs/ARCHITECTURE.md`.
+  - **Root `README.md`** — one-line pointer above the *See it in 60 seconds* section linking to `web/README.md` for deploy guidance. Minimal surface; the kernel docs remain the authoritative source.
+- **Header layout fix — operator-reported dashboard button breakage.** The `dashboard →` CTA was wrapping / shrinking in the `lg`-but-not-`xl` viewport range (1024–1279 px) because `AmbientStatus` (`hidden lg:flex`) and the 4-item nav ul (`hidden md:flex`) were competing for ~1200 px of available space with `flex: 1 1` shrink behavior. Fix:
+  - `AmbientStatus` gated from `lg:flex` to **`xl:flex`** (1280 px+). The three-row strip now only renders on wide viewports where it has room.
+  - Dropped the fourth `mode` row from `AmbientStatus` — `mode: live|fixtures` is already communicated by the dashboard page's own subtitle when viewing `/dashboard`. The strip is now 3 indicators wide: `chain · surface · proto`. Labels and values compacted (`chain · <hash6>`, `surface · Nm`, `proto · NN or soak`). Gap reduced from `5` to `4`. Each Row uses `whitespace-nowrap` so truncation never hits the value.
+  - `Header` nav ul gains `shrink-0` + reduced gap from `6` to `5`. The three marketing links (`framework / surface / protocols`) are now `hidden lg:block` so they only render at 1024 px+; the `dashboard →` button remains visible from `md` up as the lone nav item at the `md`–`lg` range. The button itself now carries `inline-block whitespace-nowrap` so internal text will never wrap regardless of ancestor flex pressure.
+  - Brand link gains `shrink-0`; the `rc · v1.0` mono chip is `hidden sm:inline` so it does not collide on small phones.
+- **Workflow advisory compliance.** A fresh Reasoning Surface was written at the open of this session (core_question naming the four GTM deliveries + header fix), full `blast_radius_map[]` covering all six touched surfaces plus three `not-applicable` entries with rationale.
+
+### Deferred Discovery #2 — formally closed
+
+Event 17 logged DD #2 as *"`scripts/demo_posture.sh` narration references 'phase 12 pending' in the demo-narration strings. Observable: grep hit inside the shell script. Log-only rationale: narration is a shipped cinematic demo with timing locked to the SVG (currently stale); re-recording is coupled to #1. Both unlock together in a dedicated demo-refresh pass."*
+
+**Closing observable:** `grep -n "phase 12" scripts/demo_posture.sh` returns zero hits after this pass. The script no longer carries any v0.11-era language; the new narration is v1.0 RC-native (three pillars, four named blueprints, Blueprint D cascade, framework query).
+
+**Closing rationale:** Event 21 shipped the diagram refresh that DD #2 was coupled to (ARCHITECTURE.md + architecture_v2.svg + system-overview.svg all regenerated to the v1.0 RC shipped state). Event 22 ships the script + GIF refresh that completes the coupling. DD #2's open-then-close arc spans Events 17 → 21 → 22 over 2026-04-22.
+
+### Smoke test
+
+| probe | result |
+|---|---|
+| `bash -n scripts/demo_posture.sh` | syntax ok |
+| `time bash scripts/demo_posture.sh > /dev/null` | 49.3 s wall-clock, 3% CPU — pacing landed |
+| `grep -c 'phase 12' scripts/demo_posture.sh` | `0` (DD #2 observable closed) |
+| `resolveMode()` under `NODE_ENV=production` + no `EPISTEME_MODE` | returns `"fixtures"` — safe Vercel default |
+| `resolveMode()` under `NODE_ENV=development` + no `EPISTEME_MODE` | returns `"live"` — local-dev default |
+| `pnpm build` after header + config changes | green; 5 routes; 2 static + 3 dynamic |
+
+### Honest limits
+
+- **The recording itself was operator-side.** The script's output is the contract; the actual `.cast` / `.gif` artifacts are produced by `asciinema rec` + `agg` on the operator's machine and committed separately.
+- **Vercel deploy NOT tested live in this session.** The config is declared Vercel-ready by inspection (Node runtime on all dynamic routes, fixtures-default verified, no Edge-incompatible imports). First actual deploy is the operator's next action; fixtures default ensures a safe public default even if the first deploy misses an env var.
+- **`lucide-react@1.8.0` is a compatibility oddity.** pnpm resolved it during the initial scaffold; mainstream lucide versioning is `0.x` (current ≈ 0.400+). The package works but the version major may reflect a republished/mirrored package. Not shipping any lucide icons in the live surface today, so this is cosmetic — flagged for a dependency review before v1.1.
+
+### Cross-surface sync
+
+| surface | sync action | done? |
+|---|---|---|
+| scripts/demo_posture.sh | rewrite as 4-act Cognitive Cascade · cinematic helpers · recording contract | ✓ |
+| web/next.config.ts | reactStrictMode + poweredByHeader + serverActions limit + runtime comment | ✓ |
+| web/src/components/site/AmbientStatus.tsx | 4 rows → 3 · gap-5 → gap-4 · xl:flex · whitespace-nowrap | ✓ |
+| web/src/components/site/Header.tsx | shrink-0 on brand + nav · md/lg/xl viewport gating · dashboard-button nowrap | ✓ |
+| web/README.md | deploy contract rewritten (Vercel A/B · env matrix · layout · cross-refs) | ✓ |
+| README.md | one-line pointer to web/README.md above *See it in 60 seconds* | ✓ |
+| docs/PROGRESS.md | Event 22 appended (this entry) | ✓ |
+| docs/NEXT_STEPS.md | DD #2 close-out noted · launch status flipped to ready | ✓ |
+| docs/PLAN.md | GTM stage table updated with demo-refresh + launch-prep rows | ✓ |
+| docs/assets/demo_posture.{cast,gif} | recorded + committed by operator (not this session) | out-of-scope |
+
+**Commit plan:** atomic commit for launch prep, message subject `feat(gtm): v1.0 launch prep — demo_posture.sh rewrite + Vercel config + header layout fix + DD #2 closed`.
+
+---
+
 ## 0.11.0-rc-track — 2026-04-20 — Framing shift + RC-gate fixes + Phase 12 CP1 scaffolding
 
 One long session. Five commits. Repository's narrative posture and engineering posture realigned around the same thesis the code has always been enforcing: **the cognitive framework is the product; the file-system blocker is the uncompromising enforcer, not the pitch.** Engineering fixes close concrete v1.0.0 RC-blockers; Phase 12 foundation lands so Checkpoint 2 (first real cognitive-drift signature) can start from a scaffolded, tested base.

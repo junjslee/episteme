@@ -88,6 +88,8 @@ The knowledge base is not a vector store pretending to be memory. It is a **stru
 
 ## See it in 60 seconds
 
+Live site + visual dashboard — both rendered against the kernel's own `cp7-chained-v1` hash chain. See [`web/README.md`](./web/README.md) for the Vercel deploy guide.
+
 Three demos, increasing in what they prove:
 
 - **[`demos/03_differential/`](./demos/03_differential/) — the demo that converts skeptics.** *Exact same prompt, Thinking Framework OFF vs. ON.* A PM asks for a 2-sprint semantic-search scope; off answers *how*; on answers *whether*. [`DIFF.md`](./demos/03_differential/DIFF.md) shows which named failure modes the framework caught.

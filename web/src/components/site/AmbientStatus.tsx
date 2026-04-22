@@ -20,10 +20,9 @@ interface ProtocolsPayload {
 }
 
 /**
- * Live telemetry chrome for the header. Polls all three routes at a
- * conservative cadence (25s) and collapses the result into one compact
- * status strip. Never blocks render — each row shows its last-good value
- * and degrades to a muted dash on cold start.
+ * Live telemetry chrome for the header. Polls three routes at 25s and collapses
+ * into a compact three-indicator strip. Hidden below xl (1280px) because the
+ * full row competes with the nav items at lg; at xl+ there's room for both.
  */
 export function AmbientStatus({ className }: { className?: string }) {
   const surface = useLiveResource<SurfacePayload>(
@@ -48,12 +47,11 @@ export function AmbientStatus({ className }: { className?: string }) {
   const surfaceFresh = surfaceAge !== null && surfaceAge < 30;
   const hasSurface = surface.data.surface !== null;
   const protocolCount = protocols.data.protocols.length;
-  const mode = surface.data.mode;
 
   return (
     <div
       className={cn(
-        "hidden lg:flex items-center gap-5 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-muted",
+        "hidden xl:flex items-center gap-4 shrink-0 font-mono text-[0.625rem] uppercase tracking-[0.12em] text-muted",
         className,
       )}
     >
@@ -63,7 +61,7 @@ export function AmbientStatus({ className }: { className?: string }) {
           !chainIntact
             ? "BROKEN"
             : chainHead
-              ? `verified · ${chainHead.slice(0, 6)}`
+              ? chainHead.slice(0, 6)
               : "—"
         }
         tone={!chainIntact ? "disconfirm" : chainHead ? "verified" : "muted"}
@@ -75,24 +73,15 @@ export function AmbientStatus({ className }: { className?: string }) {
           !hasSurface
             ? "—"
             : surfaceFresh
-              ? `${surfaceAge}m fresh`
-              : `stale (${surfaceAge}m)`
+              ? `${surfaceAge}m`
+              : `${surfaceAge}m stale`
         }
         tone={!hasSurface ? "muted" : surfaceFresh ? "verified" : "unknown"}
       />
       <Row
-        label="protocols"
-        value={
-          protocolCount === 0
-            ? "0 · soak"
-            : `${protocolCount.toString().padStart(2, "0")}`
-        }
+        label="proto"
+        value={protocolCount === 0 ? "soak" : protocolCount.toString().padStart(2, "0")}
         tone={protocolCount > 0 ? "chain" : "muted"}
-      />
-      <Row
-        label="mode"
-        value={mode}
-        tone={mode === "live" ? "chain" : "muted"}
       />
     </div>
   );
@@ -128,7 +117,7 @@ function Row({
   pulse?: boolean;
 }) {
   return (
-    <span className="flex items-center gap-1.5">
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
       <span className="text-muted">{label}</span>
       <span
         className={cn(

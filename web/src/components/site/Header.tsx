@@ -4,22 +4,22 @@ import { AmbientStatus } from "./AmbientStatus";
 export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-hairline/60 bg-void/40 backdrop-blur-md">
-      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-4 md:px-12">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between gap-6 px-6 py-4 md:px-12">
         <Link
           href="/"
-          className="flex items-baseline gap-3 font-display text-[1.125rem] lowercase tracking-tight text-bone"
+          className="flex shrink-0 items-baseline gap-3 font-display text-[1.125rem] lowercase tracking-tight text-bone"
         >
           <span aria-hidden className="inline-block size-2 bg-chain" />
           episteme
-          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted">
+          <span className="hidden sm:inline font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted">
             rc · v1.0
           </span>
         </Link>
 
         <AmbientStatus />
 
-        <ul className="hidden items-center gap-6 font-mono text-[0.75rem] uppercase tracking-[0.12em] text-ash md:flex">
-          <li>
+        <ul className="hidden shrink-0 items-center gap-5 font-mono text-[0.75rem] uppercase tracking-[0.12em] text-ash md:flex">
+          <li className="hidden lg:block">
             <Link
               href="#framework"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
@@ -28,7 +28,7 @@ export function Header() {
               framework
             </Link>
           </li>
-          <li>
+          <li className="hidden lg:block">
             <Link
               href="#surface"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
@@ -37,7 +37,7 @@ export function Header() {
               surface
             </Link>
           </li>
-          <li>
+          <li className="hidden lg:block">
             <Link
               href="#protocols"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
@@ -49,7 +49,7 @@ export function Header() {
           <li>
             <Link
               href="/dashboard"
-              className="border border-line px-3 py-1.5 text-bone hover:border-chain hover:text-chain transition-colors"
+              className="inline-block whitespace-nowrap border border-line px-3 py-1.5 text-bone transition-colors hover:border-chain hover:text-chain"
             >
               dashboard →
             </Link>

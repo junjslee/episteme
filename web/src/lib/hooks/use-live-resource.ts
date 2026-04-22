@@ -44,7 +44,10 @@ export function useLiveResource<T>(
   const abortRef = useRef<AbortController | null>(null);
   const backoffRef = useRef(0);
   const onDataRef = useRef(onData);
-  onDataRef.current = onData;
+
+  useEffect(() => {
+    onDataRef.current = onData;
+  }, [onData]);
 
   const fetcher = useCallback(async () => {
     abortRef.current?.abort();
@@ -84,6 +87,12 @@ export function useLiveResource<T>(
 
   useEffect(() => {
     if (!enabled) return;
+    // SWR-lite pattern: the initial fetch is the "subscribe to external
+    // system" posture React 19 describes. The fetcher is async — its
+    // setState calls land in later microtasks, not during the effect body.
+    // React 19's set-state-in-effect rule flags the call site anyway; the
+    // cleanup (abort + interval clear) is in the returned teardown.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetcher();
     if (intervalMs <= 0) return;
     const id = window.setInterval(() => {
