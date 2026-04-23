@@ -1279,6 +1279,43 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 27 — 2026-04-23 — Issue #1 hotfix: plugin.json `agents` field shape + version reconcile to v1.0.0-rc1
+
+**External report.** First GitHub issue filed by `@cheuk-cheng` on `v1.0.0-rc1`: `/plugin install episteme@episteme` from inside Claude Code fails with:
+
+```
+Error: Failed to install: Plugin temp_git_... has an invalid manifest file
+at .claude-plugin/plugin.json. Validation errors: agents: Invalid input
+```
+
+**Root cause (causal-chain).** `.claude-plugin/plugin.json` declared `"agents": "./core/agents"` — a single string pointing to a directory. Claude Code's plugin-manifest schema requires `agents` to be an **array of individual `.md` file paths**, not a directory path. Verified against two working reference plugins in the local plugin cache:
+
+- `~/.claude/plugins/cache/claude-plugins-official/vercel/0.40.0/.claude-plugin/plugin.json` — `"agents": ["./agents/ai-architect.md", "./agents/deployment-expert.md", "./agents/performance-optimizer.md"]`
+- `~/.claude/plugins/cache/nyldn-plugins/octo/9.4.2/.claude-plugin/plugin.json` — same shape for `agents`, `skills`, `commands` (arrays of individual `.md` paths).
+
+The single-string-directory shape likely worked at some earlier Claude Code version (v0.8.0 cached manifest at `~/.claude/plugins/marketplaces/episteme/.claude-plugin/plugin.json` carries the same shape), but is rejected by the current validator. First external adopter is exactly where the regression surfaced — a CI install-smoke-test would have caught this pre-tag.
+
+**Fix.**
+
+- `.claude-plugin/plugin.json` — `agents` converted from string `"./core/agents"` to an array of 11 explicit `.md` paths under `./core/agents/` (excluding `README.md`). Other fields unchanged: `skills` remains `["./skills/custom", "./skills/vendor"]` (array-of-dir-paths — not flagged by the validator, so either accepted or skipped by short-circuit on `agents`; leaving alone per fix-only-what-the-error-names discipline until evidence suggests otherwise). `hooks` remains `"./hooks/hooks.json"`.
+- `.claude-plugin/plugin.json` — `version` bumped `0.11.0` → `1.0.0-rc1` to reconcile with the shipped git tag.
+- `.claude-plugin/marketplace.json` — `plugins[0].version` bumped `0.11.0` → `1.0.0-rc1` for consistency.
+
+**Verification.** Both JSON files parse cleanly (`json.load` — no syntax errors). All 11 referenced agent files exist under `./core/agents/` (docs-handoff, domain-architect, domain-owner, governance-safety, implementer, orchestrator, planner, reasoning-auditor, researcher, reviewer, test-runner — 11/11 resolved). Full reporter-flow reproduction (`/plugin install episteme@episteme` against the patched tree) is operator-gated — cannot be run from inside this session's Claude Code instance without refreshing the plugin cache.
+
+**Soak safety.** Zero edits to `core/hooks/`, `core/blueprints/`, `kernel/*`, `src/episteme/`, `tests/`, or any file that participates in episodic-record shape / hash-chained streams / hot-path behavior. The fix is install-manifest-only, a.k.a. the surface Claude Code's plugin loader reads *before* any hook or kernel code runs. v1.0.0-rc1 soak window (target close ~2026-04-29) unaffected.
+
+**Tag posture.** The `v1.0.0-rc1` tag is immutable and is NOT being re-tagged. The fix commit lands on master and will be included in the next tag (`v1.0.0-rc2` or `v1.0.0` depending on soak outcome). Users installing at the raw `master` ref get the fix immediately; users pinned to `v1.0.0-rc1` remain on the broken manifest until re-tag.
+
+**Gap named and logged** (deferred_discovery in this session's reasoning surface):
+
+1. **RC engineering gate is missing an installable-plugin-smoke-test.** `docs/NEXT_STEPS.md` § "Verification for RC gate — engineering" covers `pytest`, `episteme doctor`, `episteme inject`/`sync`, `episteme evolve friction`, `episteme kernel verify` — but NOT `/plugin install`. Adding this gate to the pre-tag checklist is the first line of defense against this exact regression class. Logged to NEXT_STEPS item 9 as a follow-up; not shipped this session.
+2. **Pre-tag version-string consistency check.** The drift `pyproject.toml → 1.0.0-rc1` vs `plugin.json → 0.11.0` vs `marketplace.json → 0.11.0` is the shape of thing a one-line CI grep-assertion would catch. Companion gap to #1; logged same place.
+
+**Commit:** `fix(plugin): correct agents field shape + reconcile version to v1.0.0-rc1 (fixes #1)` — pending operator approval for push + issue comment.
+
+---
+
 ## Event 26 — 2026-04-22 — Visual brand mark shipped: pixel sage + summoned dragonling, deep indigo, composed with wordmark
 
 **Session scope.** Additive, soak-safe brand-asset work — zero hook edits, zero episodic-record-shape changes, zero `core/hooks/` or `kernel/*` touched. v1.0.0-rc1 soak window (target close 2026-04-29) unaffected.

@@ -1,7 +1,7 @@
 {
   "name": "episteme",
   "description": "The epistemic-posture layer for AI coding agents. Ships the Reasoning Surface protocol, named failure-mode counters, operator profile schema, and workflow loop as Claude Code skills, agents, and hooks. Posture first. Kernel outlives the tooling.",
-  "version": "0.11.0",
+  "version": "1.0.0-rc1",
   "author": {
     "name": "Jun Lee",
     "url": "https://github.com/junjslee"
@@ -19,7 +19,19 @@
     "governance",
     "evolution-contract"
   ],
-  "agents": "./core/agents",
+  "agents": [
+    "./core/agents/docs-handoff.md",
+    "./core/agents/domain-architect.md",
+    "./core/agents/domain-owner.md",
+    "./core/agents/governance-safety.md",
+    "./core/agents/implementer.md",
+    "./core/agents/orchestrator.md",
+    "./core/agents/planner.md",
+    "./core/agents/reasoning-auditor.md",
+    "./core/agents/researcher.md",
+    "./core/agents/reviewer.md",
+    "./core/agents/test-runner.md"
+  ],
   "skills": [
     "./skills/custom",
     "./skills/vendor"

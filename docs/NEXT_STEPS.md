@@ -208,6 +208,8 @@ Before tagging `v1.0.0-rc1`:
 - Manual smoke: `episteme init`, `episteme sync`, declare a Reasoning Surface, run an allowed high-impact op, run a blocked one, verify audit + telemetry + episodic records written and redaction applied (item 3).
 - `episteme evolve friction` against ≥ 7 days of real telemetry — Friction Report renders, no crash, no secrets in output.
 - `episteme kernel verify` clean (item 1 — MANIFEST regen).
+- **Installable-plugin smoke test** (added 2026-04-23, post Event 27 issue #1 hotfix). From a fresh Claude Code cache: `/plugin marketplace add junjslee/episteme` then `/plugin install episteme@episteme` exits successfully with no manifest-validation error. Any "Validation errors: ..." output is a pre-tag blocker. Catches regressions of the shape that Event 27 closed (manifest field shape drift between what Claude Code's schema accepts and what episteme ships). Gap named in Event 27 deferred discovery #1 — this line closes it for future tags.
+- **Pre-tag version-string consistency.** One-line grep-assertion before each tag: `pyproject.toml` `[project].version` == `.claude-plugin/plugin.json` `.version` == `.claude-plugin/marketplace.json` `.plugins[0].version` == the tag to be applied. Event 27 closed a drift where `pyproject.toml` was at `1.0.0-rc1` but both `.claude-plugin/*.json` were stuck at `0.11.0`. Gap named in Event 27 deferred discovery #2.
 
 ### Verification for RC gate — cognitive adoption (the soul of the product)
 
