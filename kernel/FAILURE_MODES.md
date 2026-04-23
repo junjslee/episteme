@@ -288,6 +288,38 @@ signals.
 
 ---
 
+## Two-vocabulary distinction — FAILURE_MODES vs `flaw_classification`
+
+Episteme carries two distinct classification vocabularies that operate on **orthogonal dimensions** of the same decision. Conflating them is a category error. They are:
+
+| Vocabulary | Dimension | Values | Owner file |
+|---|---|---|---|
+| **FAILURE_MODES** (this document) | *Cognitive reasoning mode* — how the agent's reasoning went wrong | 11 modes: WYSIATI · question-substitution · anchoring · narrative-fallacy · planning-fallacy · overconfidence · Chesterton's-fence · Goodhart-drift · Ashby-variety-mismatch · framework-as-Doxa · cascade-theater | `kernel/FAILURE_MODES.md` (this file) |
+| **`flaw_classification`** enum | *Artifact-state flaw class* — what kind of codebase flaw the current op is addressing | 8 classes: `vulnerability` · `stale-artifact` · `config-gap` · `core-logic-misalignment` · `deprecated-dependency` · `doc-code-drift` · `schema-implementation-drift` · `other` | `core/hooks/_blueprint_d.py` (line 72, `FLAW_CLASSES` frozenset) |
+
+**Why they are orthogonal, not hierarchical.** A Blueprint-D op tagged `flaw_classification: config-gap` (artifact dimension — "the codebase has a config value out of sync") may *causally trace* back to a `WYSIATI` reasoning failure (cognitive dimension — "the agent reasoned from what was in context and didn't notice the absent config value"). Both are true facets of the same decision, but the classification axes are independent:
+
+- Two ops with the same `flaw_classification: config-gap` can have different root cognitive modes (one from `WYSIATI`, one from `anchoring`, one from `overconfidence`).
+- Two ops rooted in the same cognitive mode (say, `anchoring`) can surface as different artifact flaw classes (`stale-artifact` vs `doc-code-drift` vs `config-gap`).
+
+The matrix of possible pairings is sparse in practice — some combinations happen rarely, and some cognitive modes are more likely to produce specific artifact classes — but the axes themselves are independent. Forcing either vocabulary to subsume the other breaks both.
+
+**What each is for.**
+
+- **`flaw_classification`** is Blueprint D's blast-radius control surface. It tells the cascade detector what kind of sync work the current op entails: a `schema-implementation-drift` op needs to touch both the schema doc and the code validator; a `config-gap` op needs config + any runtime consumers; a `vulnerability` op has narrower sync scope but tighter urgency. The enum values are load-bearing for the cascade sync-plan validation; they exist to make the blast radius enumeration tractable.
+- **FAILURE_MODES** is the cognitive-quality audit layer. Each mode names a class of *reasoning failure* the kernel is structured to counter before execution begins. The counter artifacts (Unknowns field, Core Question, Disconfirmation, facts/inferences/preferences split, failure-first buffer, Assumptions field, Chesterton fence check, profile-audit loop, Ashby escalate-by-default, Layer 3 grounding + Layer 8 verdicts, entity-grounding + cascade-theater verdict) are what the kernel runs to prevent the mode from producing confidently wrong action.
+
+**When each vocabulary applies.**
+
+- **`flaw_classification`** is surfaced by the reasoning-surface every time Blueprint D fires (cascade:architectural scenario). Required field; validated by `_blueprint_d.py` validator. Present in 1,208+ chained records as of 2026-04-23.
+- **FAILURE_MODES** ids are referenced in kernel/docs prose (CONSTITUTION.md, REFERENCES.md, this doc) and in per-mode counter-artifact definitions. They are NOT currently required fields on the reasoning-surface schema. A mid-v1.0 cognitive-gate candidate (Gate 27) previously asked for FAILURE_MODES-id citations in episodic records; the honest reading is that gate measures a different dimension than `flaw_classification`, and either (a) the gate needs an explicit `reasoning_failure_mode` surface field added in a future schema evolution (Path 4B in the v1.0.1 scope), or (b) the gate is reframed to measure citations in the relevant prose surfaces (design docs, blueprint descriptions, Phase 12 audit output), not the Blueprint-D reasoning-surface field.
+
+**Rule.** When writing kernel / governance / blueprint docs: use FAILURE_MODES ids when describing *why* a decision went wrong cognitively, and use `flaw_classification` values when describing *what kind* of codebase-artifact state is being addressed. Do not substitute one for the other. When a future schema evolution adds a first-class `reasoning_failure_mode` surface field, both vocabularies travel side-by-side on the surface (one per dimension), not merged.
+
+**Historical context.** Gate 27 finding on 2026-04-23 observed 0 FAILURE_MODES-id citations across 1,208 deferred_discoveries records and initially read as "decorative taxonomy, not load-bearing." Reclassified after Day-2 Gate Grading analysis as "measurement dimension mismatch" — the Blueprint-D surface field population (which accounts for the 1,208 records) is `flaw_classification`, not FAILURE_MODES. The vocabularies ARE both load-bearing; they load against different dimensions.
+
+---
+
 ## Using this as a pre-execution checklist
 
 These are feedforward gates — run them before the Execute stage opens,

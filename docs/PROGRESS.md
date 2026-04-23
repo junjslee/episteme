@@ -1279,6 +1279,49 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 37 — 2026-04-23 — Gate 27 resolution via Path 4A: "Two-vocabulary distinction" section added to `kernel/FAILURE_MODES.md` (reclassifies the apparent Gate 27 clear-fail as a measurement-dimension mismatch; preserves both vocabularies; MANIFEST regenerated + verified)
+
+**Scope.** Kernel documentation surface only. One file edit: `kernel/FAILURE_MODES.md` gains a ~80-line "Two-vocabulary distinction" section inserted between cascade-theater mode (#11) and the "Using this as a pre-execution checklist" operational section. Companion: `kernel/MANIFEST.sha256` regenerated via `episteme kernel update` and verified in sync via `episteme kernel verify`.
+
+**Why Path 4A and not 4B or 4C.** Day-2 Gate Grading reported Gate 27 (FAILURE_MODES.md citations ≥ 3 in episodic records) as clear-fail: 0 citations across 1,208 deferred_discoveries records. Operator initially framed the resolution as "merge or deprecate one vocabulary." In-session research uncovered the actual structural picture:
+
+- **`flaw_classification`** enum in `core/hooks/_blueprint_d.py` line 72 (8 values: `vulnerability`, `stale-artifact`, `config-gap`, `core-logic-misalignment`, `deprecated-dependency`, `doc-code-drift`, `schema-implementation-drift`, `other`) describes an **artifact-state flaw class** — what kind of codebase-state issue the current op is addressing.
+- **FAILURE_MODES.md** 11 canonical modes (WYSIATI · question-substitution · anchoring · narrative-fallacy · planning-fallacy · overconfidence · Chesterton's-fence · Goodhart-drift · Ashby-variety-mismatch · framework-as-Doxa · cascade-theater) describes a **cognitive reasoning mode** — how the agent's reasoning went wrong.
+
+These classify orthogonal dimensions of the same decision. A `config-gap` op (artifact) may trace causally to `WYSIATI` reasoning (cognitive) — but the axes are independent. Two ops with the same `flaw_classification` can have different root cognitive modes; two ops rooted in the same cognitive mode can surface as different artifact flaw classes.
+
+**Merge would have broken things (Path 4C, rejected):**
+
+- Replacing `flaw_classification` values with FAILURE_MODES ids inverts Blueprint D's blast-radius classification semantics — an op that's actually addressing `config-gap` would be forced to self-label `WYSIATI` or similar, which is incorrect for the cascade sync-plan control purpose.
+- The 1,208 existing chained `deferred_discoveries` records (with `flaw_classification: schema-implementation-drift / config-gap / etc.`) would become invalid under a new schema — historical audit trail broken, chain-integrity at Pillar 2 compromised.
+- FAILURE_MODES.md would need to absorb codebase-state entries that dilute its reasoning-mode focus — dissolves the load-bearing claim that each mode names a specific reasoning failure the kernel counters.
+
+**Schema refactor (Path 4B) considered, deferred to v1.0.1.** Adding a separate `reasoning_failure_mode` field to the reasoning-surface schema (kept orthogonal to `flaw_classification`, validated against the 11 FAILURE_MODES ids) is the architecturally-correct long-term move. Listed in the new section's "What each is for" paragraph as the future v1.0.1 scope. Out-of-scope for this hotfix — would require schema-evolution + historical-record migration + Blueprint D validator extension + Phase 12 audit update.
+
+**Path 4A executed.** The "Two-vocabulary distinction" section explicitly:
+
+- Names both vocabularies with a side-by-side table (dimension, values, owner file).
+- Explains why they are orthogonal, not hierarchical — with concrete examples of cross-dimensional pairings (same `flaw_classification` from different cognitive modes, same cognitive mode producing different artifact classes).
+- States what each vocabulary is for: `flaw_classification` = Blueprint D's blast-radius control surface (load-bearing for sync-plan validation); FAILURE_MODES = cognitive-quality audit layer (what the kernel structurally counters before execution).
+- Clarifies when each applies: `flaw_classification` is a required reasoning-surface field on cascade:architectural; FAILURE_MODES ids appear in kernel/docs prose + counter-artifact definitions, not as required surface fields today.
+- States the rule: use FAILURE_MODES ids when describing *why* a decision went wrong cognitively, and `flaw_classification` values when describing *what kind* of codebase-artifact state is being addressed. No substitution.
+- Records the Gate 27 historical reclassification — *"measurement dimension mismatch"* rather than *"decorative taxonomy."* Both vocabularies ARE load-bearing; they load against different dimensions.
+
+**Gate 27 reinterpretation (operator-authorized).** Previous: "clear-fail — 0 citations of FAILURE_MODES ids in 1,208 records." Revised: "clear-pass on flaw_classification (1,208 citations across 8 enum values); ungradeable on FAILURE_MODES until either (a) Path 4B lands with a dedicated `reasoning_failure_mode` surface field, or (b) the gate is rescoped to measure citations in kernel-prose / design-doc surfaces where FAILURE_MODES ids actually live." The substantive finding from Day-2 — that Blueprint D's artifact-state classification IS abundantly used — is preserved and reported correctly.
+
+**Verification.**
+
+- `episteme kernel update` — regenerated `kernel/MANIFEST.sha256` successfully (`[ok] wrote kernel/MANIFEST.sha256`).
+- `episteme kernel verify` — confirmed `kernel manifest matches working tree` post-edit.
+- Section content reviewed for tone-discipline fit (kernel governance surface — technical precision preserved, no marketing-tone drift).
+- No code edits. No schema edits. No chain-touch. Audit-trail integrity preserved.
+
+**Soak posture.** Path-A soak still aborted per Event 36. Fresh 7-day soak clock remains gated on three conditions: (a) Event 36's `hooks.log` diagnostic populates on the next push (this Event's push), (b) episodic_writer records resume appearing in `~/.episteme/memory/episodic/`, (c) Fence synthesis produces at least one entry in `~/.episteme/framework/protocols.jsonl`. Event 37 satisfies the Path-A scope for Priority 4 but does not itself open the fresh soak — that waits for the post-push diagnostic evidence.
+
+**Commit (to-be):** `docs(kernel): Two-vocabulary distinction section resolves Gate 27 (Path-A Event 37)` — SHA at commit.
+
+---
+
 ## Event 36 — 2026-04-23 — Pipeline hotfix (Path-A Priority 3): loud-failure-mode logging for `episodic_writer.py` + `fence_synthesis.py` (resolves the silent `except Exception: pass` class that caused 0 records post-tag despite 5,320 `git push` firings)
 
 **Scope.** Path-A authorized soak break — operator explicitly acknowledged the original "don't edit `core/hooks/` during soak" rule was conditional on the evidence pipeline working; that condition failed (see Day-2 Gate Grading in NEXT_STEPS). Two hook files edited: `core/hooks/episodic_writer.py` + `core/hooks/fence_synthesis.py`. Governance surface untouched (kernel/, docs/DESIGN_*, AGENTS). **Soak officially aborted as of this Event**; a fresh 7-day soak clock opens after Event 37 (Gate 27 resolution) + verified post-fix writing resumption.
