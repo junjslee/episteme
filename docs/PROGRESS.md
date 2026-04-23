@@ -1279,6 +1279,42 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 31 — 2026-04-23 — `/commands` route: auto-render `docs/COMMANDS.md` on the site (single-file audience-match exception to Event 29's docs/\*.md-as-a-class rejection)
+
+**Scope.** Web-only soak-safe work. Zero edits to `core/hooks/`, `core/blueprints/`, `kernel/*`, `src/episteme/`, `tests/`, or any file participating in episodic-record shape / hash-chained streams. v1.0.0-rc1 soak window (target close ~2026-04-29) unaffected.
+
+**Why.** Event 29 explicitly rejected generalizing auto-render to `/docs/[...slug]` covering all `kernel/*.md` and `docs/*.md`, on three reasons: audience mismatch (those files are LLM-facing control documents), no current friction (they aren't mirrored in `web/src/app/`), and GitHub renders them already. `docs/COMMANDS.md` is the narrow exception to that class rejection: it is explicitly **user-facing** (one-page CLI cheatsheet with scope tags + three quick-start maps — "starting from scratch on a new machine," "starting a new project," "after editing your operator profile"). Its audience is exactly the kind of reader the marketing site wants to reach. The audience argument flips from "no" to "yes" for this one file specifically; Event 29's class rejection remains intact for `kernel/*` and for the governance specs (`DESIGN_V1_0_*`, `CONSTITUTION`, `FAILURE_MODES`, `PLAN`, `PROGRESS`, `NEXT_STEPS`).
+
+**Shipped.**
+
+- `web/src/app/commands/page.tsx` (new) — server component, statically prerendered. Reads `docs/COMMANDS.md` via `fs.readFileSync(path.join(/* turbopackIgnore: true */ process.cwd(), "..", "docs", "COMMANDS.md"))` with a `cwd`-fallback for Vercel project-root deploys. Plugin stack identical to `/readme`: `remark-gfm` + `rehype-raw` + `rehype-slug` + `rehype-autolink-headings` + the custom `rehypeRewriteRelativeUrls`. Tailwind components map identical (bone / ash / chain / hairline / elevated / Fraunces + Satoshi + JetBrains mono). Metadata retitled (`title: "commands — episteme"`, description reflects the file's purpose). No new dependencies — reuses everything Event 29 installed.
+- `web/src/components/site/Header.tsx` — added `/commands` link between the `protocols` anchor tab and the `dashboard` button. Uses the same visual treatment as the anchor tabs (non-bordered, `flex items-center gap-1.5`, hover→bone) but swaps the `↓` glyph for `→` to mark it as a route (mirrors the existing `→` convention on the bordered `dashboard →` button). Visual hierarchy now reads: anchor tabs (`↓ framework`, `↓ surface`, `↓ protocols`) for same-page scroll · route tabs (`→ commands`) for secondary route · bordered CTA (`dashboard →`) for primary route.
+
+**Approach choice.** Event 29's posture decision explicitly left `/docs/[...slug]` generalization rejected; this commit does not re-open that generalization. Instead it adds a second explicit single-file route (`/readme` + `/commands`), applying the audience test case-by-case as the Event 29 follow-up anticipated. If a third user-facing docs file (e.g. `SETUP.md`) earns the treatment later, that third explicit route is cheaper than a generalization whose audience-whitelist would drift. The enumerate-vs-generalize threshold stays well above two routes.
+
+**Verification.** `pnpm build` green: 5 prerendered routes static (`/`, `/commands`, `/dashboard`, `/icon.svg`, `/readme`), 3 dynamic API routes preserved (`/api/chain`, `/api/protocols`, `/api/surface`). TypeScript clean. Static-page generation completed 8/8 in 502 ms. One non-blocking Turbopack NFT-trace warning persists on `/commands` — same class as the one Event 29 flagged on `/readme` (NFT flags the `path.join(process.cwd(), "..", ...)` as escaping the `web/` subtree even with the `turbopackIgnore` comment). Build-time bloat only, no runtime impact since the route is statically prerendered — there's no server function for `/commands`.
+
+**Posture decision reaffirmed — docs/*.md rendering stays case-by-case, not generalized.** The COMMANDS.md exception is **audience-gated**, not a policy change. Specifically still excluded from auto-render (LLM-facing control documents, per Event 29's rejection reasoning):
+
+- `kernel/*` (CONSTITUTION.md, FAILURE_MODES.md, REFERENCES.md, MEMORY_ARCHITECTURE.md, etc.)
+- `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` and prior design specs
+- `docs/PLAN.md`, `docs/PROGRESS.md`, `docs/NEXT_STEPS.md` (authoritative session-handoff docs; audience is the next agent session, not external users)
+- `docs/COGNITIVE_SYSTEM_PLAYBOOK.md`, `docs/HOOKS.md`, `AGENTS.md`
+
+Could earn auto-render with a future explicit decision (user-facing audience — same test as COMMANDS.md):
+
+- `docs/SETUP.md` (if setup friction reports surface)
+- `docs/NARRATIVE.md` (if it's read more often than the homepage's inline narrative)
+- `docs/DEMOS.md` (if demo traffic warrants a dedicated route over the GitHub-rendered version)
+
+**Soak safety.** Two file changes — one new (`web/src/app/commands/page.tsx`), one edit (`web/src/components/site/Header.tsx`) — both inside `web/` only. Zero kernel/hook/episodic-record/hash-chain touch. `mode.ts` production default keeps the deployed site on bundled fixtures, so this commit cannot affect cognitive-adoption gate 21–28 measurement.
+
+**Deferred discovery.** The `/readme` + `/commands` pattern is now two explicit single-file routes. A third user-facing docs file earning the treatment reopens the enumerate-vs-generalize decision. Trigger: a third proposal AND a pattern of friction reports ("I couldn't find X on the site"). Logged in this session's reasoning-surface for post-soak triage; not blocking.
+
+**Commit (to-be):** `feat(web): auto-render docs/COMMANDS.md at /commands` — SHA assigned at commit time; pending operator push authorization.
+
+---
+
 ## Event 30 — 2026-04-23 — Issue #1 follow-up: `plugin.json` `hooks` field removed (duplicate-load install failure on clean cache)
 
 **External report (second one from `@cheuk-cheng` on `v1.0.0-rc1`).** After Event 27's agents-field fix landed on master and cheuk-cheng retried `/plugin install episteme@episteme`, a different install-time error surfaced:

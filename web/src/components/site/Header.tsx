@@ -53,6 +53,15 @@ export function Header() {
           </li>
           <li>
             <Link
+              href="/commands"
+              className="flex items-center gap-1.5 group transition-colors hover:text-bone"
+            >
+              <span aria-hidden className="text-[0.625rem] text-whisper group-hover:text-ash transition-colors">→</span>
+              commands
+            </Link>
+          </li>
+          <li>
+            <Link
               href="/dashboard"
               className="inline-block whitespace-nowrap border border-line px-3 py-1.5 text-bone transition-colors hover:border-chain hover:text-chain"
             >
