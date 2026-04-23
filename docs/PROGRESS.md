@@ -1302,6 +1302,8 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 **Cadence.** Cron runs every 24 hours. The badge value is cumulative from 2026-04-08 (the earliest timestamp in the seeded 14-day window) and never resets — the Gist serves as the durable counter.
 
+**Follow-up (same day) — flipped badge from `count` to `uniques`.** Initial badge pulled `query=count` which in the seeded 14-day window showed 2,636 — dominated by CI reruns, local dev re-clones, and automated pulls. The gist stores both `count` and `uniques` at the top level; `uniques` is bucketed one-per-IP-per-24h by GitHub's traffic API, approximating distinct installations (610 in the same window → ~4.3× ratio against raw count). Switched `query=count` → `query=uniques` and `label=Clone` → `label=Unique%20Clones` in the Shields.io URL. Causal reason beyond signal quality: episteme's own `noise_watch: status-pressure, false-urgency` posture would be undercut by shipping a vanity-inflated count on the kernel's own README — the kernel is explicitly built to counter the confident-wrongness that inflated metrics generate, and dogfood discipline at the GTM surface matters. Reversible anytime by flipping the query parameter back.
+
 ---
 
 ## Event 27 — 2026-04-23 — Issue #1 hotfix: plugin.json `agents` field shape + version reconcile to v1.0.0-rc1
