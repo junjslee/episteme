@@ -1,7 +1,7 @@
 <h1 align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
-    <img alt="episteme" src="docs/assets/logo-light.svg" width="360">
+    <img alt="episteme" src="docs/assets/logo-light.svg" width="456">
   </picture>
 </h1>
 
