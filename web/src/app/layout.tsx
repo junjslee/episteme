@@ -35,10 +35,28 @@ const satoshi = localFont({
   display: "swap",
 });
 
+const SITE_URL = "https://www.epistemekernel.com";
+const SITE_TITLE = "episteme — a thinking framework for AI agents";
+const SITE_DESCRIPTION =
+  "Before any high-impact move, your AI coding agent has to state its reasoning on disk — core question, knowns, unknowns, what would prove the plan wrong. Posture over prompt.";
+
 export const metadata: Metadata = {
-  title: "episteme — a thinking framework for AI agents",
-  description:
-    "A Sovereign Cognitive Kernel that extracts context-fit protocols from conflicting information and actively guides decision-making.",
+  metadataBase: new URL(SITE_URL),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "episteme",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

@@ -1279,6 +1279,52 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 33 — 2026-04-23 — Custom domain live: `epistemekernel.com` wired to Vercel (www-primary, apex 308→www) + layout metadata canonical URL + README header link
+
+**Scope.** Distribution-surface / GTM work. Two edits (`README.md` header link + `web/src/app/layout.tsx` metadata). Zero edits to `core/hooks/`, `core/blueprints/`, `kernel/*`, `src/episteme/`, `tests/`, or any file participating in episodic-record shape / hash-chained streams / hot-path behavior. v1.0.0-rc1 soak window (target close ~2026-04-29) unaffected.
+
+**Why.** Operator purchased `epistemekernel.com` from GoDaddy to replace the `episteme-alpha.vercel.app` default Vercel subdomain as the public-facing URL. Cleaner brand, unambiguous wordmark, more quotable than a preview-URL slug. `epistemekernel.com` chosen over `.dev` / `.io` / `.ai` alternatives after operator deliberation; kernel-adjacent framing in the domain itself reinforces the core thesis (*it is* a kernel, not a plugin or a framework in the JavaScript sense).
+
+**DNS + SSL wiring (GoDaddy → Vercel).**
+
+- GoDaddy DNS: deleted the auto-parked A record at `@`; added A `@` → `216.198.79.1` (Vercel's new IP range, per Vercel's Apr 2026 IP expansion — replaces the legacy `76.76.21.21` that still works but is deprecated). Added CNAME `www` → `6028670cd9bf3069.vercel-dns-017.com.` (new per-project Vercel DNS target, replaces the legacy `cname.vercel-dns.com`).
+- Kept untouched: NS records (`ns67.domaincontrol.com` / `ns68.domaincontrol.com`) — GoDaddy-authoritative; SOA auto-generated; `_domainconnect` CNAME — GoDaddy internal plumbing; `_dmarc` TXT — inherited anti-spoofing policy, harmless.
+- Propagation + SSL: DNS resolved locally within minutes; Vercel auto-provisioned SSL via Let's Encrypt shortly after.
+
+**Verification (end-to-end from this session).**
+
+- `dig epistemekernel.com A +short` → `216.198.79.1` ✓
+- `dig www.epistemekernel.com CNAME +short` → `6028670cd9bf3069.vercel-dns-017.com.` ✓
+- `curl -sI https://epistemekernel.com` → `HTTP/2 308` with `location: https://www.epistemekernel.com/` (apex redirects to www as configured) ✓
+- `curl -sI https://www.epistemekernel.com` → `HTTP/2 200`, `server: Vercel`, `strict-transport-security: max-age=63072000` (HSTS 2yr), valid Let's Encrypt cert (no handshake errors), edge cache warm (`age: 106`) ✓
+
+**Primary-direction decision.** Operator elected to keep Vercel's default arrangement — `www.epistemekernel.com` as primary, `epistemekernel.com` 308-redirects to it. Canonical URL in repo metadata therefore points at `https://www.epistemekernel.com`. If the operator later flips primary to apex via Vercel dashboard, the `SITE_URL` constant in `web/src/app/layout.tsx` flips with it (one-line change).
+
+**Shipped.**
+
+- `README.md` (+1 line) — added a centered `<p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>` line directly below the existing badge row (release · license · unique-clones) and above the softened blockquote tagline. The apex URL is used in the link even though the canonical redirects to www — external shareability is cleaner with the apex form; Vercel handles the redirect transparently on click. Single-line minimalist placement preserves the header's existing aesthetic.
+- `web/src/app/layout.tsx` — replaced the minimal two-field metadata (title + description) with a fully-wired Metadata object: (a) `metadataBase` pointing at `https://www.epistemekernel.com` (canonical primary); (b) `alternates.canonical: "/"` (Next.js expands this against metadataBase to emit a canonical URL); (c) `openGraph` block with `type: "website"`, `url`, `siteName`, `title`, `description`; (d) `twitter` block with `card: "summary_large_image"`, `title`, `description`. Description text updated to match the Event 32 softened framing — *"Before any high-impact move, your AI coding agent has to state its reasoning on disk — core question, knowns, unknowns, what would prove the plan wrong. Posture over prompt."* — so social-share cards and Google search results carry the dev-anchored tagline, not the academic-framing-first version that predated Event 32. `SITE_URL` / `SITE_TITLE` / `SITE_DESCRIPTION` extracted as module constants so future edits touch one place.
+
+**Verification (build).** `pnpm build` in `web/` green: 5 prerendered routes static (`/`, `/commands`, `/dashboard`, `/icon.svg`, `/readme`), 3 dynamic API routes preserved, TypeScript clean, 8/8 static pages generated in 626 ms. Next.js 16 correctly resolved `metadataBase` + `alternates.canonical` into absolute `<link rel="canonical">` + OG URL tags during prerender.
+
+**Soak safety.** Marketing-surface text + metadata edits only. Zero kernel/hook/episodic-record/hash-chain touch. `mode.ts` production default still keeps the deployed site on bundled fixtures so cognitive-adoption gate 21–28 measurement is unaffected.
+
+**Deferred discoveries.**
+
+1. **OG image.** `openGraph` block does not declare an `images` entry yet. Social-share previews will fall back to Vercel's generic text-only card, which works but is forgettable. The idiomatic Next.js 16 pattern is `web/src/app/opengraph-image.tsx` that generates an OG image at build time from components — could reuse the Hero's visual language (bone / ash / chain accents, Fraunces display font, "posture over prompt." payoff). Non-blocking; ship when you have a first wave of link-share traffic to justify the effort.
+2. **`favicon.ico` vs. `icon.svg` coverage.** Event 26 noted that `web/src/app/icon.svg` is preferred by modern browsers; legacy `favicon.ico` remains as fallback. Social scrapers (Twitter, LinkedIn, Slack) sometimes require explicit `icon` metadata for preview reliability — verify empirically once the domain has real link-share traffic, add if needed.
+3. **Google Search Console verification.** Now that the site has a custom domain, submitting it to Search Console would start accumulating indexing / query data — useful for GTM but not blocking.
+
+**Companion GTM follow-ups (operator-gated, not shipped this Event):**
+
+- Email forwarding at GoDaddy (`hello@epistemekernel.com` → personal inbox) — enables contact address without exposing real email.
+- `CNAME` apex flip to favor apex-primary instead of www-primary (cleaner URL bar, matches Linear / Vercel / modern dev-tool branding) — Vercel dashboard action, 30 seconds, repo-side `SITE_URL` constant flips to `https://epistemekernel.com`.
+- Update the Hero's "read the kernel" button target if cross-linking between the marketing site and the GitHub repo should reflect the new domain hierarchy (currently points at `github.com/junjslee/episteme` — could stay as-is since the marketing site IS the canonical now, or add a second button for `epistemekernel.com` self-reference).
+
+**Commit (to-be):** `feat(web,readme): wire epistemekernel.com as canonical domain` — SHA assigned at commit time; pending operator push authorization.
+
+---
+
 ## Event 32 — 2026-04-23 — README blockquote + web Hero subparagraph softened (dev-anchor front-loaded; `high-impact command` broadened to `high-impact move — the task, not just the shell command`; agent-validates-request clause added; governance surface untouched)
 
 **Scope.** Marketing-surface tone work only. Two edits: `README.md` line 14 blockquote + `web/src/components/site/Hero.tsx` subparagraph (line 66-70). Zero edits to governance surface (kernel/, DESIGN_*, PLAN, PROGRESS, NEXT_STEPS, HOOKS, COGNITIVE_SYSTEM_PLAYBOOK, AGENTS) per the kernel-tone-discipline rule. Zero edits to `core/hooks/`, `core/blueprints/`, `src/episteme/`, `tests/`, or any hash-chained / episodic-record-shape surface. v1.0.0-rc1 soak window (target close ~2026-04-29) unaffected.
