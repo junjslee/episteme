@@ -26,28 +26,28 @@ export function Header() {
         <ul className="hidden shrink-0 items-center gap-5 font-mono text-[0.75rem] uppercase tracking-[0.12em] text-ash md:flex">
           <li className="hidden lg:block">
             <Link
-              href="#framework"
+              href="/#framework"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
             >
-              <span className="size-1.5 rounded-full bg-whisper group-hover:bg-bone transition-colors" />
+              <span aria-hidden className="text-[0.625rem] text-whisper group-hover:text-ash transition-colors">↓</span>
               framework
             </Link>
           </li>
           <li className="hidden lg:block">
             <Link
-              href="#surface"
+              href="/#surface"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
             >
-              <span className="size-1.5 rounded-full bg-whisper group-hover:bg-bone transition-colors" />
+              <span aria-hidden className="text-[0.625rem] text-whisper group-hover:text-ash transition-colors">↓</span>
               surface
             </Link>
           </li>
           <li className="hidden lg:block">
             <Link
-              href="#protocols"
+              href="/#protocols"
               className="flex items-center gap-1.5 group transition-colors hover:text-bone"
             >
-              <span className="size-1.5 rounded-full bg-whisper group-hover:bg-bone transition-colors" />
+              <span aria-hidden className="text-[0.625rem] text-whisper group-hover:text-ash transition-colors">↓</span>
               protocols
             </Link>
           </li>

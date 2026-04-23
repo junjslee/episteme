@@ -1279,6 +1279,48 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 29 — 2026-04-23 — README auto-render route at `/readme` + Header anchor-tab visual distinction (NEXT_STEPS item 8 closed, item 9 partially closed)
+
+**Scope.** Web-only soak-safe work. Zero edits to `core/hooks/`, `core/blueprints/`, `kernel/*`, `src/episteme/`, `tests/`, or any file participating in episodic-record shape / hash-chained streams. v1.0.0-rc1 soak window (target close ~2026-04-29) unaffected.
+
+**Why.** Two fricions named in NEXT_STEPS during the 2026-04-22 logo-proposal session, kept in the soak-safe queue while Phase B was frozen:
+
+1. **Item 8 — README edits don't reflect on the marketing site.** `web/src/app/` carried hand-authored landing content; any `README.md` change required a parallel hand-edit to keep the site in sync. Source-of-truth duplication, drift risk, and maintenance friction every README touch.
+2. **Item 9 — Header anchor tabs misread as routes.** `framework`, `surface`, `protocols` were styled identically to the `dashboard →` route button but were `<Link href="#X">` anchor links. From a non-homepage page (e.g., `/dashboard`) clicking them produced the now-current path with `#X` appended — anchor not present on the page → no scroll → nothing visible happens. From the homepage they did scroll, but the URL stayed `/`, reading as "nothing changed."
+
+**Shipped.**
+
+- `web/src/app/readme/page.tsx` (new) — server component, statically prerendered. Reads `README.md` via `fs.readFileSync(path.join(/* turbopackIgnore: true */ process.cwd(), "..", "README.md"))` (with `cwd`-fallback for Vercel project-root deploys), pipes through `react-markdown` + `remark-gfm` + `rehype-raw` + `rehype-slug` + `rehype-autolink-headings` + a custom rehype plugin (`rehypeRewriteRelativeUrls`) that handles `src` / `href` / `srcSet` on raw-HTML elements (the README's `<picture>` block uses `<source srcSet>`, which `urlTransform` doesn't reach because it only applies to standard markdown elements). Tailwind-themed components map matches the existing operator-console palette (bone / ash / chain / hairline / elevated, Fraunces display + Satoshi sans + JetBrains mono). Internal doc links rewritten to GitHub blob URLs (`docs/CONSTITUTION.md` → `github.com/junjslee/episteme/blob/master/docs/CONSTITUTION.md`); image refs rewritten to GitHub raw URLs.
+- `web/src/components/site/Header.tsx` — three anchor tabs swapped from `href="#framework|#surface|#protocols"` to absolute `href="/#framework|/#surface|/#protocols"` so they navigate correctly from any page; replaced the `bg-whisper` filled-dot indicator with a `↓` glyph (text-whisper, monospace, hover→ash), giving anchor tabs a semantic distinction from the bordered `dashboard →` route button. Same approach as the `→` arrow on the route button — reader can now distinguish "scrolls on page" vs "navigates elsewhere" at a glance without clicking.
+- `web/package.json` + `pnpm-lock.yaml` — added `react-markdown ^10`, `remark-gfm ^4`, `rehype-raw ^7`, `rehype-slug ^6`, `rehype-autolink-headings ^7`, `unist-util-visit ^5`. All MIT-licensed, all React 19 compatible.
+- `web/.env.development.local` (gitignored, not in this commit) — local-only dev convenience: `EPISTEME_PROJECT=/Users/junlee/episteme` + `EPISTEME_HOME=/Users/junlee/.episteme`. Without this, running `pnpm dev` from `web/` falls back `process.cwd()` → `/Users/junlee/episteme/web/` and tries to read `web/.episteme/reasoning-surface.json` (doesn't exist), surfacing as "kernel · uninitialized" on `localhost`. Production deploy is unaffected — `mode.ts` defaults to `"fixtures"` when `NODE_ENV=production`, so the deployed site reads bundled fixture data regardless of env vars.
+
+**Approach choice (item 8).** NEXT_STEPS listed three options: (a) rename `README.md → .mdx` + `@next/mdx`, (b) server-component `fs.readFileSync` + remark pipeline, (c) build-time snapshot script writing `web/src/content/readme.generated.mdx`. Picked (b) per the doc's pre-authorized fallback ("default to (b) if operator-confirmation is unavailable, since it matches the existing useLiveResource pattern"). Causal reasons beyond the pre-auth: (a) carries GitHub MDX-rendering compatibility risk on the repo homepage; (c) adds a CI step for the same end-state as (b). README.md stays `.md` on disk — agent reads (Claude / Codex / cursor) and GitHub homepage rendering both untouched.
+
+**Verification.** `pnpm build` green: 4 routes prerendered static (`/`, `/dashboard`, `/icon.svg`, `/readme`), 3 dynamic API routes preserved. Prerendered `/readme.html` is 467 KB; sample URL rewrites confirmed via grep:
+
+- `<img src>` from raw HTML: `docs/assets/logo-light.svg` → `https://raw.githubusercontent.com/junjslee/episteme/master/docs/assets/logo-light.svg` ✓
+- `<source srcSet>` (raw HTML inside `<picture>`): `docs/assets/logo-dark.svg` → raw URL ✓ (caught by the custom rehype plugin, not by `urlTransform`)
+- Markdown link `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` → GitHub blob URL ✓
+- External `https://github.com/junjslee/episteme/releases` preserved ✓
+- Anchor `#install` etc. preserved for in-page scroll ✓
+
+One non-blocking Turbopack warning persists: NFT trace flagged the `path.join(process.cwd(), "..", "README.md")` as escaping the web/ subtree even with `/* turbopackIgnore: true */`. The warning is build-time NFT bloat, not runtime; static prerender means there's no runtime function for `/readme` so the trace doesn't affect serving. Logged as a deferred-discovery for the eventual `path.join(process.cwd(), 'data', ...)` static-scoping refactor (option (c) from NEXT_STEPS item 8 if the warning ever becomes blocking).
+
+**NEXT_STEPS items closed.**
+
+- **Item 8** (README auto-render) — closed, approach (b) shipped. Operator can now edit `README.md` and the change appears at `/readme` on next build, no parallel `web/src/app/` edit needed.
+- **Item 9 — favicon `.ico` regeneration** — effectively N/A. Event 26 shipped `web/src/app/icon.svg` (App Router metadata-file path, the alternative NEXT_STEPS named); modern browsers prefer `icon.svg` over `favicon.ico`. The existing `favicon.ico` remains as fallback per the Event 26 commit message; no regen needed unless legacy-browser support becomes a soak-window concern.
+- **Item 9 — 24px favicon visual test + CLI half-block render** — both remain operator-gated (need browser/terminal inspection an agent cannot perform).
+
+**Posture decision recorded — keep `kernel/*.md` and `docs/*.md` rendering manual.** Operator considered extending the auto-render to `/docs/[...slug]` covering all `kernel/*.md` and `docs/*.md`. Rejected for three causal reasons: (1) **audience mismatch** — those files are LLM-facing control documents per the tone-discipline boundary at NEXT_STEPS line 103, intentionally technical, would degrade as marketing surface; (2) **no current friction to remove** — those files aren't mirrored anywhere in `web/src/app/`, so there's no double-edit pain; (3) **GitHub already renders them** — cost of the status quo is near zero. Explicit decision to limit auto-render to `README.md` only.
+
+**`/readme` strategic posture (logged for soak-window observation).** The site now has three surfaces saying overlapping things: hand-authored landing `/`, auto-rendered `/readme`, and the GitHub README itself. Drift risk is real if homepage TL;DR and README TL;DR diverge. Decision: keep `/readme` through soak; if by ~2026-04-29 it has earned no real visits / link-shares / use, delete in v1.0.1 — the friction it closes is small enough that an honest delete is on the table, not a regression.
+
+**Soak safety reaffirmed.** All four file changes (`web/src/app/readme/page.tsx` new, `web/src/components/site/Header.tsx` edit, `web/package.json` + `pnpm-lock.yaml` deps) are inside `web/` only. Zero kernel/hook/episodic-record/hash-chain touch. `mode.ts` production default keeps the deployed site on bundled fixtures, so this commit cannot affect cognitive-adoption gate measurement (gates 21–28).
+
+---
+
 ## Event 28 — 2026-04-23 — Clone-count badge wired (MShawon action + Gist-backed persistent counter)
 
 **Scope.** Additive GTM / vanity-metric work, soak-safe. Zero edits to `core/hooks/`, `kernel/*`, or anything participating in episodic-record shape / hash-chained streams.
