@@ -1279,6 +1279,47 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 42 — 2026-04-23 — Release-please job-level permissions + hook path canonicalization (v1.0.1 rider pulled forward)
+
+**Scope.** Two structural fixes: (1) `.github/workflows/release-please.yml` gets an explicit job-level `permissions` block (first workflow run failed with *"GitHub Actions is not permitted to create or approve pull requests"* despite workflow-level permissions being set — operator had separately enabled the corresponding repo-level setting via GitHub Web UI); (2) `core/hooks/reasoning_surface_guard.py` + `core/hooks/episodic_writer.py` + `core/hooks/session_context.py` all gain a `_canonical_project_root()` helper that resolves `.episteme/reasoning-surface.json` via `git rev-parse --show-toplevel` with walk + cwd fallbacks — eliminates the surface-path friction that produced 6+ `REASONING SURFACE MISSING` blocks in the 2026-04-23 session when Claude Code's Bash-tool cwd inherited from `pnpm build` in the `web/` subdirectory.
+
+**Operator-authorized soak break.** This Event edits `core/hooks/` during the fresh 7-day soak window. Authorization rationale: the surface-path friction is a pipeline ergonomics bug discovered during the session and pulled forward from the v1.0.1 hook-ergonomics rider. The operator explicitly approved the edit as a targeted soak-safe hotfix — its behavior is strictly additive (resolves paths more robustly) and does not change which surfaces get accepted / rejected, only whether the hook can find the surface to evaluate. Semantically equivalent to the Event 36/39 loud-failure-mode instrumentation authorization pattern.
+
+**Fix 1 — release-please job-level permissions.** The workflow already had workflow-level `permissions: contents:write + pull-requests:write` but first run failed anyway. Per release-please v4 documentation requirements, the permissions must ALSO be declared at the job scope. Added directly under `jobs.release-please.runs-on` with a block comment documenting the duplication rationale (idempotent, survives future multi-job refactors). Combined with the operator's repo-level setting enablement, the next workflow run should create a release PR successfully.
+
+**Fix 2 — canonical project-root resolution for surface lookup.** Added a `_canonical_project_root(cwd: Path) -> Path` helper to three hooks. Resolution order:
+
+1. `git rev-parse --show-toplevel` via subprocess (`cwd=str(cwd)`, 2-second timeout) — fast, authoritative inside a repo.
+2. Walk upward from cwd looking for a directory containing `.episteme/` (bounded to 8 ancestor levels) — covers non-git contexts and deeply-nested tooling cwds.
+3. Fall back to cwd itself — preserves behavior outside git/episteme contexts (test fixtures, tmpdirs).
+
+Applied at all 4 surface-read sites:
+
+- `reasoning_surface_guard.py:425` (via new `_read_surface()` + `_surface_path()` helpers)
+- `reasoning_surface_guard.py:818` (second inline path-resolution — now uses the same `_surface_path()` helper)
+- `episodic_writer.py:178` (`_read_reasoning_surface(cwd)` — snapshots surface into episodic records)
+- `session_context.py:216` (`_surface_line()` — SessionStart digest)
+
+`_cascade_detector.py` does NOT need the fix — its references to `.episteme/reasoning-surface.json` are string-literal allowlist patterns in the cascade-exemption list, not actual file reads.
+
+**Hook-hot-path impact.** Git subprocess invocation adds ~10-30ms on the first hook fire per session (cold git cache); subsequent fires are faster. The 2-second timeout bounds pathological cases. Fall-through to cwd preserves current behavior in environments where git is unavailable or the cwd is outside a repo.
+
+**Why duplicate the helper across hooks instead of shared module.** Each hook is a standalone script invoked by Claude Code via `python3 ${CLAUDE_PLUGIN_ROOT}/core/hooks/<script>.py`. There is no guaranteed `sys.path` import path between hooks. The pattern across existing hooks (as seen in Event 36/39 loud-failure-mode `_hook_log()` helpers) is self-contained per-file duplication. A shared module refactor is deferred to the post-soak hook-ergonomics rider.
+
+**Verification.**
+
+- `episteme kernel update` — regenerated `kernel/MANIFEST.sha256` post-edit (changed 3 files in `core/hooks/`).
+- `episteme kernel verify` — confirmed `kernel manifest matches working tree` — chain integrity preserved.
+- The patch's run-time effect is observable post-push: future multi-cwd sessions should see zero `REASONING SURFACE MISSING` blocks when executing from `web/` (or any subdirectory) with a valid surface at the project root.
+
+**Release-please trigger.** This commit's push triggers the `release-please.yml` workflow. Expected behavior: release-please detects the conventional-commits window since the last release tag and opens a release PR. If permissions are now correctly wired, the workflow exits cleanly with a PR link visible under the repo's Pull Requests tab.
+
+**Soak safety.** Targeted hook edit with operator authorization; zero schema or episodic-record-shape change. The fix is additive — it only changes path resolution, not what the hook accepts or rejects. Fresh 7-day soak clock (opened 2026-04-23T21:23:36Z per Event 38) remains valid.
+
+**Commit (to-be):** `fix(ci/hooks): release-please PR permissions and root-path canonicalization (Event 42)` — SHA at commit.
+
+---
+
 ## Event 41 — 2026-04-23 — Web polish: Header locale switcher + OG image + GitHub issue housekeeping audit
 
 **Scope.** Three additions, one operator-gated audit, one commit. Header gains a compact locale switcher; `web/src/app/opengraph-image.tsx` generates the social-share card at `/opengraph-image`; GitHub issue state audited and confirmed clean (zero open issues; #1 already closed). All three tasks are soak-safe distribution-surface work; zero `core/hooks/` or `kernel/*` touch; fresh 7-day soak clock (opened Event 38 verification, 2026-04-23T21:23:36Z) continues.

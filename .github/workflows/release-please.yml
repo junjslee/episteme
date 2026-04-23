@@ -13,6 +13,17 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    # Job-level permissions — release-please v4 requires these to be
+    # explicit at the job scope (the workflow-level block above was
+    # insufficient on 2026-04-23 when the first workflow run failed
+    # with "GitHub Actions is not permitted to create or approve pull
+    # requests." Operator also enabled the corresponding repo-level
+    # setting via GitHub Web UI). Duplicating the block here is idempotent
+    # and survives any future refactor that splits this into a multi-job
+    # workflow.
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: googleapis/release-please-action@v4
         id: release

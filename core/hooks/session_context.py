@@ -212,8 +212,35 @@ def _profile_audit_line() -> str | None:
     )
 
 
+def _canonical_project_root(cwd: Path) -> Path:
+    """Resolve project root via git toplevel with walk fallback. Mirrors
+    reasoning_surface_guard._canonical_project_root — duplicated for hook
+    isolation. Path-A Event 42 fix."""
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        pass
+    probe = cwd.resolve() if cwd.exists() else cwd
+    for _ in range(8):
+        if (probe / ".episteme").is_dir():
+            return probe
+        if probe.parent == probe:
+            break
+        probe = probe.parent
+    return cwd
+
+
 def _surface_line() -> str | None:
-    path = Path(".episteme/reasoning-surface.json")
+    path = _canonical_project_root(Path.cwd()) / ".episteme" / "reasoning-surface.json"
     if not path.exists():
         return "surface: none declared — write .episteme/reasoning-surface.json before high-impact ops"
     try:

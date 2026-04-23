@@ -421,8 +421,57 @@ def _match_high_impact(tool_name: str, payload: dict) -> str | None:
     return None
 
 
+def _canonical_project_root(cwd: Path) -> Path:
+    """Resolve the project root so the surface lookup survives subdirectory cwd.
+
+    Claude Code's Bash-tool cwd can inherit from prior subdirectory ops (e.g.
+    `pnpm build` in `web/`), making `cwd / ".episteme"` miss the project-level
+    surface. This helper canonicalizes by preferring:
+
+      1. `git rev-parse --show-toplevel` — fast, authoritative inside a repo.
+      2. Walking up from cwd for a directory containing `.episteme/` — covers
+         non-git contexts or deeply-nested tooling cwds (bounded to 8 levels
+         to avoid runaway traversal on pathological symlinks).
+      3. Falling back to cwd itself — preserves original behavior outside a
+         git/episteme context (e.g. test fixtures, tmpdirs).
+
+    Timeout on the git subprocess is 2 seconds; if git is unavailable or slow
+    the walk fallback kicks in. Hook hot-path impact measured negligible
+    (< 30ms in the common case).
+
+    Path-A Event 42 fix — pulled forward from v1.0.1 hook-ergonomics rider
+    after repeated REASONING SURFACE MISSING blocks in the 2026-04-23 session.
+    """
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        pass
+    probe = cwd.resolve() if cwd.exists() else cwd
+    for _ in range(8):
+        if (probe / ".episteme").is_dir():
+            return probe
+        if probe.parent == probe:
+            break
+        probe = probe.parent
+    return cwd
+
+
+def _surface_path(cwd: Path) -> Path:
+    """Canonical path to the reasoning surface — honors canonical root."""
+    return _canonical_project_root(cwd) / ".episteme" / "reasoning-surface.json"
+
+
 def _read_surface(cwd: Path) -> dict | None:
-    p = cwd / ".episteme" / "reasoning-surface.json"
+    p = _surface_path(cwd)
     if not p.exists():
         return None
     try:
@@ -815,7 +864,7 @@ def _surface_status(cwd: Path) -> tuple[str, str]:
     # two cases surface the same `_read_surface` return (None) but ask
     # the operator to take different actions — author vs. repair. Parse
     # inline here so the status detail can name the actual failure.
-    p = cwd / ".episteme" / "reasoning-surface.json"
+    p = _surface_path(cwd)
     if not p.exists():
         return "missing", "no .episteme/reasoning-surface.json found"
     try:

@@ -165,6 +165,34 @@ def _session_id(payload: dict, ts: str) -> str:
     return "s_" + hashlib.sha1(seed).hexdigest()[:12]
 
 
+def _canonical_project_root(cwd: Path) -> Path:
+    """Resolve project root so surface lookup survives subdirectory cwd.
+    Mirrors reasoning_surface_guard._canonical_project_root. Duplicated
+    here for hook-isolation (each hook is a standalone script; no shared
+    import path). Path-A Event 42 fix."""
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(cwd),
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return Path(out.stdout.strip())
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
+        pass
+    probe = cwd.resolve() if cwd.exists() else cwd
+    for _ in range(8):
+        if (probe / ".episteme").is_dir():
+            return probe
+        if probe.parent == probe:
+            break
+        probe = probe.parent
+    return cwd
+
+
 def _read_reasoning_surface(cwd: str) -> dict | None:
     """Best-effort read of the Surface the guard evaluated against.
 
@@ -175,7 +203,8 @@ def _read_reasoning_surface(cwd: str) -> dict | None:
     still writes, just without the surface field.
     """
     try:
-        path = Path(cwd) / ".episteme" / "reasoning-surface.json"
+        cwd_path = Path(cwd) if cwd else Path.cwd()
+        path = _canonical_project_root(cwd_path) / ".episteme" / "reasoning-surface.json"
         if not path.is_file():
             return None
         with open(path, "r", encoding="utf-8") as f:
