@@ -1,4 +1,9 @@
-# episteme
+<h1 align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <img alt="episteme" src="docs/assets/logo-light.svg" width="360">
+  </picture>
+</h1>
 
 > A **Sovereign Cognitive Kernel** that installs a mandatory **Thinking Framework (생각의 틀)** into every AI coding agent you use. Turns context-blind "average" answers into context-fit protocols, and turns every resolved conflict into permanent, proactively-surfaced know-how.
 
@@ -117,6 +122,32 @@ Open any of the three. You will know what `episteme` produces before reading any
 
 ## Quick start
 
+### Option A — install via Claude Code plugin marketplace
+
+The fastest path if you use Claude Code. This repo ships a marketplace manifest (`.claude-plugin/marketplace.json`), so you can add it as a marketplace and install the plugin in two commands.
+
+Inside Claude Code:
+
+```
+/plugin marketplace add junjslee/episteme
+/plugin install episteme@episteme
+```
+
+Then from any shell:
+
+```bash
+episteme init     # one-shot: seed personal memory files from examples
+episteme setup    # score workstyle + cognition profile
+episteme sync     # propagate into Claude Code and Hermes
+episteme doctor   # verify wiring
+```
+
+For authoritative command syntax and update semantics, see [Claude Code's plugin marketplace documentation](https://docs.anthropic.com/en/docs/claude-code/plugins).
+
+### Option B — clone the kernel directly
+
+For contributors, forkers, or if you want the full source tree locally:
+
 ```bash
 git clone https://github.com/junjslee/episteme ~/episteme
 cd ~/episteme
@@ -137,6 +168,7 @@ episteme new-project . --harness auto     # scaffold + auto-detect
 ```
 
 Deep-dive onboarding modes, scored dimensions, and defaults: **[`docs/SETUP.md`](./docs/SETUP.md)**.
+Full command reference: **[`docs/COMMANDS.md`](./docs/COMMANDS.md)**.
 
 ---
 

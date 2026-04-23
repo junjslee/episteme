@@ -1650,11 +1650,31 @@ def _memory_search(query: str) -> int:
 def _doctor() -> int:
     failures: list[str] = []
     warnings: list[str] = []
-    print("🧠 episteme Awareness Check")
-    print(f"Project Core: {REPO_ROOT}")
-    print(f"Python runtime: {sys.executable}")
-    print(f"Python prefix:  {PYTHON_PREFIX} ({RUNTIME_KIND})")
+    ok_count = 0
+    info_count = 0
 
+    def _line(status: str, message: str) -> None:
+        """Print a status line with a fixed-width status label."""
+        nonlocal ok_count, info_count
+        label_map = {"ok": "[  ok  ]", "info": "[ info ]", "warn": "[ warn ]", "miss": "[ miss ]", "fail": "[ fail ]"}
+        label = label_map.get(status, f"[{status:^6}]")
+        print(f"  {label}  {message}")
+        if status == "ok":
+            ok_count += 1
+        elif status == "info":
+            info_count += 1
+
+    def _section(title: str) -> None:
+        print(f"\n  {title}")
+        print(f"  {'─' * max(len(title), 32)}")
+
+    print("🧠 episteme awareness check")
+    print()
+    print(f"  project core  : {REPO_ROOT}")
+    print(f"  python runtime: {sys.executable}")
+    print(f"  python prefix : {PYTHON_PREFIX} ({RUNTIME_KIND})")
+
+    _section("runtime")
     # Conda checks: opt-in. Either the detected runtime is conda, or the operator
     # explicitly requires it via EPISTEME_REQUIRE_CONDA=1.
     if RUNTIME_KIND == "conda" or REQUIRE_CONDA:
@@ -1662,39 +1682,45 @@ def _doctor() -> int:
         if not conda_bin.exists():
             msg = f"missing conda binary at {conda_bin}"
             (failures if REQUIRE_CONDA else warnings).append(msg)
+            _line("miss" if not REQUIRE_CONDA else "fail", f"conda binary: {conda_bin}")
         else:
-            print(f"[ok] conda binary: {conda_bin}")
+            _line("ok", f"conda binary: {conda_bin}")
             try:
                 envs = _run([str(conda_bin), "info", "--envs"]).stdout
                 if re.search(r"^base\s+", envs, re.MULTILINE):
-                    print("[ok] conda base environment exists")
+                    _line("ok", "conda base environment exists")
                 else:
                     (failures if REQUIRE_CONDA else warnings).append("conda base environment not found")
+                    _line("miss" if not REQUIRE_CONDA else "fail", "conda base environment not found")
             except subprocess.CalledProcessError as exc:
                 (failures if REQUIRE_CONDA else warnings).append(f"failed to inspect conda envs: {exc}")
+                _line("warn", f"failed to inspect conda envs: {exc}")
     else:
-        print(f"[info] non-conda runtime: skipping conda base checks "
-              f"(set EPISTEME_REQUIRE_CONDA=1 to enforce)")
+        _line("info", "non-conda runtime — skipping conda checks (set EPISTEME_REQUIRE_CONDA=1 to enforce)")
 
-    # Core tools — required on every machine
+    _section("core tools")
     for tool in ["claude", "git", "jq"]:
         if _command_exists(tool):
-            print(f"[ok] tool available: {tool}")
+            _line("ok", f"{tool}")
         else:
             failures.append(f"missing tool: {tool}")
+            _line("fail", f"{tool} — required")
 
-    # Local-only tools — expected on a dev workstation, not on remote servers or clusters
+    _section("local-only tools")
     for tool in ["rg", "fd", "bat"]:
         if _command_exists(tool):
-            print(f"[ok] tool available: {tool}")
+            _line("ok", f"{tool}")
         else:
-            print(f"[info] local-only tool not installed: {tool} (not required on remote machines)")
+            _line("info", f"{tool} — not required on remote machines")
 
-    # Optional tools
+    _section("optional tools")
     for tool in ["tmux", "gh", "sd", "ov"]:
-        state = "present" if _command_exists(tool) else "not installed"
-        print(f"[info] optional tool {tool}: {state}")
+        if _command_exists(tool):
+            _line("ok", f"{tool}")
+        else:
+            _line("info", f"{tool} — not installed")
 
+    _section("kernel integrity")
     # Runtime drift checks: Claude hook duplication
     claude_settings_path = HOME / ".claude" / "settings.json"
     if claude_settings_path.exists():
@@ -1713,69 +1739,77 @@ def _doctor() -> int:
                     deduped_count += len(entries)
 
             if deduped_count < orig_count:
-                warnings.append(
-                    f"Detected potential duplicate hook entries in ~/.claude/settings.json ({orig_count - deduped_count} duplicates). Run episteme sync to normalize."
-                )
+                msg = f"~/.claude/settings.json has {orig_count - deduped_count} duplicate hook entries — run `episteme sync` to normalize"
+                warnings.append(msg)
+                _line("warn", msg)
+            else:
+                _line("ok", "~/.claude/settings.json — no duplicate hooks")
         except json.JSONDecodeError:
-            warnings.append("Could not parse ~/.claude/settings.json for drift checks (invalid JSON).")
+            msg = "~/.claude/settings.json is not valid JSON — drift checks skipped"
+            warnings.append(msg)
+            _line("warn", msg)
 
     # Kernel integrity drift check
     from . import kernel_integrity as _kint
     if (REPO_ROOT / _kint.MANIFEST_PATH).exists():
         ok, diffs = _kint.verify(REPO_ROOT)
         if ok:
-            print("[ok] kernel manifest: in sync")
+            _line("ok", "kernel manifest: in sync")
         else:
-            warnings.append(
-                f"Kernel drift detected ({len(diffs)} file(s)). Run `episteme kernel update` to refresh the manifest."
-            )
+            msg = f"kernel drift: {len(diffs)} file(s) — run `episteme kernel update` to refresh"
+            warnings.append(msg)
+            _line("warn", msg)
     else:
-        print("[info] kernel manifest: not initialized (run `episteme kernel update` to create one)")
+        _line("info", "kernel manifest not initialized — run `episteme kernel update` to create one")
 
-    if warnings:
-        print("\nWarnings:")
-        for item in warnings:
-            print(f"  - {item}")
-
-    # --- Runtime Sync State ---
-    print("\n--- Runtime Sync State ---")
-
+    _section("runtime sync state")
     hermes_operator = HOME / ".hermes" / "OPERATOR.md"
     if hermes_operator.exists() and hermes_operator.stat().st_size > 0:
-        print("[ok] Hermes OPERATOR.md: present and non-empty")
+        _line("ok", "hermes OPERATOR.md present")
     else:
-        print("[missing] Hermes OPERATOR.md: not found or empty (run: episteme sync)")
+        _line("miss", "hermes OPERATOR.md not found — run `episteme sync`")
 
     claude_md = HOME / ".claude" / "CLAUDE.md"
     if claude_md.exists():
-        print("[ok] Claude global memory: ~/.claude/CLAUDE.md present")
+        _line("ok", "claude ~/.claude/CLAUDE.md present")
     else:
-        print("[missing] Claude global memory: ~/.claude/CLAUDE.md not found (run: episteme sync)")
+        _line("miss", "claude ~/.claude/CLAUDE.md not found — run `episteme sync`")
 
     try:
         git_remote = _run(["git", "remote"], cwd=REPO_ROOT, check=False).stdout.strip()
         if git_remote:
-            print(f"[ok] episteme git remote: {git_remote.splitlines()[0]}")
+            _line("ok", f"episteme git remote: {git_remote.splitlines()[0]}")
         else:
-            print("[info] episteme git remote: no remote configured (local-only repo)")
+            _line("info", "episteme git remote: none configured (local-only repo)")
     except Exception:
-        print("[info] episteme git remote: could not determine (git not available)")
+        _line("info", "episteme git remote: could not determine (git not available)")
+
+    # Summary block — always printed
+    _section("summary")
+    fail_count = len(failures)
+    warn_count = len(warnings)
+    print(f"  {ok_count} ok · {info_count} info · {warn_count} warn · {fail_count} fail")
 
     if failures:
-        print("\nDoctor failed:")
+        print("\n  failures:")
         for item in failures:
-            print(f"  - {item}")
+            print(f"    × {item}")
 
-        print("\nTips to fix:")
+        print("\n  tips to fix:")
         if any("conda" in f.lower() for f in failures):
-            print("  • Ensure Conda is installed and EPISTEME_PYTHON_PREFIX points to its root.")
-            print(f"    Current: export EPISTEME_PYTHON_PREFIX={PYTHON_PREFIX}")
-            print("    (Or unset EPISTEME_REQUIRE_CONDA to allow non-conda runtimes.)")
+            print("    • Ensure Conda is installed and EPISTEME_PYTHON_PREFIX points to its root.")
+            print(f"      Current: export EPISTEME_PYTHON_PREFIX={PYTHON_PREFIX}")
+            print("      (Or unset EPISTEME_REQUIRE_CONDA to allow non-conda runtimes.)")
         if any("git" in f.lower() for f in failures):
-            print("  • Ensure Git is installed and you are inside a repository.")
+            print("    • Ensure Git is installed and you are inside a repository.")
         return 1
 
-    print("\n✅ Awareness verified. The Soul is ready for transition.")
+    if warnings:
+        print("\n  warnings:")
+        for item in warnings:
+            print(f"    ⚠ {item}")
+
+    print("\n✅ awareness verified — the Soul is ready for transition.")
     return 0
 
 
@@ -3612,7 +3646,26 @@ def _setup_command(
             return rc
 
     print()
-    print("✅ Setup complete. Profile and cognition are configured.")
+    print("─" * 60)
+    print("  setup summary")
+    print("─" * 60)
+    print(f"  target          : {path}")
+    print(f"  profile mode    : {profile_mode}")
+    print(f"  cognition mode  : {cognition_mode}")
+    print(f"  governance pack : {governance_mode}")
+    print(f"  wrote memory    : {'yes' if write else 'no'}")
+    print(f"  overwrite       : {'yes' if overwrite else 'no'}")
+    print(f"  ran sync        : {'yes' if do_sync else 'no'}")
+    print(f"  ran doctor      : {'yes' if do_doctor else 'no'}")
+    print()
+    print("✅ setup complete — profile and cognition are configured.")
+    print()
+    print("Next:")
+    if not do_sync:
+        print("  • `episteme sync`   propagate memory into Claude Code + Hermes")
+    if not do_doctor:
+        print("  • `episteme doctor` verify runtime wiring")
+    print("  • `episteme bootstrap .` to scaffold a project, then `episteme start claude`")
     return 0
 
 

@@ -67,19 +67,27 @@ No code. No CP1 work. No test runs. The session was pure governance: tag 0.11.0,
 
 ---
 
-## CLI UX pass — 2026-04-22 — init/bootstrap/sync polish + tiered help + COMMANDS.md + ~/.zshrc rename
+## CLI UX pass — 2026-04-22 — init/bootstrap/sync/doctor/setup polish + tiered help + COMMANDS.md + logo + marketplace section + ~/.zshrc rename
 
-Soak-safe session on user-facing CLI surface. No kernel, no hooks, no schema, no episodic records touched. Triggered by two operator-reported defects: (1) `episteme init` output was ambiguous when run from a non-kernel project dir (user thought it was a project-init that did nothing); (2) a `~/.zshrc` shell-integration banner ("[episteme] scaffold missing...") was racing the tty prompt and false-positiving on the kernel repo itself.
+Soak-safe session on user-facing CLI surface. No kernel, no hooks, no schema, no episodic records touched. Triggered by two operator-reported defects; expanded into a coherent UX pass across the setup journey and brand surface.
 
-**Issue fixes.** `_init_memory` (`src/episteme/cli.py:1244`) now prints its scope up front ("Seeding kernel global memory at …, always targets the kernel install, not your current directory"), explains the overwrite-guard rationale, and when CWD ≠ REPO_ROOT appends a hint pointing to `episteme bootstrap`. `~/.zshrc`'s `_episteme_hint` function now short-circuits in the kernel repo (checks `kernel/MANIFEST.sha256`), emits to stderr instead of stdout, references the canonical `episteme bootstrap` instead of a local alias, and the `.zshrc`-load inline call was removed (chpwd alone fires the banner — kills the startup-prompt race).
+**Defect fixes.** `_init_memory` (`src/episteme/cli.py:1244`) now prints its scope up front ("Seeding kernel global memory at …, always targets the kernel install, not your current directory"), explains the overwrite-guard rationale, and when CWD ≠ REPO_ROOT appends a hint pointing to `episteme bootstrap`. `~/.zshrc`'s `_episteme_hint` function now short-circuits in the kernel repo (checks `kernel/MANIFEST.sha256`), emits to stderr instead of stdout, references the canonical `episteme bootstrap` instead of a local alias, and the `.zshrc`-load inline call was removed (chpwd alone fires the banner — kills the startup-prompt race).
 
 **Alias rename.** Legacy `a*` aliases (agent-os era: `ainit`, `awt`, `aci`, `adoctor`, `aos`, `cci`) renamed to `e*` (`eboot`, `ewt`, `esync`, `edoctor`, `eos`, `ecl`). Clean break, no shims — machine-local only. `~/.zshrc` blast radius bounded.
 
 **Tiered help.** `build_parser` adds a grouped epilog (`daily` / `setup & admin` / `project tools` / `framework internals`) via `RawDescriptionHelpFormatter`. Argparse's default subparser listing stays intact for discoverability; epilog layers the mental map on top.
 
-**Cheatsheet.** `docs/COMMANDS.md` written — one-page reference with scope tags (global / project / framework), one-line explanations per subcommand, and three quick-start maps (fresh-machine setup, new project, operator-profile edit). Referenced from the epilog.
+**Cheatsheet.** `docs/COMMANDS.md` written — one-page reference with scope tags (global / project / framework), one-line explanations per subcommand, and three quick-start maps (fresh-machine setup, new project, operator-profile edit). Referenced from the epilog and from README quick-start.
 
-**First-run nudges.** `_bootstrap_project` and the `sync` dispatcher now close with explicit `Next:` hints. `_init_memory`'s existing post-create hint was relabeled to match the `Next:` convention. Three-command output shape is now harmonized (opening action line → details block → blank line → `Next:` footer).
+**First-run nudges.** `_bootstrap_project`, the `sync` dispatcher, and `_init_memory` close with explicit `Next:` hints. Three-command output shape is now harmonized (opening action line → details block → blank line → `Next:` footer).
+
+**Doctor rewrite.** `_doctor()` restructured to emit named sections (runtime · core tools · local-only tools · optional tools · kernel integrity · runtime sync state · summary), each with a rule underline; status labels are now fixed-width (`[  ok  ]`, `[ info ]`, `[ warn ]`, `[ miss ]`, `[ fail ]`) so the reader can scan vertically; a summary tally (`N ok · M info · K warn · J fail`) prints unconditionally before the verdict line. Failures and warnings are listed under the summary, not scattered mid-output. Function body restructured around a `_line(status, message)` local + `_section(title)` local for consistency.
+
+**Setup recap.** `_setup_command` now closes with a boxed summary (target, profile mode, cognition mode, governance pack, wrote/overwrite/sync/doctor booleans) plus a conditional `Next:` block — suggests `episteme sync`/`doctor` only if they weren't already run this session, plus `bootstrap`/`start claude` for the next step.
+
+**Brand surface.** `docs/assets/logo-light.svg` and `docs/assets/logo-dark.svg` added — minimalist wordmark ("episteme", lowercase, 500-weight sans, -1 tracking) paired with a 2×2 rounded-square mark that visually encodes the four Reasoning Surface fields (Knowns · Unknowns · Assumptions · Disconfirmation). README's H1 replaced with a `<picture>` tag that swaps between light/dark variants based on `prefers-color-scheme`; legacy `# episteme` text H1 is gone, but semantic H1 is preserved inside the `<h1 align="center">` wrapper so TOC and SEO stay intact.
+
+**Marketplace install.** README Quick-start restructured into Option A (Claude Code plugin marketplace — `/plugin marketplace add junjslee/episteme` then `/plugin install episteme@episteme`) and Option B (clone + `pip install -e .` for contributors/forkers). Existing `.claude-plugin/marketplace.json` + `plugin.json` were already in place from a prior cycle; version bump to v1.0 deferred to v1.0 tag — not touched mid-RC.
 
 **Dropped.** Considered renaming `episteme memory promote` (ambiguous verb to new users) but audit of `src/episteme/_memory_promote.py` confirmed "promote" is load-bearing `kernel/MEMORY_ARCHITECTURE.md` vocabulary (episodic → semantic tier). Renaming would introduce CLI/kernel drift. Fence held.
 
