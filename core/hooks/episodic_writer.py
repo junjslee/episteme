@@ -313,22 +313,83 @@ def _should_record(payload: dict) -> tuple[bool, str, list[str]]:
     return True, cmd, hits
 
 
+def _hook_log_path() -> Path:
+    """Persistent per-invocation log at ~/.episteme/state/hooks.log.
+    Unconditional. Loud failure mode — 2026-04-23 Path-A hotfix
+    replacing the prior `except Exception: pass` that made the writer
+    appear functional in code while producing zero records for 3 days
+    of real PostToolUse firings. Every invocation appends exactly one
+    line; file rotates by hand if it gets too large (not expected in
+    practice given 21 high-impact pattern regexes and mostly-skipped
+    invocations).
+    """
+    return Path.home() / ".episteme" / "state" / "hooks.log"
+
+
+def _log_line(msg: str) -> None:
+    """Append one line to the per-invocation log. Never throws; if the
+    log directory is unwritable the line goes to stderr as a fallback
+    (Claude Code may surface stderr; it definitely surfaces a missing
+    log file)."""
+    ts = datetime.now(timezone.utc).isoformat()
+    line = f"{ts} episodic_writer {msg}\n"
+    try:
+        path = _hook_log_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(line)
+    except OSError:
+        # Fallback — if even the log path is unwritable, surface to
+        # stderr so Claude Code's runtime may capture it. This path
+        # should be unreachable in a healthy install; if it fires,
+        # the user's ~/.episteme/ filesystem is itself broken.
+        try:
+            sys.stderr.write(line)
+        except OSError:
+            pass
+
+
+def _verbose_enabled() -> bool:
+    """Extra traceback detail on exceptions. Opt-in via
+    EPISTEME_EPISODIC_DEBUG=1. The one-line invocation log above is
+    always-on; this adds multi-line traceback for exceptions when
+    requested."""
+    return os.environ.get("EPISTEME_EPISODIC_DEBUG", "").strip() not in ("", "0", "false", "False")
+
+
 def main() -> int:
     try:
         raw = sys.stdin.read().strip()
         if not raw:
+            _log_line("invocation: stdin empty")
             return 0
         payload = json.loads(raw)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        _log_line(f"invocation: payload parse failed — {type(exc).__name__}: {exc}")
         return 0
+
     try:
         record_it, cmd, hits = _should_record(payload)
         if not record_it:
+            tool = _tool_name(payload)
+            event = str(payload.get("hook_event_name") or payload.get("hookEventName") or "?")
+            _log_line(
+                f"skipped: event={event} tool={tool!r} "
+                f"cmd_prefix={cmd[:40]!r} hits={hits}"
+            )
             return 0
         record = _build_record(payload, cmd, hits)
         _append_record(record)
-    except Exception:
-        pass  # Never block on memory-write failure.
+        _log_line(
+            f"wrote: id={record['id'][:8]} hits={hits} "
+            f"path={_episodic_path(record['provenance']['captured_at'])}"
+        )
+    except Exception as exc:
+        _log_line(f"EXCEPTION: {type(exc).__name__}: {exc}")
+        if _verbose_enabled():
+            import traceback
+            for line in traceback.format_exc().splitlines()[-6:]:
+                _log_line(f"  traceback: {line}")
     return 0
 
 

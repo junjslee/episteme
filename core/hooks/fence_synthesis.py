@@ -92,19 +92,38 @@ def _extract_exit_code(payload: dict) -> int | None:
     return None
 
 
+def _hook_log(msg: str) -> None:
+    """Persistent per-invocation log mirroring episodic_writer's
+    loud-failure-mode approach (2026-04-23 Path-A hotfix). Writes to
+    ~/.episteme/state/hooks.log; never raises."""
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        from pathlib import Path as _Path
+        path = _Path.home() / ".episteme" / "state" / "hooks.log"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(f"{_dt.now(_tz.utc).isoformat()} fence_synthesis {msg}\n")
+    except OSError:
+        pass
+
+
 def main() -> int:
     try:
         raw = sys.stdin.read().strip()
         if not raw:
+            _hook_log("invocation: stdin empty")
             return 0
         payload = json.loads(raw)
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError) as exc:
+        _hook_log(f"invocation: payload parse failed — {type(exc).__name__}: {exc}")
         return 0
     try:
         if _tool_name(payload) != "Bash":
+            _hook_log(f"skipped: tool={_tool_name(payload)!r}")
             return 0
         cmd = _bash_command(payload)
         if not cmd:
+            _hook_log("skipped: empty cmd")
             return 0
         from datetime import datetime, timezone
         ts = datetime.now(timezone.utc).isoformat()
@@ -115,6 +134,8 @@ def main() -> int:
         envelope = _finalize_on_success(
             correlation, _extract_exit_code(payload)
         )
+        if envelope is not None:
+            _hook_log(f"synthesized protocol: correlation={correlation[:16]}")
         try:
             ctx = _spot_check.build_post_context(correlation)
             if ctx is not None:
@@ -127,10 +148,10 @@ def main() -> int:
                     synthesis_produced=envelope is not None,
                     cwd=ctx["cwd"],
                 )
-        except Exception:
-            pass  # Spot-check failure must not block PostToolUse.
-    except Exception:
-        pass  # Never block PostToolUse on synthesis bookkeeping failure.
+        except Exception as spot_exc:
+            _hook_log(f"spot-check EXCEPTION: {type(spot_exc).__name__}: {spot_exc}")
+    except Exception as exc:
+        _hook_log(f"EXCEPTION: {type(exc).__name__}: {exc}")
     return 0
 
 

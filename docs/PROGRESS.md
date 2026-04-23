@@ -1279,6 +1279,42 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 36 — 2026-04-23 — Pipeline hotfix (Path-A Priority 3): loud-failure-mode logging for `episodic_writer.py` + `fence_synthesis.py` (resolves the silent `except Exception: pass` class that caused 0 records post-tag despite 5,320 `git push` firings)
+
+**Scope.** Path-A authorized soak break — operator explicitly acknowledged the original "don't edit `core/hooks/` during soak" rule was conditional on the evidence pipeline working; that condition failed (see Day-2 Gate Grading in NEXT_STEPS). Two hook files edited: `core/hooks/episodic_writer.py` + `core/hooks/fence_synthesis.py`. Governance surface untouched (kernel/, docs/DESIGN_*, AGENTS). **Soak officially aborted as of this Event**; a fresh 7-day soak clock opens after Event 37 (Gate 27 resolution) + verified post-fix writing resumption.
+
+**Root-cause diagnosis performed in session.**
+
+- **In-session synthetic test proved the writer code is functionally correct.** Piped a realistic payload (`tool_name: "Bash"`, `tool_input.command: "git push origin master"`, `tool_response.is_error: false`, `cwd: /Users/junlee/episteme`) with `EPISTEME_EPISODIC_DEBUG=1`; writer produced a valid record at `~/.episteme/memory/episodic/2026-04-23.jsonl` (record `aff4cd27`, 3,468 bytes). So the code path is not the blocker.
+- **Sibling PostToolUse hook `calibration_telemetry.py` is ALSO silent-failing.** Telemetry directory holds 211 records for 2026-04-23; every single one is `"event": "prediction"` (written by PreToolUse `reasoning_surface_guard.py`, line 951). Zero `"event": "outcome"` records — the PostToolUse path through `calibration_telemetry.main` that writes outcomes at line 151 is producing nothing despite thousands of matching Bash PostToolUse events in `audit.jsonl`.
+- **Sibling PostToolUse hook `state_tracker.py` is ALSO silent-failing.** `~/.episteme/state/session_context.json` does not exist on disk despite state_tracker being wired in hooks.json PostToolUse/Bash matcher. The sibling `pending_contracts.jsonl` exists and has 1 record from 2026-04-22 21:16 — but nothing newer. The `fence_pending/h_*.json` markers ARE being updated (recent touches), which is written by `_pending_contracts.py` called *synchronously* from PreToolUse `reasoning_surface_guard.py` — NOT a PostToolUse hook.
+- **Conclusion: ALL four `async: true` PostToolUse hooks are failing.** The common signature (all four failing, all four share `async: true`, all four silent-swallow exceptions via `except Exception: pass`) points at the Claude Code async-hook invocation layer, NOT at any individual hook's code. Possible causes: (a) Claude Code runtime not actually calling PostToolUse async hooks on this installation, (b) hooks ARE called but payload stdin is empty/malformed on the async path, (c) a timeout kills them before completion, or (d) a hooks.json wiring issue in the PostToolUse matcher block. All four possibilities are indistinguishable from code-inspection alone; need runtime evidence.
+
+**Fix shipped this commit (loud-failure-mode instrumentation).**
+
+- **`core/hooks/episodic_writer.py`** — replaced `except Exception: pass` in `main()` with a structured logging pipeline:
+  - Every invocation writes one line to `~/.episteme/state/hooks.log` with ISO-8601 timestamp + outcome summary. States logged: `invocation: stdin empty`, `invocation: payload parse failed — <type>: <msg>`, `skipped: event=<name> tool=<name> cmd_prefix=<first-40-chars> hits=<list>` (when high-impact pattern doesn't match), `wrote: id=<short-id> hits=<list> path=<output-path>` (success), `EXCEPTION: <type>: <msg>` (unexpected failure).
+  - Optional verbose mode (`EPISTEME_EPISODIC_DEBUG=1`) adds a 6-line traceback tail on exceptions for forensic depth.
+  - Log path `~/.episteme/state/hooks.log` is resilient: `OSError` on write falls back to stderr.
+- **`core/hooks/fence_synthesis.py`** — mirror change. Replaced both `except Exception: pass` paths (spot-check sampling + main) with `_hook_log()` calls that write to the same `~/.episteme/state/hooks.log`. Also logs `synthesized protocol: correlation=<id>` when a successful Fence-Reconstruction produces an envelope — this will be the first positive signal that the Pillar 3 protocol pipeline is actually emitting.
+
+**Diagnostic payoff.** The next `git push` (this commit's push) fires all PostToolUse Bash hooks including the two instrumented ones. After push, inspecting `~/.episteme/state/hooks.log`:
+
+- If the log has new entries → hooks ARE being invoked; the blocker was exception-swallowing. We'll see *what* exception was swallowed and fix it directly. Expected outcome: entries like `<ts> episodic_writer wrote: id=...` on successful high-impact ops, or `<ts> episodic_writer EXCEPTION: <ActualType>: <actual-message>` on the real root cause.
+- If the log stays empty → hooks are NOT being invoked. Points at Claude Code runtime or hooks.json wiring. Diagnostic next: inspect Claude Code's own debug output (`claude --debug` or similar) to see what it does with the PostToolUse async event.
+
+Either way, the pipeline moves from *unobservable silent failure* to *observable failure with a named cause*.
+
+**Out of scope for this Event.** Calibration_telemetry.py + state_tracker.py have the same silent-failure class but are not in this commit — fixing them follows the same pattern (replace `except Exception: pass` with `_hook_log()` call) and lands as Event 36.1 (companion) or Event 38 (post-diagnostic cycle) once the root cause is named. Deferring the broader sweep until we've confirmed which failure mode we're actually looking at.
+
+**Verification deferred to post-push.** The fix itself is soak-break-authorized; its effect (whether the log file populates) requires a real Claude Code PostToolUse invocation to materialize. This means the first verification signal lands in the NEXT session's SessionStart, not in this session's post-commit. Operator action: after the push lands, run `tail -20 ~/.episteme/state/hooks.log` to see if the hooks fired.
+
+**Soak reset timeline.** v1.0.0-rc1 soak officially aborted 2026-04-23 (Day 2 of 7). Fresh soak clock opens after: (a) Event 37 (Gate 27 resolution — see below for architectural finding), (b) verified `~/.episteme/state/hooks.log` populating, and (c) verified `~/.episteme/memory/episodic/` + `~/.episteme/framework/protocols.jsonl` producing real post-fix records. Target new soak close: 7 days after those three conditions satisfy.
+
+**Commit (to-be):** `fix(hooks): loud-failure-mode logging for PostToolUse async hooks (Path-A Event 36)` — SHA at commit time.
+
+---
+
 ## Event 35 — 2026-04-23 — `release-please` CI automation: closes NEXT_STEPS line 212 version-string consistency gap (plus surfaces + fixes pyproject.toml version drift)
 
 **Scope.** CI / distribution-config surface. Four file edits: new `release-please-config.json` + `.release-please-manifest.json` + `.github/workflows/release-please.yml`; `pyproject.toml` version-string reconcile. Zero edits to `core/hooks/`, `kernel/*`, `src/episteme/`, `tests/`, or episodic-record-shape surface. v1.0.0-rc1 soak window unaffected (soak-safe at the time of shipping; Path-A soak reset independently authorized by operator — see Event 36 below).
