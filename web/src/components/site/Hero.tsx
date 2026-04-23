@@ -63,13 +63,15 @@ export function Hero() {
                 animation: "mask-word-rise 900ms var(--ease-enter) 700ms forwards",
               }}
             >
-              Before any high-impact move — the task, not just the shell command — the agent
-              has to state its reasoning on disk: core question, knowns, unknowns, what
-              would prove the plan wrong. A file-system hook refuses to proceed if that
-              surface goes thin, even when the operator is the one who asked for the move.
-              Every conflict resolved becomes a reusable protocol, chained tamper-evidently,
-              surfaced back at the next matching decision. A sovereign cognitive kernel;{" "}
-              <span className="text-bone">posture over prompt.</span>
+              A socio-epistemic infrastructure between you and your AI coding agent. Before
+              any high-impact move — the task, not just the shell command — the agent has to
+              state its reasoning on disk: core question, knowns, unknowns, what would prove
+              the plan wrong. A file-system hook refuses to proceed if that surface goes
+              thin, even when the operator is the one who asked. Epistemic drift blocked at
+              the boundary; cognitive deskilling countered by forcing both sides to name
+              what they actually know. Every conflict resolved becomes a reusable protocol,
+              chained tamper-evidently — a technical provenance system for agentic reasoning.{" "}
+              <span className="text-bone">Posture over prompt.</span>
             </p>
 
             <div

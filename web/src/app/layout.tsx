@@ -38,7 +38,7 @@ const satoshi = localFont({
 const SITE_URL = "https://www.epistemekernel.com";
 const SITE_TITLE = "episteme — a thinking framework for AI agents";
 const SITE_DESCRIPTION =
-  "Before any high-impact move, your AI coding agent has to state its reasoning on disk — core question, knowns, unknowns, what would prove the plan wrong. Posture over prompt.";
+  "A socio-epistemic infrastructure for Claude Code. Blocks epistemic drift and cognitive deskilling by requiring the agent to state its reasoning on disk before high-impact moves — core question, knowns, unknowns, disconfirmation. A technical provenance system for agentic reasoning. Posture over prompt.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
