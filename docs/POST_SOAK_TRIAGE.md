@@ -475,23 +475,29 @@ minimum is statistical-validity, not calendar-deadline.
 ## Appendix B — Known evidence gaps at draft time
 
 - ~~Phase 12 audit path: see CP-PHASE12-01.~~ **Resolved Event 47.** Path is
-  `~/.episteme/memory/reflective/profile_audit.jsonl`; current state = file absent;
-  operator must run `episteme profile audit --write` before Day 7.
-- Gate 22 baseline: no known disconfirmation-fired-and-changed-action commit in the
-  soak window yet. Realistic target at Day 7 is PARTIAL. **Also blocked by CP-TEL-01**
-  (calibration telemetry asymmetry — see `docs/PREPARED_PATCHES.md`); until that is
-  fixed Gate 22 has no objective substrate and grades MANUAL at best.
-- Gate 26 baseline: fence pipeline empty-emit pattern (CP-FENCE-01) — **root cause
-  confirmed Event 47**. `~/.episteme/framework/protocols.jsonl` does not exist;
-  `fence_pending/` contains 88 orphan markers from pre-fix era plus 1 current marker.
-  Synthesis never writes because `_extract_exit_code` returns None (same root cause
-  as CP-TEL-01). Gate 26 = FAIL until CP-TEL-01 + CP-FENCE-01 patches land.
+  `~/.episteme/memory/reflective/profile_audit.jsonl`; **file produced Event 48**
+  via `episteme profile audit --write`. Gate 25 PASS (asymmetry_posture drift
+  detected).
+- ~~Gate 22 baseline blocker: 100% null exit_codes.~~ **Resolved Event 49.** CP-TEL-01
+  patch applied; exit_codes now populate correctly (verified `exit=0 status=success`
+  in live hook log). Gate 22 remains MANUAL at grading time (inherently requires
+  human verification of disconfirmation-triggering-action-change) but no longer
+  blocked on infrastructure.
+- Gate 26 baseline: fence pipeline — **Event 49 partial progress**. CP-TEL-01 is fixed
+  so exit_code extraction works; CP-FENCE-01 orphan cleanup ran once (88 retired).
+  `protocols.jsonl` still does not exist because of a residual PreToolUse/PostToolUse
+  correlation-id mismatch (CP-FENCE-02 — see `docs/PREPARED_PATCHES.md`). Gate 26 =
+  FAIL unless CP-FENCE-02 lands or a fence_reconstruction op happens to produce
+  matching correlation ids.
 - ~~Form-filling discriminator: not yet implemented (script); CP-DISC-01.~~ **Resolved
   Event 47.** See `docs/DISCRIMINATOR_CALIBRATION.md` and `tools/discriminator_calibration.py`.
-- **Phase 2 revision** (new in Event 47): `tools/sample_deferred.py --unique` collapses
-  1,294 deferred records to 40 unique findings (32× dedup). See
-  `docs/DEFERRED_DISCOVERIES_TRIAGE.md` for the full classification. **CP-DEDUP-01**
-  (dedup-on-log) added as a HIGH-priority v1.0.1 CP candidate.
+- ~~Phase 2 dedup-on-log: CP-DEDUP-01.~~ **Resolved Event 49.** `_framework.write_deferred_discovery`
+  now does pre-write tail-scan-200 dedup. Existing 1,294 records untouched (retroactive
+  cleanup is v1.0.1+).
+- Gate 28 pre-audit (Event 49): `tools/gate28_preaudit.py` shows 4 kernel-touching
+  commits since Event 38 anchor — 1 PASS, 3 PARTIAL, 0 FAIL. Overall verdict PARTIAL
+  (not HARD BLOCK). Operator can manually upgrade to PASS with corroborating
+  PROGRESS.md + git-message evidence.
 
 These gaps are named now so the Day-7 grading session does not discover them
 mid-execution.

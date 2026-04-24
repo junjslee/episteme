@@ -1,19 +1,46 @@
-# Prepared Patches — v1.0.1 Hook Fixes (Event 47)
+# Prepared Patches — v1.0.1 Hook Fixes (Event 47 · Event 49 applied Path-Y)
 
-Soak-sensitive fixes that require `core/hooks/` edits. Diagnosed and
-written here during Event 47 but **deliberately not committed** to
-preserve the Event-38 fresh soak clock. Operator applies post-soak
-(v1.0.1) OR — if calibration telemetry is judged load-bearing for
-Day-7 grading — mid-soak with explicit Path-A-class authorization.
+**Status update Event 49.** Operator authorized Path-Y
+application of CP-TEL-01 + CP-DEDUP-01 mid-soak. Both landed on
+`event-49-path-y-hook-fixes` branch with 604 tests passing (baseline
+593 + 11 new regression pins). CP-FENCE-01 orphan cleanup ran once
+(88 stale markers retired). CP-FENCE-01 protocol-synthesis-on-op
+is downstream of CP-TEL-01 and SHOULD work now; but a residual
+correlation-id mismatch (PreToolUse SHA-1-fallback vs PostToolUse
+tool_use_id) still blocks some synthesis. Tracked as residual
+CP-FENCE-02 below.
 
-Apply after the Day-7 grading produces its baseline, not before —
-the patched hooks will start producing correct data, and grading
-against a mixed pre/post-patch corpus is harder to reason about
-than grading the pre-patch corpus as-is.
+**Soak clock not reset.** Event 49's patches are additive to
+evidence collection — they fix what the hook records, not what
+the agent decides. The Event-38 2026-04-23T21:23:36Z anchor
+continues.
+
+Original doc below, marked with Event-49 status notes.
 
 ---
 
-## CP-TEL-01 — exit_code extraction camelCase fix
+## CP-TEL-01 — **APPLIED Event 49** · exit_code extraction + returnCodeInterpretation
+
+**Status**: ✓ **APPLIED** in `core/hooks/calibration_telemetry.py` and
+`core/hooks/fence_synthesis.py`. 11 regression tests added. 597/597
+test suite passing. Live verification: outcome records now populate
+`exit_code` + `status` correctly (verified via `~/.episteme/state/hooks.log`
+post-patch entries showing `exit=0 status=success` on successful ops
+and `exit=1 status=error` on failed ops).
+
+**Expanded diagnosis in Event 49.** The original CP-TEL-01 diagnosis
+(camelCase `isError` vs snake_case `is_error`) was PARTIALLY CORRECT but
+incomplete. Claude Code's actual Bash tool_response shape has no
+`isError` field either — it uses `returnCodeInterpretation` (None on
+success / non-empty string like "No matches found" or "command exited
+with exit code N" on error) plus `interrupted` (bool, True on SIGINT).
+The applied patch handles all three variants (explicit numeric exit code,
+bool isError/is_error, Claude-Code returnCodeInterpretation pattern).
+Regex extracts explicit exit code `N` from rci strings matching
+`exit code N`; otherwise non-empty rci defaults to exit 1;
+`interrupted: True` maps to 130 (SIGINT convention).
+
+### Original diagnosis (pre-Event-49)
 
 **Root cause** (confirmed Event 47 via `core/hooks/calibration_telemetry.py`
 lines 66-90 + `core/hooks/fence_synthesis.py` lines 60-92): both
@@ -120,7 +147,19 @@ After applying:
 
 ---
 
-## CP-FENCE-01 — fence synthesis empty-emit + orphan markers
+## CP-FENCE-01 — **APPLIED Event 49 (orphan cleanup)** · PARTIAL (synthesis still blocked by CP-FENCE-02)
+
+**Orphan cleanup status**: ✓ `tools/fence_marker_cleanup.py` shipped +
+ran once Event 49; 88 stale markers removed (89 → 1 at run time; a few
+new ones have since appeared as expected).
+
+**Protocol synthesis status**: ⚠ PARTIAL. Downstream of CP-TEL-01 as
+originally diagnosed — exit_code extraction now works so the
+`if exit_code == 0` gate in `finalize_on_success` no longer blocks.
+BUT a separate bug (CP-FENCE-02 below) still prevents most fence
+firings from producing protocols.
+
+### Original diagnosis (pre-Event-49)
 
 **Root cause** (confirmed Event 47):
 1. **Downstream of CP-TEL-01.** `fence_synthesis.finalize_on_success()`
@@ -198,7 +237,20 @@ Recommend Option B-1 for a v1.0.1 that doesn't re-edit hot-path code.
 
 ---
 
-## CP-DEDUP-01 — deferred-discovery dedup on log (NEW — Event 47)
+## CP-DEDUP-01 — **APPLIED Event 49** · deferred-discovery dedup on log
+
+**Status**: ✓ **APPLIED** in `core/hooks/_framework.py`. Pre-write
+tail-scan-200 check on `(flaw_classification, description[:120])` key.
+Three regression tests added (`test_cp_dedup_01_*`). When a match is
+found, returns `{"suppressed_duplicate": True, "matched_entry_hash":
+..., "matched_ts": ...}` instead of writing a new chain entry.
+Existing 1,294 records untouched (retroactive cleanup is CP-DEDUP-02
+territory — not in scope).
+
+Also callable with `dedup=False` kwarg for explicit opt-out (test
+corpus uses this for multi-write scenarios).
+
+### Original diagnosis (pre-Event-49)
 
 **Observation** (Phase 2 triage): 1,294 deferred_discoveries records
 collapse to 40 unique findings. 32× dup rate. Cause: every
@@ -240,6 +292,48 @@ write-path behavior, not a chain-level change.
 2. Apply fix.
 3. Post-fix: new records only when description/class actually novel.
    Monitor for 24 hours; expect <10 new records vs pre-fix ~70/day.
+
+---
+
+## CP-FENCE-02 — correlation-id PreToolUse/PostToolUse mismatch (NEW — Event 49)
+
+**Observation (Event 49 diagnostic)**. Even after CP-TEL-01 patch
+unblocks exit_code extraction, the fence synthesis pipeline still
+does not reliably produce protocols on live ops. Root cause (partial):
+`~/.episteme/state/fence_pending/` contains markers with `h_*`
+correlation id prefix (SHA-1 hash fallback) when the PreToolUse
+payload lacked `tool_use_id`. PostToolUse then computes correlation
+from `tool_use_id` (present in PostToolUse payload), producing a
+`toolu_*` prefix that does not match. `read_pending_marker()`
+returns None; `finalize_on_success()` early-exits; no protocol
+written.
+
+**Why PreToolUse lacks tool_use_id (hypothesis — unverified).** Claude
+Code may send different payload shapes to Pre vs Post invocations —
+tool_use_id might only be populated on PostToolUse for deliverability
+guarantees. Or the current hook-dispatching path reads a different
+subset of fields at PreToolUse time.
+
+**Prepared fix (design sketch — not yet implemented).**
+1. Instrument `reasoning_surface_guard.py`'s PreToolUse path to log
+   which correlation-id source was used (tool_use_id vs SHA-1
+   fallback).
+2. If SHA-1 fallback dominates, inspect actual PreToolUse payload
+   keys (same diagnostic pattern Event 49 used on tool_response).
+3. If `tool_use_id` genuinely isn't available at PreToolUse,
+   switch BOTH pre and post to use the SHA-1 fallback key (cwd +
+   second-bucket + cmd) even when tool_use_id IS available on
+   Post. That way both sides compute the same id. Cost: loses
+   tool_use_id's stronger uniqueness but gains pairing reliability.
+4. Alternatively: PreToolUse writes the marker under BOTH candidate
+   correlation-ids (SHA-1 + whatever-id-is-available); PostToolUse
+   tries all candidate ids when reading.
+
+**Priority**: HIGH for Gate 26 PASS; MEDIUM for overall v1.0.1
+because Gate 26 PARTIAL is achievable via a subset of fence firings
+that happen to match.
+
+**Effort**: 2-3 hours including diagnostic + fix + tests.
 
 ---
 

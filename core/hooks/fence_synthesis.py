@@ -24,6 +24,7 @@ them.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -57,9 +58,19 @@ def _bash_command(payload: dict) -> str:
     )
 
 
+_RCI_EXIT_CODE_PATTERN = re.compile(r"exit\s+code\s+(-?\d+)", re.IGNORECASE)
+
+
 def _extract_exit_code(payload: dict) -> int | None:
     """Walk the tool_response for an exit code. Same shape the
-    calibration-telemetry hook uses."""
+    calibration-telemetry hook uses.
+
+    Event 49 · CP-TEL-01 — Claude Code Bash tool_response uses
+    `returnCodeInterpretation` (None on success / non-empty string on
+    error) + `interrupted` (bool) instead of any numeric exit_code.
+    This extractor mirrors calibration_telemetry's logic so fence
+    synthesis can actually produce protocol records on real ops.
+    """
     resp = payload.get("tool_response") or payload.get("toolResponse") or {}
     if not isinstance(resp, dict):
         return None
@@ -80,14 +91,32 @@ def _extract_exit_code(payload: dict) -> int | None:
                 v = wrapper.get(key)
                 if isinstance(v, int):
                     return v
-    # No explicit exit_code field — infer from status / is_error.
-    if "is_error" in resp:
-        return 1 if resp["is_error"] else 0
+    # No explicit exit_code field — infer from isError / is_error bool.
+    for bool_key in ("isError", "is_error"):
+        if bool_key in resp and isinstance(resp[bool_key], bool):
+            return 1 if resp[bool_key] else 0
     status = resp.get("status")
     if isinstance(status, str):
         if status.lower() in ("success", "ok"):
             return 0
         if status.lower() in ("error", "failed", "failure"):
+            return 1
+    # Event 49 · CP-TEL-01 — Claude Code shape.
+    if any(
+        k in resp for k in ("returnCodeInterpretation", "interrupted", "isImage")
+    ):
+        if resp.get("interrupted") is True:
+            return 130
+        rci = resp.get("returnCodeInterpretation")
+        if rci is None or (isinstance(rci, str) and not rci.strip()):
+            return 0
+        if isinstance(rci, str):
+            m = _RCI_EXIT_CODE_PATTERN.search(rci)
+            if m:
+                try:
+                    return int(m.group(1))
+                except ValueError:
+                    pass
             return 1
     return None
 

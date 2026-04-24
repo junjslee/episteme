@@ -63,12 +63,29 @@ def _bash_command(payload: dict) -> str:
     return str(ti.get("command") or ti.get("cmd") or ti.get("bash_command") or "")
 
 
+_RCI_EXIT_CODE_PATTERN = re.compile(r"exit\s+code\s+(-?\d+)", re.IGNORECASE)
+
+
 def _extract_exit_code(payload: dict) -> int | None:
     """Walk the tool_response structure for a numeric exit code.
 
     Different runtimes spell this differently. This tries the common shapes
     and returns None if none match — the outcome record still carries a
     best-effort success/failure signal via `status`.
+
+    Event 49 · CP-TEL-01 — Claude Code's Bash tool_response uses a
+    different signalling pattern than documented runtime conventions.
+    Actual keys observed: `returnCodeInterpretation` (None on success /
+    non-empty string on error), `interrupted` (bool), `stdout`, `stderr`,
+    `isImage`, `noOutputExpected`. No numeric `exit_code` field. This
+    extractor:
+      - Returns `0` when `returnCodeInterpretation` is absent/None AND
+        `interrupted` is not True.
+      - Tries to extract N from patterns like "exit code 127" in rci;
+        falls back to 1 if rci is non-empty but unparseable.
+      - Returns 130 on `interrupted: True` (SIGINT convention).
+    Snake_case `is_error` / camelCase `isError` preserved for other
+    runtimes / tests.
     """
     resp = payload.get("tool_response") or payload.get("toolResponse") or {}
     if not isinstance(resp, dict):
@@ -87,21 +104,61 @@ def _extract_exit_code(payload: dict) -> int | None:
                 v = wrapper.get(key)
                 if isinstance(v, int):
                     return v
+    # Event 49 · CP-TEL-01 — isError bool mapping for runtimes that use
+    # it (Gemini CLI, some test payloads).
+    for bool_key in ("isError", "is_error"):
+        if bool_key in resp and isinstance(resp[bool_key], bool):
+            return 1 if resp[bool_key] else 0
+    # Event 49 · CP-TEL-01 — Claude Code pattern. Only reached when no
+    # other shape matched.
+    rci = resp.get("returnCodeInterpretation")
+    interrupted = resp.get("interrupted")
+    has_claude_code_shape = any(
+        k in resp for k in ("returnCodeInterpretation", "interrupted", "isImage")
+    )
+    if has_claude_code_shape:
+        if interrupted is True:
+            return 130  # SIGINT convention
+        if rci is None or (isinstance(rci, str) and not rci.strip()):
+            return 0
+        if isinstance(rci, str):
+            m = _RCI_EXIT_CODE_PATTERN.search(rci)
+            if m:
+                try:
+                    return int(m.group(1))
+                except ValueError:
+                    pass
+            return 1
     return None
 
 
 def _extract_status(payload: dict) -> str:
-    """Best-effort status string: 'success' / 'error' / 'unknown'."""
+    """Best-effort status string: 'success' / 'error' / 'unknown'.
+
+    Event 49 · CP-TEL-01 — recognizes Claude Code's returnCodeInterpretation
+    + interrupted pattern alongside snake_case/camelCase conventions.
+    """
     resp = payload.get("tool_response") or payload.get("toolResponse") or {}
     if not isinstance(resp, dict):
         return "unknown"
-    if "is_error" in resp:
-        return "error" if resp["is_error"] else "success"
+    for bool_key in ("isError", "is_error"):
+        if bool_key in resp and isinstance(resp[bool_key], bool):
+            return "error" if resp[bool_key] else "success"
     if "error" in resp and resp["error"]:
         return "error"
     s = resp.get("status")
     if isinstance(s, str) and s:
         return s.lower()
+    # Event 49 · CP-TEL-01 — Claude Code pattern.
+    if any(
+        k in resp for k in ("returnCodeInterpretation", "interrupted", "isImage")
+    ):
+        if resp.get("interrupted") is True:
+            return "error"
+        rci = resp.get("returnCodeInterpretation")
+        if rci is None or (isinstance(rci, str) and not rci.strip()):
+            return "success"
+        return "error"
     return "unknown"
 
 
