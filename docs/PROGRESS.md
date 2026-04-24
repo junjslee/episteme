@@ -1279,6 +1279,52 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 51 — 2026-04-24 — Post-v1.0 branched roadmap + Hermes v2026.4.23 lessons appendix (`docs/ROADMAP_POST_V1.md`)
+
+**Scope.** One new 484-line docs artifact on feature branch `event-51-post-v1-roadmap` + PROGRESS.md entry + NEXT_STEPS pointer. Zero code / schema / hook / test touches. Pure docs; soak-safe; Event 38 soak clock preserved.
+
+**Why.** Operator review question after Event 50: *"are all the roadmaps for the post-soak work like phase B and more are meticulously outlined and matches the fullest depth and intent of our product `episteme` for the better?"* Honest pre-draft assessment: short-term v1.0.1 CP list was well-scoped in `DEFERRED_DISCOVERIES_TRIAGE.md` §4 (14 CPs with effort + priority), but longer-horizon items (Jaynes/Laplace, Ashby escalate-by-default, schema evolution, framework consolidation, cross-project vision, continuous-self-maintenance axis) were scattered across kernel prose + NEXT_STEPS + PREPARED_PATCHES without coherent organization. Second ask: identify lessons from Hermes Agent v2026.4.23 release (same-day as Event 38 soak anchor) applicable to episteme. Operator explicit decision: do both NOW (not defer to post-Day-7), because the governing intent doesn't depend on Day-7 outcome + most v1.0.1/v1.1 items are tactical regardless of GA result.
+
+**Shipped — `docs/ROADMAP_POST_V1.md`.**
+
+- **§0 Governing intent anchor** — operator's own-words statement restated verbatim from Event 6 third-pass reframe. Four jobs (per-action causal decomposition · per-case protocol synthesis · proactive guidance · continuous self-maintenance) named as the backward-goal every milestone traces to. Items that don't trace = scope creep.
+
+- **§1 Current-state table** — 12-row capability audit showing Pillar 1/2/3 shipped, Phase 12 verified, all 6 pre-soak infrastructure CPs landed (Events 47-50), current grader baseline 3 PASS · 4 MANUAL · 1 FAIL · weighted 3.0.
+
+- **§2 Three Day-7 branches**
+  - **2.A GA path** (≥ 4/8 clear-pass): release-please PR #2 merges; v1.0.1 Evidence Pipeline Hardening opens immediately; remaining MANUAL gates named as v1.0.1 scope.
+  - **2.B v1.0.1-rc path** (2-3 clear-pass, realistic outcome): rc cycle + fresh 7-day soak.
+  - **2.C scope-retreat path** (≤ 1 clear-pass, unlikely given current 3 PASS): two sub-paths — demote cognitive-adoption to v1.1 roadmap item, or defer v1.0 entirely.
+
+- **§3 Five milestone themes with explicit non-goals and acceptance criteria**:
+  - Theme 1 · Evidence Pipeline Hardening (v1.0.1) — 8 CPs; maps to Jobs 1+2+4; acceptance = weighted-pass ≥ 5.5/4.0, protocols.jsonl ≥ 5 entries, deferred accumulation < 10/day.
+  - Theme 2 · Schema Evolution (v1.0.1 → v1.1) — CP-SCHEMA-01a/b (enum additions) · CP-SCHEMA-02 (reasoning_failure_mode field) · CP-SCHEMA-03 (migration tooling). Maps to Jobs 1+4.
+  - Theme 3 · Behavior Knobs (v1.0.1 → v1.1) — CP-KNOBS-01/02 (autonomy_class + fence_check_strictness wired) · CP-ASHBY-01 (FAILURE_MODE 9 escalate-by-default) · CP-JAYNES-01 (evidence-weighted assumption updates with posterior plausibility). Maps to Job 3.
+  - Theme 4 · Framework Consolidation (v1.1) — CP-GRAPH-01/02/03 (Stop-hook async worker + zero-LLM entity extractor per gbrain pattern + Recall@5 benchmarking) · CP-GUIDE-01 (cross-session guidance replay) · CP-RETRO-01 (retrospective sync-plan completeness verification per spec-deferred CP10 note).
+  - Theme 5 · Cognitive-Adoption Gates Raising (v1.2) — CP-GATE-01/02/03/04 (raised form-filling threshold; new Gates 29/30/31 for synthesis-refs + cascade-theater audit + guidance-acted-on rate) · CP-DISC-02 (discriminator recalibration against larger corpus).
+
+- **§3.6 Cross-cutting TUI + observability (v1.1 candidate)** — CP-TUI-01 (Textual-based dashboard; Python-native, avoids Node/Ink dep) · CP-TUI-02 (subagent spawn observability overlay) · CP-WEB-01 (web dashboard parity).
+
+- **§3.7 Cross-project vision (v2.0 candidate)** — scoped as v2.0 with explicit reasons for not executing in v1.x: requires stable per-project format first; privacy+trust questions; cross-project hash-chain continuity non-trivial.
+
+- **§4 Dependency graph** — ASCII diagram showing v1.0.0 GA → v1.0.1 Evidence Pipeline Hardening → v1.0.1 partial Schema+Knobs → v1.1 Framework Consolidation → v1.2 Gates Raising → v2.0 cross-project. Best-case calendar: v1.0.1 GA +24 days, v1.1 GA +60 days, v1.2-rc +90 days (operator-availability dependent, not commitment).
+
+- **§5 Hermes v2026.4.23 lessons appendix** —
+  - **Adopt**: Textual-based TUI (Python-native equivalent of Hermes's Ink TUI); `/steer`-style mid-run nudge as `episteme guide --inject <protocol-id>`; plugin-surface patterns for Pillar 3 advisory injection; subagent spawn observability overlay.
+  - **Consciously NOT adopt**: multi-provider LLM transport abstraction (scope creep — we're governance not runtime); messaging-platform expansion (not our scope); shell-script hooks generalization (we chose typed Python for kernel discipline); provider-catalog live-discovery; bundled image_gen/TTS plugins.
+  - **Adoption matrix** summary table with explicit decisions.
+  - **§5.4 Counter-positioning observation**: Hermes's release narrative centers on surface expansion (more transports/platforms/plugins); episteme's v1.0 → v1.2 narrative should center on depth of epistemic correctness (evidence pipeline hardening, schema fidelity, gate-grading rigor). Complementary products: Hermes grows the surface, episteme grows the governance underneath. Do NOT chase Hermes's surface-expansion tempo.
+
+- **§6 How this doc stays current** — update protocol: every Event adding a CP updates §3 status columns; every v1.x GA triggers post-GA review; Day-7 outcome selects the executing branch; quarterly adjacent-ecosystem lesson re-scan. If operator intent shifts (§0), whole doc deprecates and rewrites goal-backward.
+
+**Soak safety.** Single new doc artifact under `docs/`. Zero code / schema / hook / test / kernel / mode.ts touches. Fresh 7-day soak clock (Event 38 anchor) unaffected.
+
+**PR queue.** PR #11 opens. PR #2 release-please still held.
+
+**Commit (to-be):** `docs: post-v1.0 branched roadmap + Hermes lessons (Event 51)` — SHA at commit.
+
+---
+
 ## Event 50 — 2026-04-24 — CP-FENCE-02 correlation-id mismatch fix (Option B of Day-7 plan)
 
 **Scope.** Targeted follow-up to Event 49 applying Option B of the Day-7 plan. Three file edits on feature branch `event-50-cp-fence-02`: (1) `core/hooks/_fence_synthesis.py` adds `candidate_correlation_ids()` + `finalize_on_success_with_fallback()`; (2) `core/hooks/reasoning_surface_guard.py` loops over candidates when writing pending markers; (3) `core/hooks/fence_synthesis.py` PostToolUse uses the fallback finalizer. 3 new regression tests + 1 existing test updated for new dual-write expectation. **600/600 tests passing** (597 baseline + 3 new CP-FENCE-02 pins).
