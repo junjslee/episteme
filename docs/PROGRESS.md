@@ -1279,6 +1279,31 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 45 — 2026-04-24 — clone.yml scheduler fix + NEXT_STEPS drift cleanup
+
+**Scope.** Three file edits on feature branch `event-45-clone-yml-and-nextsteps-drift`. One cron-schedule change + one action-version bump + one doc-section rewrite. Zero code / schema / hot-path touches. Soak-safe; fresh 7-day soak clock (opened 2026-04-23T21:23:36Z per Event 38 verification) unaffected.
+
+**Why.** Two loose ends surfaced on session review of 2026-04-24:
+
+1. **`clone.yml` scheduled trigger never fires.** Workflow has been on master since 2026-04-23T04:58 but of 4 total runs across 20+ hours, zero are `schedule`-triggered — all are `workflow_dispatch` or `push`. Cause: cron `0 */24 * * *` functionally resolves to `00:00 UTC`, the most-contended slot in GitHub Actions' scheduled-trigger dispatcher. GitHub's own docs state *"scheduled workflows may be delayed during periods of high loads... high load times include the start of every hour"* — top-of-the-day is the worst offender. Manual dispatch works (verified: run `24864724804` completed in 16s successfully at 2026-04-24). Without this fix the clone-count badge stops updating as the rolling 14-day traffic window shifts past the last manual trigger.
+2. **`docs/NEXT_STEPS.md` Resume-here has internal drift.** Section header says *"PATH A COMPLETE · FRESH 7-DAY SOAK OPENS 2026-04-23 (pending post-push verification)"* but a subsection below (*"So-What Now? — 2026-04-23 late-session pivot"*) still describes the pre-Path-A problem state (Day-2 gate grading undecided, pipeline broken, operator-decision-required). Events 41-44 are absent from the Resume-here summary (only 36-40 listed). PR #3 merged 2026-04-23; PR #4 merged post-rebase; PR #2 release-please on explicit hold until post-soak. Stale content confuses future-session agents that read the banner cold.
+
+**Shipped.**
+
+- **`.github/workflows/clone.yml`** — `cron: "0 */24 * * *"` → `cron: "7 3 * * *"`. 03:07 UTC daily is off-peak with an explicit single-value minute, matching community-reported reliable-schedule patterns. `actions/checkout@v2` → `@v4` bump bundled in the same edit (v2 uses Node.js 16 which is scheduled for runner removal 2026-09-16 per Event 28 deprecation note; v4 runs on Node.js 20 with forward compat to v24). Inputs/outputs backward-compatible with this workflow's usage (no ref, no submodules, default fetch-depth) — drop-in bump.
+- **`docs/NEXT_STEPS.md` Resume-here rewrite.** Header collapsed to *"FRESH 7-DAY SOAK ACTIVE · pipeline verified healthy · next session resumes cold"*. Stale *"So-What Now? — 2026-04-23 late-session pivot"* + *"All today's 8 commits..."* paragraphs replaced with a compact session recap covering Events 36-45 grouped by arc (Path A pipeline fix · Gate 27 resolution · Distribution + CI ergonomics · Epistemic-trust positioning · this Event 45). PR queue at session close recorded (PR #2 release-please HELD until post-soak; PR #3 merged; PR #4 merged; PR #5 this Event). Soak posture rules restated in structured-list form. Day-2 Gate Grading section retained below but prefixed with *"HISTORICAL · resolved via Path A (Events 36-38)"* banner so evidence trail is preserved without misrepresenting current state.
+- **`docs/PROGRESS.md`** — Event 45 entry (this entry) inserted above Event 43. PR #4 hadn't merged at the moment this branch was cut, so Event 44's entry is not yet on master from this branch's perspective; if PR #4 merges first, the rebase drops Event 45 above Event 44 above Event 43 cleanly.
+
+**Verification expected post-merge.** Next scheduled trigger should fire at 03:07 UTC on the day following PR merge, with a ≤ 2-hour delay observed empirically per GitHub's best-effort scheduling. Measurable via `gh run list -R junjslee/episteme --workflow=clone.yml` — first row with `event: schedule` instead of `workflow_dispatch` / `push`. Estimated probability of cron-slot being the only factor: ~85% per community reports; ~15% probability that deeper investigation (external cron, Vercel-cron, or serverless polling via a Cloudflare Worker) is warranted. Plan B deferred until evidence justifies it.
+
+**Out of scope.** The `ad-m/github-push-action@master` floating-ref at workflow line 88 — security best practice is SHA-pinned references, but the operator's PAT-scoped `SECRET_TOKEN` + single-repo blast radius make this a low-priority hardening item. Deferred to post-soak CI polish. Similarly, the `actions/checkout@v2` fix in this Event doesn't touch the push-action version; bundling both bumps would obscure the cron-fix commit intent.
+
+**Soak safety.** Three-file text-layer edits. Zero `core/hooks/`, `src/episteme/`, `kernel/*`, `tests/`, or episodic-record-shape touches. Cognitive-adoption gate 21-28 measurement unaffected.
+
+**Commit + PR:** feature branch `event-45-clone-yml-and-nextsteps-drift` pushed; PR opened against master.
+
+---
+
 ## Event 43 — 2026-04-24 — Elevate positioning with epistemic-trust framework vocabulary (paper integration across web + README.ko + FAILURE_MODES)
 
 **Scope.** Four text-layer edits + one MANIFEST regen + PROGRESS entry. Operator integrated terms from *Architecting Trust in Artificial Epistemic Agents* — **Epistemic Drift**, **Cognitive Deskilling**, **Robust Falsifiability**, **Knowledge Sanctuaries**, **Technical Provenance System**, **Socio-Epistemic Infrastructure** — into the project's marketing surface (web Hero + layout metadata) and governance surface (kernel/FAILURE_MODES.md). README.ko.md storytelling section gains the 3 Korean-parenthetical named concepts at their natural insertion points. Soak-safe: all edits are text-layer across marketing + governance surfaces; zero hot-path hook behavior change, zero episodic-record-shape change.
