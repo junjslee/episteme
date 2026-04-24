@@ -473,6 +473,65 @@ class FrameworkWrite(unittest.TestCase):
             self.assertTrue(chains["protocols"].intact)
             self.assertTrue(chains["deferred_discoveries"].intact)
 
+    def test_cp_dedup_01_suppresses_identical_deferred_discoveries(self):
+        """Event 49 · CP-DEDUP-01 — same (class, desc[:120]) key must
+        not write a new chain entry; first write wins, subsequent
+        identical payloads return suppressed_duplicate marker."""
+        with EphemeralHome():
+            env1 = _framework.write_deferred_discovery({
+                "flaw_classification": "config-gap",
+                "description": "cascade fires on kernel state file edits",
+                "observable": "exit 2 emitted on writes",
+            })
+            self.assertNotIn("suppressed_duplicate", env1)
+            env2 = _framework.write_deferred_discovery({
+                "flaw_classification": "config-gap",
+                "description": "cascade fires on kernel state file edits",
+                "observable": "different observable — doesn't disambiguate",
+            })
+            self.assertTrue(env2.get("suppressed_duplicate"))
+            self.assertEqual(
+                env2.get("matched_entry_hash"), env1.get("entry_hash")
+            )
+            records = _framework.list_deferred_discoveries()
+            self.assertEqual(len(records), 1)
+
+    def test_cp_dedup_01_allows_distinct_findings(self):
+        """Different (class, desc) keys MUST persist independently."""
+        with EphemeralHome():
+            _framework.write_deferred_discovery({
+                "flaw_classification": "config-gap",
+                "description": "finding alpha affects startup",
+            })
+            _framework.write_deferred_discovery({
+                "flaw_classification": "schema-implementation-drift",
+                "description": "finding alpha affects startup",  # same desc, different class
+            })
+            _framework.write_deferred_discovery({
+                "flaw_classification": "config-gap",
+                "description": "finding beta affects teardown",  # same class, different desc
+            })
+            records = _framework.list_deferred_discoveries()
+            self.assertEqual(len(records), 3)
+
+    def test_cp_dedup_01_opt_out_flag_preserved_write_path(self):
+        """Callers that need old behavior can pass dedup=False."""
+        with EphemeralHome():
+            _framework.write_deferred_discovery({
+                "flaw_classification": "config-gap",
+                "description": "repeatable finding",
+            })
+            env2 = _framework.write_deferred_discovery(
+                {
+                    "flaw_classification": "config-gap",
+                    "description": "repeatable finding",
+                },
+                dedup=False,
+            )
+            self.assertNotIn("suppressed_duplicate", env2)
+            records = _framework.list_deferred_discoveries()
+            self.assertEqual(len(records), 2)
+
 
 # ---------- Retroactive CP5 upgrade --------------------------------------
 

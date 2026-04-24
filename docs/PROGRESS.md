@@ -1279,6 +1279,53 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 49 — 2026-04-24 — Path Y mid-soak hook fix (CP-TEL-01 + CP-DEDUP-01 applied; CP-FENCE-01 orphan cleanup; CP-FENCE-02 surfaced) — soak clock preserved
+
+**Scope.** Operator authorized Path Y (mid-soak targeted hotfix per soak rule b). Five patches on feature branch `event-49-path-y-hook-fixes`: (1) `core/hooks/calibration_telemetry.py` exit_code + status extraction expanded to handle Claude Code's actual payload shape; (2) `core/hooks/fence_synthesis.py` same extraction; (3) `core/hooks/_framework.py` pre-write dedup on `write_deferred_discovery`; (4) `tools/fence_marker_cleanup.py` new tool + executed once; (5) `tools/gate28_preaudit.py` new tool. 11 new regression tests pinning the extraction + dedup behavior. Full test suite: **597/597 passing** (baseline 593 + 11 new tests; some old tests consolidated into new variants).
+
+**Soak clock NOT reset.** Rationale: Event 38 reset clock because the episodic writer itself was not firing — no reasoning-surface substrate existed. Event 49's patches fix what hooks record, not what the agent decides. Gate 21 substrate (reasoning-surface richness) continues to collect correctly since Event 38. Patches are additive to evidence, not behavior.
+
+**Path-Y vs Path-X decision.** Path-Y chosen because (a) CP-TEL-01 was blocking Gate 22 + Gate 26 gradeability on pure infrastructure grounds (not on agent-reasoning grounds), and (b) operator-availability window makes GA-candidate at Day 7 valuable. Path-X would have accepted FAIL/MANUAL baselines and applied post-GA-decision; Path-Y front-loads the fix to unblock gate data collection.
+
+**Root cause expansion for CP-TEL-01 (Event 47 diagnosis was incomplete).** Original diagnosis identified `is_error` (snake_case) vs `isError` (camelCase) as the key issue. During Event 49 live-patch verification, outcomes still showed `exit_code: None` after the camelCase patch. Live diagnostic instrumentation captured actual Claude Code Bash `tool_response` shape: `{interrupted, isImage, noOutputExpected, returnCodeInterpretation, stderr, stdout}` — **zero `isError` field, zero numeric `exit_code` field**. The real success/failure signal is `returnCodeInterpretation` (None on success; non-empty string like "No matches found" or "command exited with exit code N" on failure) plus `interrupted` (bool, True on SIGINT). Patch expanded to handle all three conventions (numeric exit_code if present, isError/is_error bool if present, returnCodeInterpretation+interrupted pattern). Regex extracts explicit N from rci strings matching `exit code N`; else non-empty rci defaults to 1; interrupted maps to 130 (SIGINT).
+
+**Shipped.**
+
+- **`core/hooks/calibration_telemetry.py`** — `_extract_exit_code` + `_extract_status` handle Claude Code shape. Maintains backward compat for snake_case `is_error`, camelCase `isError`, explicit numeric codes, metadata-nested codes, and `status: "success"/"error"` strings.
+- **`core/hooks/fence_synthesis.py`** — same extraction patch; also imports `re` at module level (replacing the prior inlined import).
+- **`core/hooks/_framework.py`** — `write_deferred_discovery` gains `dedup: bool = True` kwarg, `dedup_tail_n: int = 200`, `dedup_desc_prefix: int = 120`. On match, returns `{suppressed_duplicate: True, matched_entry_hash, matched_ts}` instead of writing. Callers that discard the return (the `_blueprint_d.py` path) see no API change. Opt-out via `dedup=False`.
+- **`tools/fence_marker_cleanup.py`** — standalone CP-FENCE-01 Fix B. Walks `~/.episteme/state/fence_pending/` + removes markers > 24h old or with unparseable timestamps. **Executed Event 49**: 88 stale markers retired (89 → 1 at run time; live session then added 2 more for `rm advisory-surface` ops).
+- **`tools/gate28_preaudit.py`** — audits kernel-touching commits (Event 38 anchor onward) for reasoning-surface freshness (±30 min of commit time) + blast-radius named + SHA cross-reference in episodic records. Current baseline: 4 commits found; 1 PASS, 3 PARTIAL, 0 FAIL → **overall PARTIAL, not HARD BLOCK**. Operator can upgrade to PASS with manual corroborating evidence.
+- **`tests/test_calibration_telemetry.py` + `tests/test_chain_and_framework.py`** — 11 new regression tests pinning every extraction variant + dedup behavior.
+
+**Residual CP-FENCE-02 surfaced.** During live verification, observed that fence_pending markers accumulate with `h_*` (SHA-1 hash fallback) prefix while PostToolUse computes correlation id with `toolu_*` prefix (tool_use_id). Mismatch causes `read_pending_marker` to return None → synthesis skipped even with the CP-TEL-01 fix. Documented as new CP-FENCE-02 in `docs/PREPARED_PATCHES.md` with two candidate fixes (unify both sides on SHA-1 fallback, OR write marker under both candidate ids). HIGH priority for Gate 26 PASS; v1.0.1 scope.
+
+**Phase 2 triage did NOT reclassify.** The 12 REAL-DEBT / 11 RESOLVED / 17 NOISE tally from Event 48 stands. CP-TEL-01 + CP-DEDUP-01 were already counted as REAL-DEBT → RESOLVED transitions conceptually; POST_SOAK_TRIAGE Appendix B reflects this with strikethroughs on the resolved items.
+
+**Grader baseline post-Event-49.**
+
+```
+[✓] Gate 21  PASS
+[?] Gate 22  MANUAL  (CP-TEL-01 blocker removed; human verification remaining)
+[?] Gate 23  MANUAL
+[?] Gate 24  MANUAL
+[✓] Gate 25  PASS
+[✗] Gate 26  FAIL  (CP-FENCE-02 residual)
+[✓] Gate 27  PASS
+[?] Gate 28  MANUAL  (pre-audit says PARTIAL baseline, not hard-block)
+Weighted pass: 3.0 / 4.0 threshold
+```
+
+Weighted pass unchanged from Event 48 (3.0) because the new PASSes are gated on fence synthesis actually producing protocols (CP-FENCE-02) or on MANUAL resolution (Gates 22/23/24/28). However, **the quality of future evidence is materially better**: starting now, every Bash PostToolUse produces real exit_code and status data; the dedup check stops accumulation; the Phase-12 audit has real data; the orphan markers won't grow.
+
+**Soak safety.** Hook edits are surgical (two extraction functions, one dedup check). Test suite 597/597 green. Fresh 7-day soak clock (Event 38 anchor 2026-04-23T21:23:36Z) unaffected per the soak-preservation reasoning above.
+
+**PR queue.** PR #9 opens against master. PR #8 (Event 48) still pending operator merge; Event 49 branch merged event-48 locally so Event 49 PR includes Event 48's commits as well (operator can merge PR #9 to land both cleanly, OR merge PR #8 first then rebase PR #9).
+
+**Commit (to-be):** `feat(hooks,tools): Path Y mid-soak fixes (Event 49)` — SHA at commit.
+
+---
+
 ## Event 48 — 2026-04-24 — Phase 12 audit execution (Gate 25 FAIL → PASS) + triage corrections + grader schema fix
 
 **Scope.** One CLI invocation + two doc corrections + one grader patch on feature branch `event-48-soak-safe-followup`. Pure pre-soak-close cleanup; zero hook / kernel / schema / episodic-record edits. Fresh 7-day soak clock (Event 38 anchor 2026-04-23T21:23:36Z) unaffected.

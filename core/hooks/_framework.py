@@ -127,9 +127,58 @@ def write_protocol(payload: dict, *, path: Path | None = None) -> dict:
     return _chain_append(target, payload)
 
 
-def write_deferred_discovery(payload: dict, *, path: Path | None = None) -> dict:
+DEFAULT_DEDUP_TAIL_N = 200
+DEFAULT_DEDUP_DESC_PREFIX = 120
+
+
+def _dedup_key(payload: dict, desc_prefix: int) -> tuple[str, str]:
+    return (
+        str(payload.get("flaw_classification", "")),
+        str(payload.get("description") or "")[:desc_prefix],
+    )
+
+
+def _tail_deferred_records(target: Path, n: int) -> list[dict]:
+    """Read the last N envelopes from `target` via chain iteration.
+
+    Chain verification is skipped for this tail-scan — the dedup check
+    is advisory pre-write logic, not a chain-integrity gate. A chain
+    break would surface separately via `verify_chains()`. Skipping
+    verify keeps dedup O(n) reads without amplifying on corrupted files.
+    """
+    if not target.is_file() or n <= 0:
+        return []
+    envelopes: list[dict] = []
+    for rec in _chain_iter(target, verify=False):
+        envelopes.append(rec)
+    return envelopes[-n:] if len(envelopes) > n else envelopes
+
+
+def write_deferred_discovery(
+    payload: dict,
+    *,
+    path: Path | None = None,
+    dedup: bool = True,
+    dedup_tail_n: int = DEFAULT_DEDUP_TAIL_N,
+    dedup_desc_prefix: int = DEFAULT_DEDUP_DESC_PREFIX,
+) -> dict:
     """Append a deferred_discovery record. Type-tagged like
-    ``write_protocol``; independent chain stream."""
+    ``write_protocol``; independent chain stream.
+
+    Event 49 · CP-DEDUP-01 — when ``dedup=True`` (default), a pre-write
+    tail-scan of the last ``dedup_tail_n`` entries checks whether an
+    entry with the same ``(flaw_classification, description[:dedup_desc_prefix])``
+    key exists. On match: no new record is written; the function
+    returns ``{"suppressed_duplicate": True, "matched_entry_hash": <hash>}``
+    instead of a new envelope. Tolerate callers that discard the return
+    (the _blueprint_d.py caller does); callers that inspect the envelope
+    should check for the ``suppressed_duplicate`` key.
+
+    Rationale: framework writer historically logged identical findings
+    on every cascade:architectural firing, producing a 32× duplication
+    ratio across 1,294 records. Pre-write dedup stops growth without
+    retroactively modifying existing chain (that stays untouched).
+    """
     target = path if path is not None else _deferred_discoveries_path()
     if "type" not in payload:
         payload = {**payload, "type": DEFERRED_DISCOVERY_TYPE}
@@ -138,6 +187,27 @@ def write_deferred_discovery(payload: dict, *, path: Path | None = None) -> dict
             f"write_deferred_discovery: payload.type must be "
             f"{DEFERRED_DISCOVERY_TYPE!r} (got {payload['type']!r})"
         )
+    if dedup:
+        incoming_key = _dedup_key(payload, dedup_desc_prefix)
+        try:
+            recent = _tail_deferred_records(target, dedup_tail_n)
+        except (OSError, ChainError):
+            recent = []
+        for existing in recent:
+            existing_payload = (
+                existing.get("payload") if isinstance(existing, dict) else None
+            )
+            if not isinstance(existing_payload, dict):
+                continue
+            if existing_payload.get("type") != DEFERRED_DISCOVERY_TYPE:
+                continue
+            if _dedup_key(existing_payload, dedup_desc_prefix) == incoming_key:
+                return {
+                    "suppressed_duplicate": True,
+                    "matched_entry_hash": existing.get("entry_hash"),
+                    "matched_ts": existing.get("ts"),
+                    "reason": "cp-dedup-01 suppression",
+                }
     return _chain_append(target, payload)
 
 
