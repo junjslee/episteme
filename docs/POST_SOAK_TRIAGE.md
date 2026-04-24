@@ -130,10 +130,13 @@ restatement of the original definition.
 ### 1.5 Gate 25 — Phase 12 profile-audit surfaces real drift
 
 - **Origin claim**: "≥ 1 real drift detection against the operator's own profile."
-- **Data source**: Phase 12 profile-audit output. **Unknown as of Event 46**: exact
-  file path for Phase 12 audit emissions. Pre-grading task: confirm path (candidates:
-  `~/.episteme/audit.jsonl`, `~/.episteme/state/profile_audit.log`, or per-session
-  stdout). Grading blocked until path is verified.
+- **Data source** (CP-PHASE12-01 resolved Event 47):
+  `~/.episteme/memory/reflective/profile_audit.jsonl`. Confirmed via
+  `src/episteme/_profile_audit.py` docstring D3. Produced by
+  `episteme profile audit --write`. **As of Event 47 the file does NOT
+  exist** — Phase 12 has never been run. Operator must run
+  `episteme profile audit --write` at least once before Day 7 grading
+  or Gate 25 auto-FAILs.
 - **Measurement procedure** (once path is verified): For each `inferred` axis in
   `core/memory/global/operator_profile.md`, check whether the audit produced a
   promotion recommendation (`inferred → elicited`) OR a drift flag (elicited value
@@ -464,20 +467,31 @@ minimum is statistical-validity, not calendar-deadline.
 | Telemetry audit | `~/.episteme/telemetry/YYYY-MM-DD-audit.jsonl` |
 | Hook log | `~/.episteme/state/hooks.log` |
 | Operator profile | `core/memory/global/operator_profile.md` |
-| Phase 12 audit emissions | **UNVERIFIED** — pre-grading CP-PHASE12-01 |
+| Phase 12 audit emissions | `~/.episteme/memory/reflective/profile_audit.jsonl` (CP-PHASE12-01 resolved Event 47) |
 | Current reasoning surface | `.episteme/reasoning-surface.json` |
 
 ---
 
 ## Appendix B — Known evidence gaps at draft time
 
-- Phase 12 audit path: see CP-PHASE12-01.
+- ~~Phase 12 audit path: see CP-PHASE12-01.~~ **Resolved Event 47.** Path is
+  `~/.episteme/memory/reflective/profile_audit.jsonl`; current state = file absent;
+  operator must run `episteme profile audit --write` before Day 7.
 - Gate 22 baseline: no known disconfirmation-fired-and-changed-action commit in the
-  soak window yet. Realistic target at Day 7 is PARTIAL.
-- Gate 26 baseline: fence pipeline empty-emit pattern (CP-FENCE-01) will likely
-  produce an empty protocols.jsonl → FAIL unless the pipeline is fixed pre-soak
-  close.
-- Form-filling discriminator: not yet implemented (script); CP-DISC-01.
+  soak window yet. Realistic target at Day 7 is PARTIAL. **Also blocked by CP-TEL-01**
+  (calibration telemetry asymmetry — see `docs/PREPARED_PATCHES.md`); until that is
+  fixed Gate 22 has no objective substrate and grades MANUAL at best.
+- Gate 26 baseline: fence pipeline empty-emit pattern (CP-FENCE-01) — **root cause
+  confirmed Event 47**. `~/.episteme/framework/protocols.jsonl` does not exist;
+  `fence_pending/` contains 88 orphan markers from pre-fix era plus 1 current marker.
+  Synthesis never writes because `_extract_exit_code` returns None (same root cause
+  as CP-TEL-01). Gate 26 = FAIL until CP-TEL-01 + CP-FENCE-01 patches land.
+- ~~Form-filling discriminator: not yet implemented (script); CP-DISC-01.~~ **Resolved
+  Event 47.** See `docs/DISCRIMINATOR_CALIBRATION.md` and `tools/discriminator_calibration.py`.
+- **Phase 2 revision** (new in Event 47): `tools/sample_deferred.py --unique` collapses
+  1,294 deferred records to 40 unique findings (32× dedup). See
+  `docs/DEFERRED_DISCOVERIES_TRIAGE.md` for the full classification. **CP-DEDUP-01**
+  (dedup-on-log) added as a HIGH-priority v1.0.1 CP candidate.
 
 These gaps are named now so the Day-7 grading session does not discover them
 mid-execution.
