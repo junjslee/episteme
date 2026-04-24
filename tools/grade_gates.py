@@ -209,13 +209,17 @@ def grade_gate_25() -> dict:
             except json.JSONDecodeError:
                 continue
     drift_detections = 0
+    drifted_axes: list[str] = []
     for rec in audit_records:
-        axis_results = rec.get("axis_results", []) if isinstance(rec, dict) else []
-        if any(
-            isinstance(a, dict) and a.get("verdict") in ("drift", "promote")
-            for a in axis_results
-        ):
-            drift_detections += 1
+        axes = rec.get("axes", []) if isinstance(rec, dict) else []
+        for a in axes:
+            if not isinstance(a, dict):
+                continue
+            if a.get("verdict") in ("drift", "promote"):
+                drift_detections += 1
+                name = a.get("axis_name")
+                if name:
+                    drifted_axes.append(str(name))
     if drift_detections >= 1:
         verdict = "PASS"
     elif audit_records:
@@ -228,6 +232,7 @@ def grade_gate_25() -> dict:
         "verdict": verdict,
         "audit_records": len(audit_records),
         "drift_detections": drift_detections,
+        "drifted_axes": drifted_axes,
         "counter_example_question": (
             "Name one axis this soak should have flagged based on observed "
             "behavior. If the audit missed it → FAIL (false negative)."

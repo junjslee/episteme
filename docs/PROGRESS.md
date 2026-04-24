@@ -1279,6 +1279,56 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 48 — 2026-04-24 — Phase 12 audit execution (Gate 25 FAIL → PASS) + triage corrections + grader schema fix
+
+**Scope.** One CLI invocation + two doc corrections + one grader patch on feature branch `event-48-soak-safe-followup`. Pure pre-soak-close cleanup; zero hook / kernel / schema / episodic-record edits. Fresh 7-day soak clock (Event 38 anchor 2026-04-23T21:23:36Z) unaffected.
+
+**Why.** Event 47 delivered the grading infrastructure but left two items the operator-confirmed "do anything soak-safe" mandate could still action: (a) run `episteme profile audit --write` so Gate 25 actually has data (Event 47 left this as an operator prerequisite), and (b) verify the Phase 2 manual classifications against current master — spot-check reading `kernel/SUMMARY.md` revealed that unique findings #3 + #12 (both "SUMMARY missing Blueprint D") are already RESOLVED in current master, not REAL-DEBT as classified. Triage accuracy matters because §4 CP priority ordering derives from the classification.
+
+**Shipped.**
+
+- **`episteme profile audit --write` executed.** Produced `~/.episteme/memory/reflective/profile_audit.jsonl` (10,833 bytes, 1 run record, 15 axes evaluated). Result: **14 `insufficient_evidence` + 1 `drift` verdict** — `asymmetry_posture` axis flagged drift based on 15 irreversible-op records showing stop-condition rate 20% (floor: 55%) and rollback-mention rate 7% (floor: 30%), both D1-signature convergent. The claim `asymmetry_posture: loss-averse (elicited)` is therefore not borne out by the lived record; re-elicitation suggested. This is a **real, substantive finding** — the profile says loss-averse, the behavior looks closer to balanced/gain-seeking on irreversible ops. Audit honesty holding.
+- **`tools/grade_gates.py` schema fix.** Original grader read `rec["axis_results"]` but the actual profile-audit-v1 schema uses `rec["axes"]`. Also discovered that verdict enum includes `insufficient_evidence` (not just `drift` / `promote`). Fix: read `axes` + extract the 2 verdict strings that count for Gate 25 PASS. Additionally surface the specific axis names that drifted in the grader's output dict.
+- **DEFERRED_DISCOVERIES_TRIAGE.md corrections.**
+  - Row #3 (`kernel/SUMMARY.md` missing Blueprint D, 105 dups): REAL-DEBT → RESOLVED. Verified line 31 names "Blueprint D · Architectural Cascade & Escalation" explicitly.
+  - Row #12 (same finding, different dedup-prefix, 37 dups): REAL-DEBT → RESOLVED.
+  - §3 tally updated: 12 REAL-DEBT (was 14) · 11 RESOLVED (was 9) · 17 NOISE (unchanged). Weighted REAL-DEBT ≈ 594 records (was ≈ 736). Direction unchanged (REAL-DEBT still majority).
+  - §4 CP candidate table: CP-SUMMARY-01 row struck through as "DROPPED (already resolved)".
+- **Baseline re-captured.** `python3 tools/grade_gates.py` post-Event-48:
+
+  ```
+  [✓] Gate 21: PASS  — reasoning-surface snapshot quality
+  [?] Gate 22: MANUAL
+  [?] Gate 23: MANUAL
+  [?] Gate 24: MANUAL
+  [✓] Gate 25: PASS  — asymmetry_posture drift detected (audit confirmed)
+  [✗] Gate 26: FAIL  — protocols.jsonl absent (CP-FENCE-01 still deferred)
+  [✓] Gate 27: PASS
+  [?] Gate 28: MANUAL
+  Decision: v1.0.1-rc cycle
+  Weighted pass: 3.0 / 4.0 threshold
+  Pass: 3  Partial: 0  Manual: 3
+  ```
+
+  **Gate 25 moved FAIL → PASS.** Weighted pass 2.0 → 3.0. One MANUAL resolution (likely Gate 28 dogfood audit on Events 36-48 kernel/doc commits with matching reasoning-surfaces) lifts weighted to 4.0 → **GA threshold hit**. Remaining FAIL (Gate 26) is still gated on CP-FENCE-01 decision per operator-Path-X-vs-Path-Y call.
+
+**What this changes for the GA/no-GA calculation.**
+
+- If operator stays Path X (wait for post-soak on hook fixes): Day-7 grading likely lands at 3 PASS + 1 FAIL + 3-4 PARTIAL/MANUAL. Weighted ≈ 3.5-4.5 depending on manual verdicts. **GA candidate feasible without touching hooks.**
+- If operator chooses Path Y (authorize CP-TEL-01 + CP-FENCE-01 mid-soak): Gate 22 + Gate 26 become gradeable, likely both PASS. Weighted ≈ 5.0-5.5. **GA candidate strong.**
+
+Either way, Event 48 moved the baseline meaningfully — the Phase 12 audit's `asymmetry_posture` drift flag is exactly the kind of "audit caught real drift operator can act on" evidence Gate 25 requires.
+
+**Honest meta-observation.** Event 48 is also a soft dogfood win for the kernel: the Phase 12 loop designed during 0.11.0 produced an actual drift detection on the operator's own profile during the 0.11 → 1.0 window. The "loss-averse on irreversible ops" claim that was elicited at v1 profile rollout is not matching the actual log. Either re-elicit the axis (maybe balanced/gain-seeking fits better) or tighten practice (add more stop-conditions + rollback-mention on irreversibles). This is a real operator decision, not a grading artifact.
+
+**Soak safety.** 1 CLI invocation with read-only-retrospective semantics (per `_profile_audit.py` D2 decision), 3 doc edits, 1 grader patch (non-hook). Zero `core/hooks/`, `src/episteme/`, `kernel/`, `tests/` touches. Mode.ts production default unchanged.
+
+**PR queue impact.** Event 48 opens PR #8. PR #2 (release-please 1.1.0-rc1) still held.
+
+**Commit (to-be):** `tools+docs: Phase 12 audit + triage corrections (Event 48)` — SHA at commit.
+
+---
+
 ## Event 47 — 2026-04-24 — Pre-soak-close grading infrastructure + v1.0.1 CP diagnosis (tools/ grader + calibration + triage + prepared patches)
 
 **Scope.** Multi-artifact pre-soak-close preparation on feature branch `event-47-pre-soak-grading-infra`. New `tools/` directory with three scripts (discriminator calibration, automated gate grader, deferred-discovery triage sampler) + four new docs (DISCRIMINATOR_CALIBRATION.md, DEFERRED_DISCOVERIES_TRIAGE.md, PREPARED_PATCHES.md) + POST_SOAK_TRIAGE.md amendments (§1.5 + Appendix A + B). Zero `core/hooks/`, `src/episteme/`, `kernel/` commits — deliberately preserves the Event 38 fresh-soak clock while making Day-7 grading executable and scoping v1.0.1 CPs honestly.

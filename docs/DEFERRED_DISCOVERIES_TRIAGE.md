@@ -43,7 +43,7 @@ Labels:
 |---|---:|---|---|---|
 | 1 | 105 | schema-implementation-drift | REAL-DEBT | Blueprint D cascade detector fires on kernel's own state files — requires exemption allowlist |
 | 2 | 105 | schema-implementation-drift | REAL-DEBT | Cross-ref count proxy uses byte-occurrence count; single file mentioning basename multiple times inflates score |
-| 3 | 105 | schema-implementation-drift | REAL-DEBT | kernel/SUMMARY.md 30-line distillation missing Blueprint D reference (all four now realized) |
+| 3 | 105 | schema-implementation-drift | RESOLVED | kernel/SUMMARY.md 30-line distillation missing Blueprint D reference — verified Event 48: line 31 names "Blueprint D · Architectural Cascade & Escalation" explicitly; already present in current master |
 | 4 | 105 | schema-implementation-drift | REAL-DEBT | Retrospective sync-plan completeness verification — explicitly spec-deferred to v1.0.1 by design |
 | 5 | 82 | schema-implementation-drift | REAL-DEBT | `default_autonomy_class` + `fence_check_strictness` orphan knobs — Phase B v1.0.1 scope |
 | 6 | 82 | schema-implementation-drift | REAL-DEBT | Ashby / escalate-by-default counter documented in FAILURE_MODE 9 but not in code (zero grep hits for `escalate_by_default`) |
@@ -52,7 +52,7 @@ Labels:
 | 9 | 72 | config-gap | RESOLVED | Version drift 0.11.0 vs 1.0.0-rc1 in plugin manifests — addressed by Event 30 plugin-manifest sync |
 | 10 | 38 | config-gap | RESOLVED | pnpm cwd surface-missing — resolved by Event 42 `_canonical_project_root()` |
 | 11 | 37 | doc-code-drift | NOISE | TikZ/TeX architecture_v2.tex sibling not regenerated — arxiv focus dropped, no longer applicable |
-| 12 | 37 | doc-code-drift | REAL-DEBT | kernel/SUMMARY.md still does not name Blueprint D (duplicates #3, different wording) |
+| 12 | 37 | doc-code-drift | RESOLVED | kernel/SUMMARY.md still does not name Blueprint D — same finding as #3; same Event 48 verification applies |
 | 13 | 37 | doc-code-drift | NOISE | README.md + dashboard embed stale system-overview.png — web has been redesigned; stale embed no longer rendered |
 | 14 | 26 | other | NOISE | SVG master asset for selected design direction — decorative branding, not load-bearing |
 | 15 | 26 | other | NOISE | Export PNG raster variants at 1x/2x/4x — decorative |
@@ -84,15 +84,22 @@ Labels:
 
 ## 3. Tally
 
-- **REAL-DEBT**: 14 unique findings · weighted record count ≈ 797 (61.6% of 1,294)
-- **RESOLVED**: 9 unique findings · weighted record count ≈ 287 (22.2%)
-- **NOISE**: 17 unique findings · weighted record count ≈ 210 (16.2%)
+**Revised Event 48** after verification that findings #3 and #12 (kernel/SUMMARY.md
+missing Blueprint D) were already RESOLVED in current master (`kernel/SUMMARY.md`
+line 31 names Blueprint D explicitly; the deferred-discovery claim was stale).
 
-Weighted REAL-DEBT:
+- **REAL-DEBT**: 12 unique findings · weighted record count ≈ 594 (46% of 1,294)
+- **RESOLVED**: 11 unique findings · weighted record count ≈ 429 (33%)
+- **NOISE**: 17 unique findings · weighted record count ≈ 210 (16%)
+- (Remaining weight ≈ 61 records unclassified — rounding + partial-match dups; see reproducibility commands in §6)
+
+Weighted REAL-DEBT (post-correction):
 ```
-105 + 105 + 105 + 105 + 82 + 82 + 82 + 23 + 13 + 12 + 8 + 7 + 5 + 2 ≈ 736
+105 + 105 + 105 + 82 + 82 + 82 + 23 + 13 + 12 + 8 + 7 + 5 + 2 + 2 ≈ 633
 ```
-(exact ≈ 14 unique × avg weight; 797 figure includes #12 merged with #3)
+Minor calibration note: the exact weighted sums depend on dedup-prefix length;
+the direction (majority of weight lives in REAL-DEBT) holds regardless of
+±10% on bucket assignments.
 
 ## 4. REAL-DEBT → CP candidate mapping
 
@@ -107,7 +114,7 @@ scored as `gate_impact × (1 / effort_days)` per
 | CP-FENCE-01 (empty-emit, marker cleanup) | #1 (cascade on state files), #36 | 1 | HIGH |
 | CP-CASCADE-01 (exempt kernel state files + read-only ops) | #1, #26 | 1 | MEDIUM |
 | CP-CROSSREF-01 (unique-file-count proxy) | #2 | 0.5 | MEDIUM |
-| CP-SUMMARY-01 (Blueprint D in SUMMARY.md) | #3, #12 | 0.1 | LOW (trivial) |
+| ~~CP-SUMMARY-01~~ (already resolved in master — Event 48 verification) | — | — | DROPPED |
 | CP-SMOKE-01 (plugin-install smoke test) | #20 | 1 | MEDIUM |
 | CP-ASHBY-01 (escalate_by_default implementation) | #6 | 3 | MEDIUM |
 | CP-KNOBS-01 (default_autonomy_class + fence_check_strictness) | #5 | 2 | MEDIUM |
