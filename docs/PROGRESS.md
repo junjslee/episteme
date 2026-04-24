@@ -1279,6 +1279,29 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 44 — 2026-04-24 — English README + REFERENCES.md catch-up on epistemic-trust vocabulary (Event 43 follow-through)
+
+**Scope.** Three file edits: `README.md` (English canonical) gains the same three storytelling-section inserts that Event 43 added to `README.ko.md` (Epistemic Drift, Robust Falsifiability, Knowledge Sanctuaries) plus the socio-epistemic infrastructure positioning claim + Cognitive Deskilling reference linking to Human prompt debugging; `kernel/REFERENCES.md` gains a new top-level "Positioning anchors" section citing the paper alongside the existing Primary/Secondary sections; `kernel/MANIFEST.sha256` regenerated.
+
+**Why this follows Event 43.** Event 43's explicit operator checklist named `README.ko.md` + `FAILURE_MODES.md` + Hero + layout metadata — but not `README.md` (English) or `kernel/REFERENCES.md`. On session review, operator flagged the gap: (a) English README is the first surface most external visitors hit via GitHub, so the storytelling inserts + positioning vocabulary should propagate there; (b) using the paper's vocabulary without citing it in REFERENCES.md is a small scholarly debt by the existing attribution discipline. Event 44 closes both gaps and codifies the cross-walk as a permanent audit artifact.
+
+**Shipped.**
+
+- **`README.md`** — three storytelling inserts matching the Korean structure. TL;DR section gains an *Epistemic Drift* paragraph + socio-epistemic infrastructure + technical provenance system positioning claim. "The solution" section gains a *Robust Falsifiability* paragraph after the 5-field table with concrete accepted/rejected examples. "Protocol Synthesis" section gains a *Knowledge Sanctuaries* paragraph + inline Cognitive Deskilling reference linking to Human prompt debugging.
+- **`kernel/REFERENCES.md`** — new top-level "Positioning anchors" section between Secondary sources and How to read this. Names the class: *academic work that does not feed the kernel's design but provides vocabulary for what the kernel already does*. Paper cited with full cross-walk to kernel artifacts + enumerated body-text citation surfaces. Bibliographic details (authors, venue, exact year) pending operator confirmation.
+- **`kernel/MANIFEST.sha256`** regenerated via `episteme kernel update`; verified clean via `episteme kernel verify`.
+
+**Operator's two open questions answered.**
+
+- *Should ES/ZH READMEs match English content parity?* — recommended keeping focused-scope for now; revisit when native-speaker reviewers join in those languages. Deferred to post-v1.0 GA.
+- *Should references separate design-inputs from positioning anchors into two files?* — recommended one `kernel/REFERENCES.md` with sectional separation (Primary / Secondary / Positioning anchors). Decision codified by this Event's section-add rather than file-split.
+
+**Soak safety.** Text-layer + MANIFEST regen only. Zero `core/hooks/`, `src/episteme/`, or hot-path behavior change. Fresh 7-day soak clock (opened 2026-04-23T21:23:36Z per Event 38) unaffected.
+
+**PR:** feature branch `event-44-english-epistemic-vocab` → PR #4 against master. Rebased on top of Event 43's merge to master (d02a17f).
+
+---
+
 ## Event 43 — 2026-04-24 — Elevate positioning with epistemic-trust framework vocabulary (paper integration across web + README.ko + FAILURE_MODES)
 
 **Scope.** Four text-layer edits + one MANIFEST regen + PROGRESS entry. Operator integrated terms from *Architecting Trust in Artificial Epistemic Agents* — **Epistemic Drift**, **Cognitive Deskilling**, **Robust Falsifiability**, **Knowledge Sanctuaries**, **Technical Provenance System**, **Socio-Epistemic Infrastructure** — into the project's marketing surface (web Hero + layout metadata) and governance surface (kernel/FAILURE_MODES.md). README.ko.md storytelling section gains the 3 Korean-parenthetical named concepts at their natural insertion points. Soak-safe: all edits are text-layer across marketing + governance surfaces; zero hot-path hook behavior change, zero episodic-record-shape change.
@@ -1303,7 +1326,7 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 **Soak safety.** Text-layer edits across marketing (Hero, layout metadata, README.ko) + governance (FAILURE_MODES) surfaces. Zero changes to `core/hooks/`, `src/episteme/`, `tests/`, or any file participating in episodic-record shape / hash-chained stream writing / hot-path behavior. Fresh 7-day soak clock (opened Event 38 verification at 2026-04-23T21:23:36Z) unaffected.
 
-**PR (to-be):** feature branch `event-43-epistemic-vocab` pushed; `gh pr create` opens PR against master with this entry's summary as body. Operator reviews + merges. Once merged, the canonical vocabulary lives on master and propagates through the deployed web site + GitHub README surfaces on next Vercel build.
+**PR:** feature branch `event-43-epistemic-vocab` → PR #3 merged to master (d02a17f / merge 479d6ca) by operator 2026-04-23.
 
 ---
 
