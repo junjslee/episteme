@@ -1279,6 +1279,45 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 47 — 2026-04-24 — Pre-soak-close grading infrastructure + v1.0.1 CP diagnosis (tools/ grader + calibration + triage + prepared patches)
+
+**Scope.** Multi-artifact pre-soak-close preparation on feature branch `event-47-pre-soak-grading-infra`. New `tools/` directory with three scripts (discriminator calibration, automated gate grader, deferred-discovery triage sampler) + four new docs (DISCRIMINATOR_CALIBRATION.md, DEFERRED_DISCOVERIES_TRIAGE.md, PREPARED_PATCHES.md) + POST_SOAK_TRIAGE.md amendments (§1.5 + Appendix A + B). Zero `core/hooks/`, `src/episteme/`, `kernel/` commits — deliberately preserves the Event 38 fresh-soak clock while making Day-7 grading executable and scoping v1.0.1 CPs honestly.
+
+**Why.** Event 46 drafted the POST_SOAK_TRIAGE rubric but shipped with 4 named CP candidates (CP-DISC-01, CP-TEL-01, CP-FENCE-01, CP-PHASE12-01) AND 8 Phase-1 thoroughness gaps still open at doc-only level. Event 47 converts the rubric from spec into executable infrastructure: the discriminator becomes a script that actually scores records; the gate grader reads real data; the deferred-discovery triage replaces the "sample 50 and extrapolate" plan with the far-better "dedup to 40 unique and classify all"; hook bugs blocking Gates 22/26 get diagnosed down to specific line-numbers with prepared patches. Operator at Day 7 can run three commands and have a defensible grading baseline in under 5 minutes.
+
+**Shipped.**
+
+- **`tools/discriminator_calibration.py`** — dependency-free Python 3.9+ script implementing POST_SOAK_TRIAGE §1.9's three sub-metrics: two-tier lazy-token screen (hard-lazy always fails; soft-lazy fails only if field < 50 chars — tightening prevents "etc" / "later" in natural-language abbreviations from false-failing), proper-noun density (≥ 1 token per 80 chars; file-path/SHA/gate/command patterns), observable-verb density on disconfirmation (35 English + 9 Korean observable verbs). Aggregates to Gate 21 PASS/PARTIAL/FAIL bands. Baseline against current 12-record post-Event-38 corpus: **12/12 PASS, avg 3.83/4**. `--self-test` mode validates against 3 synthetic form-filling cases (all correctly caught: `all-placeholders` → 2.00, `fluent-but-empty` → 2.50, `abstract-no-proper-nouns` → 3.00). False-positive rate 0% on real corpus; false-negative rate 0% on synthetic lazy cases. Acknowledged v1 limitations documented: small corpus (12 records; retune at Day 7 against larger sample as CP-DISC-02), closed-list observable verbs, English-CLI-biased proper-noun patterns.
+- **`tools/grade_gates.py`** — automated Phase 1 grader. Scriptable gates (21, 26, 27) fully automated; MANUAL gates (22, 23, 24, 25, 28) produce the exact counter-example question + evidence-to-gather for operator resolution. Applies POST_SOAK_TRIAGE §4 decision rule (Gate 28 hard block; ≥ 4/8 weighted PASS = GA; 2-3 = v1.0.1-rc cycle). **Baseline at Event 47**: 2 PASS (Gate 21, Gate 27) · 1 FAIL (Gate 26 — no `protocols.jsonl` per CP-FENCE-01) · 4 MANUAL · weighted 2.0/4.0 → **v1.0.1-rc cycle trajectory**. Clear roadmap: if CP-FENCE-01 + CP-TEL-01 fix lifts Gate 26 + Gate 22, and Gate 28 audit passes (likely given current discipline), weighted score rises above 4.0 and v1.0.0 GA window opens.
+- **`tools/sample_deferred.py`** — deferred-discovery sampler with `--summary`, `--sample N`, `--unique`, `--by-class`, `--head N` modes. Reveals structural finding that re-scopes Phase 2: **1,294 records deduplicate to 40 unique findings (32× dup ratio)**. The four top-dup findings each appear 105 times; every `cascade:architectural` firing re-logs identical entries. Full manual classification of 40 unique is trivially feasible vs the original sample-and-extrapolate plan. Surfaces **CP-DEDUP-01** (dedup-on-log) as a new HIGH-priority v1.0.1 candidate not in the original POST_SOAK_TRIAGE seed list.
+- **`docs/DISCRIMINATOR_CALIBRATION.md`** — CP-DISC-01 output. Methodology, tuned thresholds, baseline results, synthetic-case validation, known limitations, reproducibility commands. Documents the tightening from v1 regex to two-tier lazy-token rule (root cause: `etc` at end of enumerations + `later` in deferred-action prose fired 33% false positives).
+- **`docs/DEFERRED_DISCOVERIES_TRIAGE.md`** — Phase 2 full manual classification of all 40 unique findings. **14 REAL-DEBT · 9 RESOLVED · 17 NOISE** (weighted records: 736 · 287 · 210). REAL-DEBT items map to 14 specific CP candidates with effort + priority scoring. HIGH-priority trio: CP-DEDUP-01 (addresses all 40 structurally; effort 0.5 day), CP-TEL-01, CP-FENCE-01. Trivial-effort additions: CP-SUMMARY-01 (Blueprint D mention in kernel/SUMMARY.md), CP-FAVICON-01 (replace Next.js default favicon.ico).
+- **`docs/PREPARED_PATCHES.md`** — CP-TEL-01 + CP-FENCE-01 + CP-DEDUP-01 + CP-PHASE12-01 root-cause documentation with prepared code diffs. Deliberately not committed to preserve soak clock. Root causes:
+  - **CP-TEL-01**: `_extract_exit_code()` in both calibration_telemetry.py (line 66) and fence_synthesis.py (line 60) looks for snake_case `is_error` but Claude Code's Bash `tool_response` uses camelCase `isError` + no numeric `exit_code` field. Code inconsistency — the same files handle snake/camel duality correctly on `tool_name` / `tool_input`. Evidence: 3,357 predictions / 80 outcomes / 80 null exit codes / 80 "unknown" status (100% extraction failure). Patch: add `isError` to the bool-key loop, map True→1 / False→0.
+  - **CP-FENCE-01**: Gated by CP-TEL-01 (exit_code != 0 check never matches because exit_code is None). 88 orphan `h_*` markers in `fence_pending/` from pre-fix correlation-id mismatch era. Fix A: no code change needed (downstream of CP-TEL-01). Fix B: standalone cleanup script for orphans.
+  - **CP-DEDUP-01**: Framework writer has no dedup check; every cascade:architectural re-logs identical entries. Patch: pre-write tail-scan-200 dedup on (flaw_classification, description[:120]).
+- **`docs/POST_SOAK_TRIAGE.md` amendments**: §1.5 updated with confirmed Phase 12 path (`~/.episteme/memory/reflective/profile_audit.jsonl`); Appendix A path cheat-sheet updated; Appendix B "known gaps" section rewritten with Event 47 resolutions + the new Phase 2 dedup finding.
+
+**CP-PHASE12-01 resolution.** Investigation confirmed Phase 12 audit writes to `~/.episteme/memory/reflective/profile_audit.jsonl` (per `src/episteme/_profile_audit.py` docstring D3). File does NOT currently exist — Phase 12 has never run. Gate 25 = auto-FAIL at Day 7 unless operator runs `episteme profile audit --write` before grading. Five-minute operator action; zero code change.
+
+**Flagged-surfaces queue triage.** `~/.episteme/state/spot_check_queue.jsonl` contains 47 unreviewed entries (all `architectural_cascade` blueprint: 40 cascade:architectural + 7 git push). **Not a bug** — the spot-check sampler is working as designed; the queue IS the Gate 28 dogfood evidence trail. Operator drains via `episteme review` interactive CLI at own pace. No pre-soak-close action required.
+
+**Honest assessment of remaining pre-soak gaps.** This session's scope did NOT include:
+- Fix CP-TEL-01/CP-FENCE-01/CP-DEDUP-01 (soak-preserving posture; prepared patches only).
+- Fix Gate 26 FAIL baseline (prerequisite: above patches).
+- Fix Gate 25 FAIL baseline (prerequisite: operator runs `episteme profile audit --write`).
+- Retune CP-DISC-01 thresholds at Day 7 against larger corpus (scheduled v1.0.1).
+
+**Baseline Day-7 decision trajectory without any further fixes:** 2 PASS + 1 FAIL + 5 MANUAL (Gate 25 adjusts from MANUAL to FAIL after path verification). Weighted 2.0 with 5 MANUAL to resolve. Most realistic post-manual-resolution outcome: 3-4 PASS, 1-2 PARTIAL, 1-2 FAIL → **v1.0.1-rc cycle**, not GA. Fixing CP-TEL-01 + CP-FENCE-01 pre-Day-7 lifts Gate 22 + 26 materially and moves the decision to **likely GA-candidate**.
+
+**Soak safety.** Five-file new/modified docs + three-file new tools (all Python) + two-file modified POST_SOAK_TRIAGE + PROGRESS + NEXT_STEPS. Zero `core/hooks/`, `src/episteme/`, `kernel/`, `tests/`, or episodic-record-shape touches. `mode.ts` production default unchanged. Fresh 7-day soak clock (Event 38 anchor 2026-04-23T21:23:36Z) unaffected.
+
+**PR queue impact.** Event 47 opens PR #7 against master. PR #2 (release-please 1.1.0-rc1) remains on operator hold. No interaction between Event 47 and release-please.
+
+**Commit (to-be):** `tools+docs: pre-soak grading infra + v1.0.1 CP diagnosis (Event 47)` — SHA at commit.
+
+---
+
 ## Event 46 — 2026-04-24 — Post-soak triage rubric drafted (`docs/POST_SOAK_TRIAGE.md`) — Phase 1 gate-grading rubric + form-filling discriminator + v1.0 GA decision rule
 
 **Scope.** One new doc artifact on feature branch `event-46-post-soak-triage`. Governance-layer addition only — zero code / schema / hook / kernel-prose edits. Soak-safe; fresh 7-day soak clock (opened 2026-04-23T21:23:36Z per Event 38 verification) unaffected. Branch cut off master tip `845f7e6` (post-Event-45 merge).
