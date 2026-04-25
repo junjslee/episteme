@@ -2,7 +2,7 @@
 
 Status: **authoritative** · Version: 1.0 · Loaded by: `src/episteme/_profile_audit.py`
 
-These are the five lexicons the profile-audit loop uses to compute the signatures defined in `docs/DESIGN_V0_11_PHASE_12.md`. They are deliberately *modest* — not exhaustive. A lexicon that enumerates every possible token invites false-positive matches and false-confidence coverage; a narrow one is honest about what it detects.
+These are the five lexicons the profile-audit loop uses to compute the per-axis signatures the loop tests against the episodic record. They are deliberately *modest* — not exhaustive. A lexicon that enumerates every possible token invites false-positive matches and false-confidence coverage; a narrow one is honest about what it detects. (Original design rationale: the v0.11 Phase 12 spec; archived in git history pre-Event-54.)
 
 **Operator override.** To extend or replace these lexicons for a specific project, create `core/memory/global/phase_12_lexicon.md` with the same heading structure. When the override file is present, the audit uses it instead of this default and records the fingerprint of the lexicon-in-use in every audit record — so a change in lexicon is visible in the record stream, not silent.
 

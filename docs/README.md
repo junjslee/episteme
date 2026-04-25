@@ -7,18 +7,14 @@ Primary navigation for episteme documentation.
 - `../README.md` — project overview, what problem it solves, quickstart, full command surface
 - `../kernel/` — the canonical markdown spec: constitution, reasoning surface, system-1 counters, operator-profile schema
 - `../kernel/CONSTITUTION.md` — the governing philosophy: why this system exists, what it believes, and what it is not
-- `EPISTEME_ARCHITECTURE.md` — layered architecture, tool matrix, runtime model
+- `ARCHITECTURE.md` — v1.0 RC runtime flowchart (Mermaid) with node annotations and cross-references
+- `LAYER_MODEL.md` — layer model, tool/adapter matrix, bootstrap policy, source-of-truth order
 - `COGNITIVE_SYSTEM_PLAYBOOK.md` — practical cognitive + workflow operating protocol
 
 ## Contracts
 
 - `MEMORY_CONTRACT.md` — memory classes, provenance schema, conflict resolution semantics
 - `EVOLUTION_CONTRACT.md` — gated self-evolution lifecycle, mutation library, promotion gates
-
-## Product and planning docs
-
-- `PRD_WORKSTYLE_PROFILER.md` — deterministic workstyle profiling design
-- `PRD_REASONING_SYNTHESIS.md` — reasoning synthesis design notes
 
 ## Runtime bridges
 
@@ -37,10 +33,11 @@ Read the kernel first. Everything else is derived from it.
 3) `../kernel/SYSTEM_1_COUNTERS.md`
 4) `../kernel/OPERATOR_PROFILE_SCHEMA.md`
 5) `../README.md`
-6) `EPISTEME_ARCHITECTURE.md`
-7) `COGNITIVE_SYSTEM_PLAYBOOK.md`
-8) `MEMORY_CONTRACT.md`
-9) `EVOLUTION_CONTRACT.md`
+6) `ARCHITECTURE.md`
+7) `LAYER_MODEL.md`
+8) `COGNITIVE_SYSTEM_PLAYBOOK.md`
+9) `MEMORY_CONTRACT.md`
+10) `EVOLUTION_CONTRACT.md`
 
 ## Contribution quality gate (docs changes)
 

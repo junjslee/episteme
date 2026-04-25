@@ -454,7 +454,7 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 | Skills + agent personas + provenance       | [`docs/SKILLS_AND_PERSONAS.md`](./docs/SKILLS_AND_PERSONAS.md)   |
 | Personal customization (memory/hooks/skills) | [`docs/CUSTOMIZATION.md`](./docs/CUSTOMIZATION.md)             |
 | Agent repo operating contract              | [`AGENTS.md`](./AGENTS.md)                                       |
-| Architecture deep-dive                     | [`docs/EPISTEME_ARCHITECTURE.md`](./docs/EPISTEME_ARCHITECTURE.md) |
+| Layer model + adapter matrix               | [`docs/LAYER_MODEL.md`](./docs/LAYER_MODEL.md)                   |
 | Cognitive system playbook                  | [`docs/COGNITIVE_SYSTEM_PLAYBOOK.md`](./docs/COGNITIVE_SYSTEM_PLAYBOOK.md) |
 
 ---

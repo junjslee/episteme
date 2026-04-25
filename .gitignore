@@ -23,6 +23,12 @@ backups/
 .episteme/
 .cognitive-os/
 
+# ─── Local archive of superseded design rationale ────────────────────────────
+# Files moved here are preserved for the operator's local reference but are
+# intentionally not tracked in the repo (git history retains them at their
+# pre-archive paths). See Event 54 in docs/PROGRESS.md for the move list.
+/archive/
+
 # ─── Personal episteme memory files ──────────────────────────────────────
 # These ship with the repo as the author's real profiles (see core/memory/global/).
 # Forks: edit them to make them your own, then run `episteme sync`.

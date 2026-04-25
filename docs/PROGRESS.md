@@ -1279,6 +1279,47 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 54 — 2026-04-25 — First-external-user response (issue #14) + onboarding doc gap closed (`INSTALL.md §4`) + `docs/` consolidation pass
+
+**Scope.** Two-axis Event responding to GitHub issue #14 (cheuk-cheng — *"how to set up episteme to utilize its functions when working on a local git repository"*), the project's first external-user issue. Pure docs / workflow / index changes; zero `core/hooks/`, `src/`, or `tests/` touches; soak-safe (565/565 invariants intact).
+
+**Why it matters.** cheuk-cheng's phrasing was the diagnostic tell: *"utilize its functions when working on a local git repo."* The README walks through install but stops there. The bridge between "I installed the plugin" and "the kernel is active on the repo I am actually working on" was undocumented — in particular, the Claude-Code-session→cwd→`_canonical_project_root()`→`.episteme/` chain that converts session-scoped plugin install into per-repo enforcement. Without that visible-evidence walkthrough, a brand-new user cannot reach the moment where the kernel actually fires on their own work.
+
+**Operator-surfaced rule-shape correction during planning.** Initial proposal added a new `docs/QUICKSTART.md`. Operator pointed out `docs/` already holds 34 .md files — *"too many"* — and adding a 35th to fix doc fragmentation would BE the doc-fragmentation problem. This is the unconscious-rule-shape failure mode named in `~/episteme/core/memory/global/agent_feedback.md`'s universal-principled rule: every new audience need silently earned itself a new doc against an implicit *"sure, drop another file"*. Reframed to positive-system enumeration of the canonical onboarding cluster; added scope is justified against that list, not against an implicit permission. Result: extend `INSTALL.md` instead of adding a new doc.
+
+**Axis 1 — `INSTALL.md §4 "First run on your repo"` (the load-bearing addition).** New section between existing §3 (Dev install) and §Verify covering:
+
+1. **What install does and does not do.** Plugin install puts hooks into your Claude Code session; it does NOT touch the repo you happen to be working on. Per-repo activation happens at the first high-impact op.
+2. **The visible-evidence walkthrough.** Open Claude Code in your project → ask the agent for a high-impact op (`git push`, `npm publish`, `terraform apply`, DB migration, lockfile edit) → hook fires, exits non-zero, names the missing precondition. *That is the kernel attaching to your project.*
+3. **Three valid responses, per-repo.** Strict (production posture, agent authors a Reasoning Surface), Advisory (`mkdir -p .episteme && touch .episteme/advisory-surface` — recommended for first day), Off (do not create `.episteme/` in that repo).
+4. **What the kernel does NOT need from you.** No per-repo `episteme init`. No `git config` change. No daemon. The plugin install is the only registration; the per-repo signal is whatever you put (or do not put) in `.episteme/`.
+
+**Axis 2 — `docs/` consolidation pass (the operator-requested cleanup).** Same Event because the README cross-ref to `docs/EPISTEME_ARCHITECTURE.md` would have been edited as part of axis 1's discoverability work anyway — bundling is cheaper than two passes.
+
+| Action | Files | Rationale |
+|---|---|---|
+| Delete `CLONE.md` (root) + patch `.github/workflows/clone.yml` | `CLONE.md`, `.github/workflows/clone.yml` | Root-level file was just badge-snippet markup, name misled newcomers into thinking *"how to clone"*. Workflow auto-recreated it daily; patched workflow to remove the create-CLONE.md block (lines 75-97) + the GIST-invalidate `git rm CLONE.md` line + the orphaned `Push` step (no commits to push without the badge-create). README badge already pulls directly from the gist. Net: -1 root file, ~30 workflow lines removed. |
+| Rename `docs/EPISTEME_ARCHITECTURE.md` → `docs/LAYER_MODEL.md` | `docs/EPISTEME_ARCHITECTURE.md` | NOT a duplicate of `docs/ARCHITECTURE.md` (verified by reading both). `ARCHITECTURE.md` = v1.0 RC Mermaid runtime flowchart with node annotations. `EPISTEME_ARCHITECTURE.md` = layer model + tool/adapter matrix + bootstrap policy. Naming clash made them read as duplicates. Renamed to its actual content. Cross-refs updated: `README.md:457`, `llms.txt:53`, `docs/README.md:10`, `docs/README.md:40`. |
+| Move 4 superseded design-rationale docs to local `/archive/` (gitignored, repo-root) | `docs/DESIGN_V0_11_COHERENCE_PASS.md`, `docs/DESIGN_V0_11_PHASE_12.md`, `docs/PRD_REASONING_SYNTHESIS.md`, `docs/PRD_WORKSTYLE_PROFILER.md` | v0.11 designs superseded by `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`. PRDs describe features that have shipped (Reasoning Surface kernel artifact + `episteme profile`/`cognition` CLI). Per operator preference, archive is at `/archive/` (repo root, NOT `/docs/archive/` which would be cramped) and gitignored — preserved in operator's local working tree, removed from the tracked repo, recoverable from git history pre-Event-54. Active cross-refs from `kernel/PHASE_12_LEXICON.md:5` and `docs/PLAN.md:127` rewritten to point at git history (not at gitignored `/archive/`). Removed from `docs/README.md` index and `llms.txt` sitemap. |
+| `.gitignore` add `/archive/` | `.gitignore` | Archive is local-only by design — the operator keeps the rationale on disk; the repo no longer carries delivered/superseded specs. |
+
+**Cross-reference audit.** Pre-edit grep across `*.md` + `*.txt` + `*.yml` + `*.json` (excluding `.git/`, `.venv/`, `.next/`, `__pycache__/`) located every link to the cleanup-target files. All active references updated:
+
+- `README.md:457` — `EPISTEME_ARCHITECTURE.md` → `LAYER_MODEL.md` + label changed to "Layer model + adapter matrix" (more honest about the doc's content).
+- `llms.txt` — replaced single `EPISTEME_ARCHITECTURE` line with two-line entry explaining the `ARCHITECTURE.md` (Mermaid runtime) + `LAYER_MODEL.md` (layer model) split; removed PRD entries.
+- `docs/README.md` (the docs index) — replaced EPISTEME_ARCHITECTURE bullet with two-bullet ARCHITECTURE + LAYER_MODEL split; removed `## Product and planning docs` section entirely (its only entries were the 2 archived PRDs); renumbered the *Recommended reading order* to include both architecture docs (5→6→7→8→9→10).
+- `kernel/PHASE_12_LEXICON.md:5` — removed in-line link to `docs/DESIGN_V0_11_PHASE_12.md`; replaced with a self-contained per-axis-signature description plus a parenthetical pointer to git history. Kernel doc no longer depends on an archived path.
+- `docs/PLAN.md:127` — same treatment for the `DESIGN_V0_11_COHERENCE_PASS.md` reference (phase 11.5 row).
+- `kernel/CHANGELOG.md` — historical references left as-is per changelog convention (changelog is itself an archive; archaeological links are correct there).
+
+**Issue #14 reply (drafted, posted by operator after Event 54 lands on `master`).** Single reply, no AI-attribution footer per universal rule, includes direct link to the new `INSTALL.md §4`. Closes the issue.
+
+**Authoritative-doc sync.** This entry; `NEXT_STEPS.md` Resume-here updated; `.episteme/reasoning-surface.json` carried Event 54 scope through the work.
+
+**Soak invariants.** No code edits. No hook edits beyond removing the badge-create/Push block in `.github/workflows/clone.yml` (which was repo-house-keeping, not kernel). 565/565 test suite untouched. Episodic + protocols + audit streams continue firing on this very session's writes.
+
+---
+
 ## Event 53 — 2026-04-24 — Roadmap audit: two removals + one downgrade + one tightening + one vague-item deletion + §7 Audit log added
 
 **Scope.** Audit pass on `docs/ROADMAP_POST_V1.md` in response to operator ask: *"is everything on docs/ROADMAP_POST_V1.md really applicable to our product episteme? if not delete, but yes since we got the ideas off from external services, audit to make sure."* Pure docs; zero code/hook/schema touches; soak-safe.

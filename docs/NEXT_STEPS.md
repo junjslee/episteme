@@ -4,7 +4,11 @@ Exact next actions, in priority order. Update this file at every handoff.
 
 ---
 
-## Resume here — v1.0.0 RC · **FRESH 7-DAY SOAK ACTIVE** · pipeline healthy · **All 6 pre-soak CPs + Roadmap + Hermes/Langfuse ecosystem scans + Event-53 audit pass (Events 47-53)** · next session resumes cold (last touched 2026-04-24)
+## Resume here — v1.0.0 RC · **FRESH 7-DAY SOAK ACTIVE** · pipeline healthy · **All 6 pre-soak CPs + Roadmap + Hermes/Langfuse scans + Event-53 audit + Event-54 first-external-user response & docs consolidation (Events 47-54)** · next session resumes cold (last touched 2026-04-25)
+
+> **🟢 Event 54 (2026-04-25) — `INSTALL.md §4` + `docs/` consolidation.** First external-user issue (#14, cheuk-cheng) surfaced the README→first-run gap; closed by adding `INSTALL.md §4 First run on your repo` (the plugin→Claude-Code-session→cwd→`.episteme/` chain + strict/advisory/off branching) AND a docs-cluster cleanup pass: deleted `CLONE.md` + patched `clone.yml`, renamed `docs/EPISTEME_ARCHITECTURE.md` → `docs/LAYER_MODEL.md`, archived 4 superseded design/PRD docs to local `/archive/` (gitignored, repo-root). All cross-refs updated (README, llms.txt, docs/README, kernel/PHASE_12_LEXICON, docs/PLAN). Issue #14 reply drafted; operator posts after the branch lands on master. Pure docs/workflow; soak-safe.
+
+
 
 > **🟢 Fresh 7-day soak clock ACTIVE** since `2026-04-23T21:23:36Z` (Event 38 verification confirmed episodic writer + 3 sibling PostToolUse Bash hooks all firing on real ops). Target close **`~2026-04-30`**; extension to `~2026-05-07` acceptable per operator-availability window (7-day minimum is statistical validity, not calendar deadline).
 >

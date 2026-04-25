@@ -50,7 +50,8 @@ episteme is the posture layer installed beneath whichever memory substrate and w
 ## Human documentation
 
 - [README](./README.md): project overview, quick start, comparisons
-- [docs/EPISTEME_ARCHITECTURE.md](./docs/EPISTEME_ARCHITECTURE.md): architecture deep dive
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): v1.0 RC runtime flowchart with node annotations
+- [docs/LAYER_MODEL.md](./docs/LAYER_MODEL.md): layer model + tool/adapter matrix + bootstrap policy
 - [docs/COGNITIVE_SYSTEM_PLAYBOOK.md](./docs/COGNITIVE_SYSTEM_PLAYBOOK.md): operational playbook
 - [docs/SUBSTRATE_BRIDGE.md](./docs/SUBSTRATE_BRIDGE.md): pluggable substrate adapter protocol (mem0, memori, noop reference impls).
 
@@ -63,5 +64,3 @@ episteme is the posture layer installed beneath whichever memory substrate and w
 ## Optional
 
 - [docs/OPEN_SOURCE_YOUR_PROFILE.md](./docs/OPEN_SOURCE_YOUR_PROFILE.md): publishing your operator profile
-- [docs/PRD_WORKSTYLE_PROFILER.md](./docs/PRD_WORKSTYLE_PROFILER.md): workstyle profiler product requirements
-- [docs/PRD_REASONING_SYNTHESIS.md](./docs/PRD_REASONING_SYNTHESIS.md): reasoning synthesis product requirements
