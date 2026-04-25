@@ -1279,6 +1279,42 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 58 — 2026-04-25 — Post-soak migration plan + Product Protection Strategy drafted (`docs/POST_SOAK_MIGRATION_PLAN.md`)
+
+**Scope.** Pure docs/strategy artifact. One new file `docs/POST_SOAK_MIGRATION_PLAN.md` (executable runbook) + this Event entry + `docs/NEXT_STEPS.md` Resume-here line. Zero `core/hooks/`, `core/blueprints/`, `src/episteme/`, `tests/`, `kernel/`-tier touches. Operator EXPLICITLY directed: *"Just draft the plan. Do not touch the hot-path or break the soak."* Soak-safe by construction.
+
+**Why it matters.** Earlier this session operator surfaced a real concern about product defensibility — public repo currently exposes forward-strategic docs (PLAN, NEXT_STEPS, ROADMAP_POST_V1, DESIGN_V1_1, soak-triage docs) giving competitors a free roadmap. Architecture-privatization contradicts episteme's own thesis (*reasoning visible on disk*); but operator forward-strategy is operator-business not kernel-identity, and can be privatized without violating the project's transparency claim. The migration plan codifies the agreed split into an executable runbook the operator runs immediately after v1.0 GA cut completes.
+
+**Migration plan structure (executable runbook).**
+
+- **§A · Pre-flight checklist** — verify GA cut tag exists, master clean and synced, full-repo backup, /archive/ safety net, path-coupling audit (`grep -rEn` for hardcoded references to migrating files in `tools/` / `src/` / `core/hooks/`).
+- **§B · Create the private repo** — `mkdir ~/episteme-private`, `git init`, README explaining the mirror, `gh repo create junjslee/episteme-private --private`.
+- **§C · Migrate the 9 files** — `cp` real files to private repo, `git rm` from public, replace with relative symlinks (`ln -s ../../episteme-private/X.md docs/X.md`), commit private repo first (so symlink targets exist), then commit public repo's deletions + `.gitignore` additions, PR-merge per Event-57 protocol Path A.
+- **§D · `AGENTS.md` cross-ref update** — append section explaining the symlink layout so future agents know the strategic-docs paths point into a sibling private repo.
+- **§E · Verification gates** — symlink resolution check, `git status` clean, `episteme doctor`, `episteme kernel verify`, test suite, post-migration chkpt-hook content audit (verify gitignore boundary holds).
+- **§F · Rollback plan** — non-destructive (no force-push, no history rewrite) — drop the migration branch, hard-reset to origin/master, undo gitignore additions, optionally archive the private repo.
+- **§G · Product Protection Strategy** — license recommendation + history-scrub decision (next paragraph).
+- **§H · Soak invariants** — explicit `❌ NO` list of what does NOT happen during this draft Event.
+- **§I · References** + **Operator decision checklist** (5 resolution items before executing).
+
+**Migrating files (9 total).** `docs/PLAN.md`, `docs/NEXT_STEPS.md`, `docs/ROADMAP_POST_V1.md`, `docs/DESIGN_V1_1_REASONING_ENGINE.md`, `docs/POST_SOAK_TRIAGE.md`, `docs/PREPARED_PATCHES.md`, `docs/DEFERRED_DISCOVERIES_TRIAGE.md`, `docs/DISCRIMINATOR_CALIBRATION.md`, AND `docs/POST_SOAK_MIGRATION_PLAN.md` itself (self-referential — the plan migrates itself when executed).
+
+**Files explicitly NOT migrating (stay public).** Project identity / kernel constitutional content / completed designs: `README` (all langs), `INSTALL.md`, `AGENTS.md`, `llms.txt`, `LICENSE`, `kernel/**`, `core/**`, `src/**`, `tests/**`, `hooks/**`, `.claude-plugin/**`, `scripts/**`, `web/**`, `demos/**`, `templates/**`, `docs/PROGRESS.md` (historical record + trust signal), `docs/POSTURE`, `docs/NARRATIVE`, `docs/ARCHITECTURE`, `docs/LAYER_MODEL`, `docs/COGNITIVE_SYSTEM_PLAYBOOK`, `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE`, contracts, etc.
+
+**Product Protection Strategy — operator's two questions answered.**
+
+1. **License recommendation: FSL (Functional Source License) v1.1 with MIT 2-year future license.** Concrete reasoning: FSL's non-competing-use exemption matches operator intent precisely (individual devs and non-competing companies free; competing-product builders restricted for 2 years before code converts to MIT). 2-year window strikes the right balance (longer than minimum-viable, shorter than HashiCorp's 4-year BSL window). Sentry uses FSL for the closest-comparable positioning to episteme. Trade-off: FSL is not OSI-approved → some pure-OSS contributors will decline to engage; cost is acceptable for episteme's pre-1.0 single-maintainer stage. Comparative analysis vs MIT (current) / Apache-2.0 / AGPL-3.0 / BSL / Elastic License v2 / Commons Clause / SSPL provided with named adopters and tradeoff per option. Implementation deferred — operator picks at execution time; license-change is a governance-class Event with own ceremony (kernel/CHANGELOG MAJOR bump + announcement).
+
+2. **History scrub recommendation: DO NOT scrub.** Cost-benefit decisively favors leaving history alone: force-push damages trust + invalidates fork tracking branches + breaks external commit-permalink references in old issues/blogs/social shares + GitHub indexing residue + only partial coverage (anyone cloned-pre-scrub keeps history forever) + structural hypocrisy (governance-themed project tampering with own most-authoritative log). Decay-fast strategic content already self-protects (this week's PLAN.md is irrelevant 3 months from now). Determined competitors have other vectors (cached clones, web archives, GitHub APIs). Explicit exception path documented: if operator absolutely insists, scrub at GA cut bundled with the migration commit (`git filter-repo --path ... --invert-paths`) + explicit changelog entry naming the date and rationale + advance notice to known forkers — but the strong default is leave-alone.
+
+**Operator gate.** Status of the migration plan: `drafted (executable runbook)`. Five operator decisions required before `Section C` executes: (1) Day-7 routing confirmed (Path 2.A GA or 2.B rc1), (2) license path chosen (FSL recommended), (3) history-scrub yes/no (recommended NO), (4) sibling-layout assumption acceptable, (5) path-coupling audit results. The plan does NOT execute until these five resolve.
+
+**Files touched.** New: `docs/POST_SOAK_MIGRATION_PLAN.md`. Modified: `docs/PROGRESS.md` (this entry), `docs/NEXT_STEPS.md` (Resume-here). Three docs files. Soak-invariant intact.
+
+**Soak status reminder.** v1.0.0 RC fresh 7-day soak active since 2026-04-23T21:23:36Z, target close ~2026-04-30. Day-7 grading proceeds unchanged. Migration executes only AFTER GA cut completes — never during soak. The license decision and history-scrub decision are operator-gated; this Event presents the option matrix and recommendations, does not commit either.
+
+---
+
 ## Event 57 — 2026-04-25 — `AGENTS.md` git workflow protocol — always-clean-master codified
 
 **Scope.** Pure governance/policy artifact. One additive section in `AGENTS.md` (cross-tool repo-operating contract; visible to Claude Code / Codex / opencode / Hermes adapters), this Event entry, plus `docs/NEXT_STEPS.md` Resume-here update. Zero `core/hooks/`, `core/blueprints/`, `src/episteme/`, `tests/`, `kernel/`-tier touches. Soak-safe by construction.
