@@ -797,3 +797,181 @@ if future audits remove ≤ 25% of the prior scan's adopts, the
 ecosystem scan methodology is over-permissive and the quarterly
 cadence (§6) needs a tighter add-item bar. Track this ratio in
 future Audit log entries.
+
+---
+
+## 8. Appendix — Lessons from Adjacent Ecosystems (Scan 3, Event 62)
+
+Third quarterly-cadence ecosystem scan. Three repos surfaced in the
+remaining-soak window (day 3.15/7) that occupy adjacent lanes to
+episteme without competing on the load-bearing surface (file-system
+intercept of state mutation + Reasoning Surface enforcement). Each
+entry follows the §5 pattern: *what it does* → *Adopt* (specific
+import tied to an existing kernel mechanism) → *Counter-positioning*
+(why it doesn't compete with episteme's lane). All adoptions are
+post-soak v1.0.1+ candidates per the operator's *do not touch the
+hot-path or break the soak* discipline this Event respects by
+construction.
+
+### 8.1 `aldegad/alex-core-invariants` — policy repo enforcing 6 invariants
+
+**What it does.** A small policy/governance repository whose load-
+bearing artifact is a curated set of six invariants the maintainer
+considers non-negotiable for any project they own. Each invariant is
+named, scoped, and accompanied by a structural enforcement
+mechanism (typically a git hook or CI rule). The repo is itself the
+governance surface; downstream projects import the invariants by
+reference.
+
+**Adopt.** Two specific imports tied to existing episteme mechanisms:
+
+- **`No Silent Fallback` rule → backs Blueprint D (Architectural
+  Cascade & Escalation).** The rule is a structural prohibition
+  against the cheapest-local-patch pattern: when a flaw is
+  discovered mid-work, the agent must NOT silently swap in a
+  fallback path that papers over the discovery. This is the same
+  discipline Blueprint D enforces via patch-vs-refactor evaluation
+  + symmetric cascade synchronization + deferred-discovery logging.
+  Adopting `No Silent Fallback` as a named protocol-class entry in
+  `~/.episteme/framework/protocols.jsonl` (post-soak, when the
+  protocol stream materializes) gives Blueprint D an externally-
+  validated articulation of its own anti-pattern. Cross-reference:
+  `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` § Blueprint D · sync_plan
+  + deferred_discoveries discipline.
+
+- **`SHA-Pinned Guard` git hook → protect `kernel/*.md` + README
+  translations from silent drift.** A pre-commit / pre-push hook
+  that compares declared SHA hashes of named files against working-
+  tree SHAs and refuses if any drift is detected without an
+  accompanying CHANGELOG entry. Adoption candidate as
+  `core/hooks/sha_pinned_guard.py` (post-soak v1.0.1+ CP
+  CP-SHAGUARD-01). Importantly, this **complements** rather than
+  duplicates the existing `kernel/MANIFEST.sha256` discipline:
+  MANIFEST covers kernel-binary integrity (load-time verification);
+  SHA-Pinned Guard covers commit-time enforcement on docs +
+  translations (preventing silent drift in user-facing surfaces).
+  The two operate at different lifecycle stages and reinforce each
+  other.
+
+**Counter-positioning.** alex-core-invariants enforces *static*
+invariants as policy: the rule set is fixed, the violation is
+binary, the enforcement is at git-hook commit time. Episteme
+enforces *dynamic causal-consequence modeling*: the Reasoning
+Surface protocol forces the agent to construct a falsifiable causal
+model BEFORE state mutation; the validation depth is
+context-conditional (per Cognitive Blueprint A/B/C/D); the
+enforcement is at file-system interception of state mutation. The
+two operate at structurally different abstraction levels — policy
+checks vs. cognitive contract — and are complementary supplements
+rather than competitors. Episteme could import alex-core-invariants
+patterns as a thin policy layer above its own cognitive contract;
+alex-core-invariants cannot import episteme's full discipline
+without becoming episteme.
+
+### 8.2 `asgeirtj/system_prompts_leaks` — archive of leaked corporate system prompts
+
+**What it does.** An archive repository collecting publicly-leaked
+system prompts from commercial AI agents (Claude.ai, ChatGPT,
+GitHub Copilot, Cursor, etc.). Each leaked prompt is preserved
+verbatim in a dated subdirectory with provenance metadata. The
+repository's value is purely documentary — it does not propose
+patterns, judge them, or offer enforcement mechanisms.
+
+**Adopt.** One specific import tied to the hot-path normalizer:
+
+- **Bypass-vector vocabulary mining for the hot-path Reasoning
+  Surface validator.** The leaked prompts reveal the standard
+  XML/structural patterns commercial agents use to organize
+  reasoning (e.g., `<thinking>`, `<plan>`, `<task>`, `<tool_use>`,
+  `<reflection>` tag conventions). A sufficiently aware agent could
+  attempt to bypass episteme's hot-path validator by emitting
+  fluent-vacuous content INSIDE these XML structures — the structures
+  themselves carry no falsifiability, and a naive validator might
+  accept them as "structured reasoning" without the Reasoning
+  Surface's falsifiable-disconfirmation requirement. Adoption
+  candidate as a vocabulary expansion to `core/hooks/reasoning_surface_guard.py`
+  normalizer (post-soak v1.0.1+ CP CP-NORM-EXPAND-01): scan agent-
+  authored content for these XML-structural patterns and apply the
+  Reasoning Surface validity requirements to their contents. Cross-
+  reference: `kernel/REASONING_SURFACE.md` § Validity rules + lazy-
+  token blocklist.
+
+  **Asymmetric-information discipline.** The kernel never publicly
+  documents *which specific* bypass patterns it detects. This is
+  load-bearing: a publicly-enumerated detection list becomes a
+  publicly-enumerated avoidance list for sufficiently-aware
+  attackers. The CP-NORM-EXPAND-01 implementation lives in
+  `core/hooks/` (governance-class); the public face documents only
+  that the normalizer covers commercial-agent XML-tag patterns,
+  without naming the patterns.
+
+**Counter-positioning.** system_prompts_leaks confirms one of
+episteme's load-bearing theses by documentary contrast: **system
+prompts are not guardrails; they are documentation with personality.**
+Every leaked prompt in the archive can be skipped, ignored, or
+silently overridden by the agent's actual generation behavior — the
+prompt-as-instruction model has no enforcement teeth. Episteme's
+file-system hook layer is the structural answer: a hook that exits
+non-zero cannot be persuaded out of refusing the op. The archive is
+useful precisely because it documents the failure mode episteme
+exists to prevent. The repo is not a competitor; it is supporting
+evidence for episteme's core architectural choice (file-system
+interception over prompt instruction).
+
+### 8.3 `refactoringhq/tolaria` — files-first markdown knowledge app
+
+**What it does.** A personal-knowledge-management application
+designed around the principle that markdown files on disk are the
+canonical knowledge surface, with the application UI as a thin
+rendering layer. The load-bearing discipline is *Convention over
+Configuration* applied via strict YAML frontmatter on every markdown
+note: required fields, controlled vocabularies, and structural
+contracts that enable deterministic rendering, search, and
+cross-reference.
+
+**Adopt.** One specific import tied to the framework rendering layer:
+
+- **Stricter row-shape conventions for `~/.episteme/framework/`
+  JSONL streams** parallel to tolaria's YAML-frontmatter discipline.
+  Currently `protocols.jsonl` and `deferred_discoveries.jsonl` use
+  the `cp7-chained-v1` envelope with required fields enforced at
+  write time, but the convention is implicit in the writer code
+  (`core/hooks/_framework.py`) rather than declared as a versioned
+  schema contract. Adoption candidate (post-soak v1.0.1+ or v1.1):
+  formalize the JSONL row-shape as a versioned JSON schema under
+  `core/schemas/framework/*.json`, with writer-side validation
+  + reader-side parser tolerance for forward-compatible schema
+  evolution. The motivating downstream use-case: future TUI or
+  dashboard surfaces (mentioned in `docs/POST_SOAK_TRIAGE.md`
+  context) need predictable row shapes to render without ad-hoc
+  per-renderer parsing. Cross-reference: `docs/MEMORY_CONTRACT.md`
+  schema discipline as a parallel pattern.
+
+  **Structural difference acknowledged.** tolaria's frontmatter
+  discipline applies to *markdown* (a row-of-records convention
+  implicit in the markdown itself); episteme's adoption applies to
+  *JSONL* (one structured record per line). The translation is the
+  *convention-over-configuration* principle, not the literal
+  syntactic shape: required fields + controlled vocabulary +
+  versioned schema, regardless of file format.
+
+**Counter-positioning.** tolaria operates at the *personal
+knowledge management* lane: an individual's accumulated notes,
+linked manually, rendered for the individual's recall. Episteme
+operates at the *governance kernel* lane: structural enforcement
+across multiple AI agents and tools, with tamper-evident chained
+provenance, validating *cognitive contract compliance* at the
+moment of state mutation. The two lanes do not compete — tolaria
+augments human memory; episteme governs agent reasoning. The shared
+*files-first* conviction (markdown / JSONL on disk as canonical,
+UI as renderer) is structurally analogous, which is why the
+convention discipline is a clean import. tolaria's UI patterns,
+search semantics, and personal-knowledge-graph features are NOT
+adoption candidates — they're orthogonal product surface.
+
+### Cadence-rule projection (Event 62)
+
+Per the §6 quarterly cadence and the §5 audit-removal-ratio
+heuristic, this scan adds three adopts (one per repo). The
+companion audit pass (whenever it runs) should remove ≥ 1 if the
+discipline is strict. Track in the next Audit log entry.
