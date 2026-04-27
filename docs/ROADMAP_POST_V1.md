@@ -179,6 +179,7 @@ CPs in execution-priority order:
 | CP-CASCADE-01 | exempt kernel state files + read-only ops from cascade (deferred #1 + #26) | 1 day | fence-check (detector firing on own state) |
 | CP-CHKPT-01 | auto-checkpoint re-fires fix (deferred #27) | 1 day | planning-fallacy (premature-chkpt commits) |
 | CP-SMOKE-01 | installable-plugin smoke test in RC engineering gate (deferred #20) | 1 day | WYSIATI (gate didn't see what was actually broken) |
+| CP-EPISODIC-OUTCOME-01 | extend `core/hooks/episodic_writer.py` schema to capture `hypothesis_update` (enum: validated/refined/invalidated/null) + `disconfirmation_fired` (bool/null) on the subsequent high-impact op. Closes the schema gap that pushed Gates 22+24 PASS→PARTIAL during Event 62 manual gate resolution (declaration discipline at 85% specific-observable; outcome discipline structurally absent — 0/40 records carry update markers). Memory Contract version-bump per Evolution Contract. | 2 days | WYSIATI (unrecorded outcomes vanish from audit — schema-gap invisibility) |
 
 **Non-goals for v1.0.1**:
 - Do NOT add new cognitive-adoption gates (Theme 5 territory).

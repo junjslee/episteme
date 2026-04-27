@@ -1279,6 +1279,31 @@ Phase A scope is narrow-by-design and entirely advisory: surface `preferred_lens
 
 ---
 
+## Event 63 — 2026-04-27 — `CP-EPISODIC-OUTCOME-01` staged in ROADMAP §3.1 Theme 1 (v1.0.1 schema-gap closure for Gates 22+24)
+
+**Scope.** Pure docs/strategy artifact. ZERO new files. ZERO `kernel/*` / `core/hooks/*` / `core/blueprints/*` / `src/episteme/*` / `tests/*` touches. Three modified files: `docs/ROADMAP_POST_V1.md` (single-row CP addition to § 3.1 Theme 1 table after `CP-SMOKE-01`), `docs/PROGRESS.md` (this entry), `docs/NEXT_STEPS.md` (Resume-here). Soak-safe by construction — operator's directive: *"Keep the soak completely intact."*
+
+**Why it matters.** Event 62's manual gate resolution (Gates 22, 23, 24 — three of the four MANUAL gates blocking GA threshold) surfaced a load-bearing v1.0.1 finding: Gates 22 and 24 dropped to PARTIAL (not PASS) NOT because the operator/agent's reasoning discipline failed, but because the `core/hooks/episodic_writer.py` schema captures pre-action surfaces ONLY — there's no post-action outcome marker for `hypothesis_update` (validated/refined/invalidated) or `disconfirmation_fired` (bool). Quantitatively: 85% of the 40 soak-window records had specific-observable disconfirmation conditions (excellent declaration quality); 0 of 40 records carried structured outcome markers (schema gap). The half-loop *hypothesis → test* is well-recorded; the closing half *→ update* is structurally invisible. Closing this gap is what pushes Gates 22+24 PARTIAL → PASS on the next-cycle re-grade.
+
+**The single-row CP addition.**
+
+| Field | Value |
+|---|---|
+| **CP** | `CP-EPISODIC-OUTCOME-01` |
+| **Scope** | Extend `core/hooks/episodic_writer.py` schema to capture `hypothesis_update` (enum: validated/refined/invalidated/null) + `disconfirmation_fired` (bool/null) on the subsequent high-impact op. Closes the schema gap that pushed Gates 22+24 PASS→PARTIAL during Event 62 manual gate resolution. Memory Contract version-bump per Evolution Contract. |
+| **Effort** | 2 days (per operator) |
+| **Counters FAILURE_MODE** | WYSIATI — unrecorded outcomes vanish from audit; schema-gap invisibility (parallel to existing `CP-TEL-01` WYSIATI citation for `null-extraction feels complete`) |
+
+**Why Theme 1 (Evidence Pipeline Hardening), not Theme 2 (Schema Evolution).** Operator-classified — the gap is OBSERVABLE EVIDENCE missing (hypothesis updates not tracked = retrospective audit cannot verify the close-the-loop discipline), not strictly schema-form. The schema extension IS the implementation lever, but the failure mode is evidence-pipeline-blindness — same category as `CP-FENCE-02` correlation-id mismatch (broken pairing masquerading as no-evidence) and `CP-TEL-01` exit_code extraction (null-extraction feels complete). Honoring operator's classification.
+
+**Two deferred-discoveries logged for CP execution time.** (1) Backfill question — should the implementation include a backfill mechanism for the existing 40+ soak-window records that lack the new fields? Vision-staging proposes NO backfill (preserves honest documentary state of the v1.0.0-rc1 soak; backfilling whitewashes the pre-CP record). Operator-decisional at execution. (2) Memory Contract version-bump rationale — the schema addition is a Memory Contract v1.x → v1.(x+1) bump per Evolution Contract; CP must include a CHANGELOG entry naming the additive vs breaking nature. Both deferred to CP execution time.
+
+**Files touched.** `docs/ROADMAP_POST_V1.md` (1 row added to § 3.1 Theme 1 table after `CP-SMOKE-01`); `docs/PROGRESS.md` (this entry); `docs/NEXT_STEPS.md` (Resume-here Event-63 line). 3 files modified, 0 new, 0 kernel/* / hot-path / src/ / tests/ touches.
+
+**Soak status reminder.** v1.0.0 RC fresh 7-day soak active since 2026-04-23T21:23:36Z. Day 3.15/7 elapsed, +3.85d to target close ~2026-04-30. Day-7 grading proceeds unchanged. Event 62's manual gate-resolution analysis remains DRAFT (not committed as a doc) per operator's *"Do not commit a new file for this yet; we will use it as the baseline for the final grading on Day-7."* Event 63 stages the v1.0.1 fix for the schema gap surfaced in that analysis — preserving the analysis as chat baseline, codifying the resolution path as a structured CP candidate.
+
+---
+
 ## Event 62 — 2026-04-27 — Adjacent-ecosystem Scan 3: alex-core-invariants + system_prompts_leaks + tolaria documented as ROADMAP §8
 
 **Scope.** Pure docs/strategy artifact. ZERO new files. ZERO `kernel/*` / `core/hooks/*` / `core/blueprints/*` / `src/episteme/*` / `tests/*` touches. Three modified files: `docs/ROADMAP_POST_V1.md` (new §8 between §7 and EOF), `docs/PROGRESS.md` (this entry), `docs/NEXT_STEPS.md` (Resume-here). Soak-safe by construction — operator's directive: *"Do not touch the hot-path or break the soak."* Channeled-productivity Event taken instead of false-urgency soak-end-early move (operator recognized + reversed the asymmetry_posture drift signal explicitly in this session).
