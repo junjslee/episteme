@@ -3002,6 +3002,71 @@ def _print_profile_summary(mode: str, payload: dict) -> None:
             print(f"  {dim}: {dim_evidence[0]}")
 
 
+def _profile_override_cli(args) -> int:
+    """CLI entry for `episteme profile override` (Event 85 / CP-CONTEXT-
+    AWARE-PROFILE-OVERRIDE-01 first slice)."""
+    from episteme import _profile_override as po_mod
+
+    project_path = Path(getattr(args, "project_path", ".")).resolve()
+
+    if getattr(args, "list_overrides", False):
+        overrides = po_mod.list_project_overrides(project_path)
+        if not overrides:
+            print(f"No profile overrides at {project_path}/.episteme/profile-override.yaml")
+            return 0
+        print(f"Project overrides at {project_path}/.episteme/profile-override.yaml ({len(overrides)} axes):")
+        for axis, fields in sorted(overrides.items()):
+            if isinstance(fields, dict):
+                value = fields.get("value", "?")
+                applied = fields.get("applied_since", "?")
+                rationale = fields.get("rationale", "")
+                print(f"  {axis:25s}  value={value!r}  applied_since={applied}")
+                if rationale:
+                    print(f"    rationale: {rationale}")
+        return 0
+
+    axis_name = getattr(args, "axis_name", None)
+    if not axis_name:
+        print("axis_name required (or use --list).", file=sys.stderr)
+        return 2
+
+    if getattr(args, "remove", False):
+        try:
+            removed = po_mod.remove_project_override(project_path, axis_name)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if removed:
+            print(f"Removed override for {axis_name} at {project_path}.")
+        else:
+            print(f"No existing override for {axis_name}.")
+        return 0
+
+    value = getattr(args, "value", None)
+    rationale = getattr(args, "rationale", None)
+    evidence_refs = getattr(args, "evidence_refs", None) or []
+
+    if value is None or not rationale:
+        print("value + --rationale required (min 15 chars; lazy tokens rejected).", file=sys.stderr)
+        return 2
+
+    try:
+        path = po_mod.write_project_override(
+            project_path, axis_name, value,
+            rationale=rationale, evidence_refs=evidence_refs,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Recorded project override for {axis_name} at {path}.")
+    print(f"  value:   {value!r}")
+    print(f"  scope:   project")
+    if evidence_refs:
+        print(f"  evidence: {', '.join(evidence_refs)}")
+    return 0
+
+
 def _profile_audit_cli(*, since: str, write: bool, as_json: bool) -> int:
     """CLI entry for `episteme profile audit` (phase 12).
 
@@ -3034,6 +3099,66 @@ def _profile_audit_cli(*, since: str, write: bool, as_json: bool) -> int:
     return 0
 
 
+def _protocol_history_cli(args) -> int:
+    """CLI entry for `episteme history protocol` (Item 4 / Event 84).
+
+    Walks supersede chains in the synthesized-protocol stream. Default
+    output groups by context_signature and renders each chain in order
+    (oldest → latest, marking superseded vs active). With --list-chains,
+    prints a one-line summary per chain.
+    """
+    import sys as _sys
+    hooks_dir = REPO_ROOT / "core" / "hooks"
+    if str(hooks_dir) not in _sys.path:
+        _sys.path.insert(0, str(hooks_dir))
+    try:
+        import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+    except ImportError as exc:
+        print(f"[episteme history protocol] error loading framework: {exc}", file=sys.stderr)
+        return 2
+
+    project_name = getattr(args, "project_name", None)
+    list_chains = getattr(args, "list_chains", False)
+    chains = _framework.walk_supersede_chains(project_name=project_name)
+
+    if not chains:
+        scope = f" for project={project_name!r}" if project_name else ""
+        print(f"No supersede chains found{scope}.")
+        print("  (A 'supersede chain' is two or more protocols sharing the same context_signature.)")
+        return 0
+
+    if list_chains:
+        print(f"Supersede chains ({len(chains)}):")
+        for chain in chains:
+            first = chain[0]
+            sig = (first.get("payload") or {}).get("context_signature") or {}
+            project = sig.get("project_name", "?")
+            blueprint = sig.get("blueprint", "?")
+            latest_hash = chain[-1].get("entry_hash", "?")
+            print(f"  project={project} blueprint={blueprint} entries={len(chain)} latest={latest_hash[:30]}...")
+        return 0
+
+    print(f"Supersede chains ({len(chains)}):")
+    for ci, chain in enumerate(chains, 1):
+        first_sig = (chain[0].get("payload") or {}).get("context_signature") or {}
+        print()
+        print(f"--- Chain {ci} (entries={len(chain)}) ---")
+        print(f"  context_signature.project_name = {first_sig.get('project_name', '?')}")
+        print(f"  context_signature.blueprint    = {first_sig.get('blueprint', '?')}")
+        print()
+        for ei, envelope in enumerate(chain, 1):
+            payload = envelope.get("payload") or {}
+            marker = "[SUPERSEDED]" if ei < len(chain) else "[ACTIVE]    "
+            print(f"  {marker} entry_hash: {envelope.get('entry_hash', '?')}")
+            print(f"               ts:         {envelope.get('ts', '?')}")
+            sup = payload.get("supersedes")
+            if sup:
+                print(f"               supersedes: {sup}")
+            print(f"               rule:       {payload.get('synthesized_protocol', '?')}")
+            print()
+    return 0
+
+
 def _profile_history_cli(args) -> int:
     """CLI entry for `episteme history` subcommands.
 
@@ -3047,10 +3172,13 @@ def _profile_history_cli(args) -> int:
     if history_action == "policy":
         return _policy_history_cli(args)
 
+    if history_action == "protocol":
+        return _protocol_history_cli(args)
+
     if history_action != "axis":
         print(
             f"unknown history action: {history_action!r} "
-            "(expected: axis, policy)",
+            "(expected: axis, policy, protocol)",
             file=sys.stderr,
         )
         return 2
@@ -4381,8 +4509,13 @@ def _guide_dispatch(args) -> int:
             print()
         return 0
 
-    # Default path — list protocols.
-    envelopes = _framework.list_protocols()
+    # Default path — list protocols. Event 84: include_superseded=True
+    # so the operator-facing `episteme guide` view shows the full
+    # synthesis history (including superseded entries) for forensic /
+    # archaeology reads. The active-guidance HOOK path uses
+    # `include_superseded=False` (the default) to surface only currently
+    # active protocols at decision-time.
+    envelopes = _framework.list_protocols(include_superseded=True)
     out_items = []
     for env in envelopes:
         if not isinstance(env, dict):
@@ -4850,6 +4983,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     profile_sub.add_parser("show", help="Show the latest generated workstyle scorecard")
 
+    # CP-CONTEXT-AWARE-PROFILE-OVERRIDE-01 / Event 85
+    p_override = profile_sub.add_parser(
+        "override",
+        help="Per-project profile axis override (project-local supersedes global)",
+    )
+    p_override.add_argument("axis_name", nargs="?", help="One of the 16 axes (omit with --list)")
+    p_override.add_argument("value", nargs="?", help="Override value (free-form)")
+    p_override.add_argument("--rationale", help="Min 15 chars; lazy tokens rejected")
+    p_override.add_argument("--evidence-refs", dest="evidence_refs", nargs="*", default=[], metavar="REF")
+    p_override.add_argument("--scope", default="project", choices=["project"])
+    p_override.add_argument("--list", dest="list_overrides", action="store_true")
+    p_override.add_argument("--remove", action="store_true")
+    p_override.add_argument("--project-path", dest="project_path", default=".")
+
     p_audit = profile_sub.add_parser(
         "audit",
         help="Audit the declared cognitive profile against the lived episodic record (phase 12)",
@@ -5042,6 +5189,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Walk the supersede-with-history record streams (Cognitive Arm A)",
     )
     history_sub = history_cmd.add_subparsers(dest="history_action", required=True)
+
     p_h_policy = history_sub.add_parser(
         "policy",
         help="Walk operator-policy section change history (cognitive_profile / workflow_policy / agent_feedback)",
@@ -5088,6 +5236,23 @@ def build_parser() -> argparse.ArgumentParser:
         default=[],
         metavar="REF",
         help="Optional event/episode references",
+    )
+
+    p_h_protocol = history_sub.add_parser(
+        "protocol",
+        help="Walk synthesized-protocol supersede chains (Item 4 — Cognitive Arm A core)",
+    )
+    p_h_protocol.add_argument(
+        "--project",
+        dest="project_name",
+        default=None,
+        help="Filter to a specific project_name (filters context_signature.project_name)",
+    )
+    p_h_protocol.add_argument(
+        "--list-chains",
+        dest="list_chains",
+        action="store_true",
+        help="One-line summary per chain (terse)",
     )
 
     p_h_axis = history_sub.add_parser(
@@ -5453,6 +5618,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "profile":
         if args.profile_action == "show":
             return _profile_show()
+        if args.profile_action == "override":
+            return _profile_override_cli(args)
         if args.profile_action == "audit":
             if getattr(args, "audit_action", None) == "ack":
                 return _profile_audit_ack_cli(args)
