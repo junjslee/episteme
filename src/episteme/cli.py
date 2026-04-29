@@ -3352,6 +3352,139 @@ def _policy_history_cli(args) -> int:
     return 0
 
 
+def _cognitive_budget_cli(args) -> int:
+    """CLI entry for `episteme cognitive-budget` (Event 88 — D11 substrate).
+
+    Modes dispatched by args:
+    - `--list`: enumerate blueprints with at least one recorded approval.
+    - `--summary [--window N] [--blueprint <slug>]`: rolling stats + fatigue check.
+    - `--check`: print only the fatigue verdict (machine-friendly: exit 1 if fired).
+    - `--record <correlation_id> --blueprint X --op-class Y --elapsed-seconds Z --reason "..."`:
+      append a manual approval observation.
+    - default (no flag): print recent approvals (most recent first) up to --tail.
+    """
+    from episteme import _cognitive_budget as cb_mod
+
+    if getattr(args, "list_blueprints", False):
+        bps = cb_mod.list_blueprints_with_history()
+        if not bps:
+            print("No approval observations recorded yet.")
+            return 0
+        print(f"Blueprints with recorded approvals ({len(bps)}):")
+        for bp in sorted(bps):
+            entries = cb_mod.walk_approvals(blueprint=bp)
+            print(f"  {bp:25s}  {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}")
+        return 0
+
+    record = getattr(args, "record", False)
+    if record:
+        correlation_id = getattr(args, "correlation_id", None)
+        blueprint = getattr(args, "blueprint", None)
+        op_class = getattr(args, "op_class", None)
+        elapsed_seconds = getattr(args, "elapsed_seconds", None)
+        reason = getattr(args, "reason", None)
+        if (
+            not correlation_id
+            or not blueprint
+            or not op_class
+            or elapsed_seconds is None
+            or not reason
+        ):
+            print(
+                "--record requires <correlation_id> --blueprint --op-class "
+                "--elapsed-seconds --reason (min 15 chars; lazy tokens rejected).",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            envelope = cb_mod.record_approval(
+                correlation_id,
+                blueprint,
+                op_class,
+                elapsed_seconds,
+                reason,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        payload = envelope.get("payload", {})
+        print(f"Recorded approval observation for {correlation_id}.")
+        print(f"  entry_hash:  {envelope.get('entry_hash', '?')}")
+        print(f"  blueprint:   {payload.get('blueprint', '?')}")
+        print(f"  op_class:    {payload.get('op_class', '?')}")
+        print(f"  elapsed:     {payload.get('elapsed_seconds', '?')}s")
+        return 0
+
+    if getattr(args, "summary", False):
+        window = getattr(args, "window", None)
+        blueprint = getattr(args, "blueprint", None)
+        summ = cb_mod.summarize(window=window, blueprint=blueprint)
+        if summ["count"] == 0:
+            print("No approval observations recorded yet.")
+            return 0
+        scope = f"window={window}" if window else "all entries"
+        if blueprint:
+            scope += f", blueprint={blueprint}"
+        print(f"Approval-time summary ({scope}):")
+        print(f"  count:           {summ['count']}")
+        if summ["p50"] is not None:
+            print(f"  p50:             {summ['p50']:.3f}s")
+            print(f"  p95:             {summ['p95']:.3f}s")
+            print(f"  mean:            {summ['mean']:.3f}s")
+            print(f"  sub_second_rate: {summ['sub_second_rate']:.2%}")
+        if summ["by_blueprint"]:
+            print("  by_blueprint:")
+            for bp, n in sorted(summ["by_blueprint"].items()):
+                print(f"    {bp:25s}  {n}")
+        fatigue = summ.get("fatigue")
+        if fatigue:
+            print()
+            print(f"  ⚠ FATIGUE SIGNAL: {fatigue['signal']}")
+            print(f"    triggers:        {', '.join(fatigue['triggers'])}")
+            print(f"    p50:             {fatigue['p50']:.3f}s "
+                  f"(threshold {fatigue['p50_threshold_seconds']}s)")
+            print(f"    sub_second_rate: {fatigue['sub_second_rate']:.2%} "
+                  f"(threshold {fatigue['sub_second_rate_threshold']:.2%})")
+        return 0
+
+    if getattr(args, "check", False):
+        sig = cb_mod.detect_fatigue()
+        if sig is None:
+            print("No fatigue signal — approval-time pattern within thresholds.")
+            return 0
+        print(f"FATIGUE SIGNAL: {sig['signal']}")
+        print(f"  triggers:        {', '.join(sig['triggers'])}")
+        print(f"  p50:             {sig['p50']:.3f}s "
+              f"(threshold {sig['p50_threshold_seconds']}s)")
+        print(f"  sub_second_rate: {sig['sub_second_rate']:.2%} "
+              f"(threshold {sig['sub_second_rate_threshold']:.2%})")
+        return 1
+
+    # Default: tail recent observations
+    tail = getattr(args, "tail", None) or 10
+    blueprint = getattr(args, "blueprint", None)
+    entries = cb_mod.walk_approvals(blueprint=blueprint, limit=tail)
+    if not entries:
+        print("No approval observations recorded yet.")
+        return 0
+    scope = f"tail={tail}"
+    if blueprint:
+        scope += f", blueprint={blueprint}"
+    print(f"Recent approval observations ({scope}):")
+    print()
+    for envelope in entries:
+        payload = envelope.get("payload", {})
+        print(f"  recorded_at:    {payload.get('recorded_at', '?')}")
+        print(f"  correlation_id: {payload.get('correlation_id', '?')}")
+        print(f"  blueprint:      {payload.get('blueprint', '?')}")
+        print(f"  op_class:       {payload.get('op_class', '?')}")
+        print(f"  elapsed:        {payload.get('elapsed_seconds', '?')}s")
+        print(f"  reason:         {payload.get('reason', '?')}")
+        print(f"  entry_hash:     {envelope.get('entry_hash', '?')}")
+        print()
+    return 0
+
+
 def _profile_audit_ack_cli(args) -> int:
     """CLI entry for `episteme profile audit ack` (CP-AUDIT-ACK-01 / Event 78).
 
@@ -4302,6 +4435,12 @@ def _chain_dispatch(args) -> int:
             policy_history_verdict = _polh_mod.verify_chain()
         except Exception:  # noqa: BLE001 — degrade gracefully
             policy_history_verdict = None
+        # CP-OPERATOR-COGNITIVE-BUDGET-01 / Event 88 — approval_times
+        try:
+            from episteme import _cognitive_budget as _cb_mod
+            cognitive_budget_verdict = _cb_mod.verify_chain()
+        except Exception:  # noqa: BLE001 — degrade gracefully
+            cognitive_budget_verdict = None
         all_intact = True
         for stream_name, verdict in (
             ("protocols", fw.get("protocols")),
@@ -4311,6 +4450,7 @@ def _chain_dispatch(args) -> int:
             ("profile_audit_acks", ack_verdict),
             ("profile_history", history_verdict),
             ("policy_history", policy_history_verdict),
+            ("approval_times", cognitive_budget_verdict),
         ):
             if verdict is None:
                 continue
@@ -5333,6 +5473,75 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional description of data that won't be carried forward (recommended for mode=reset)",
     )
 
+    # CP-OPERATOR-COGNITIVE-BUDGET-01 / Event 88 — Cognitive Arm A D11
+    # substrate. Operator approval-time observations + fatigue detection.
+    cb_cmd = sub.add_parser(
+        "cognitive-budget",
+        help="Inspect operator approval-time observations + D11 fatigue signal (Cognitive Arm A)",
+    )
+    cb_cmd.add_argument(
+        "--list",
+        dest="list_blueprints",
+        action="store_true",
+        help="List blueprints with at least one recorded approval observation",
+    )
+    cb_cmd.add_argument(
+        "--summary",
+        action="store_true",
+        help="Render rolling stats (count / p50 / p95 / mean / sub_second_rate) + fatigue check",
+    )
+    cb_cmd.add_argument(
+        "--check",
+        action="store_true",
+        help="Print only the fatigue verdict (exit 1 when attention_bottleneck fires)",
+    )
+    cb_cmd.add_argument(
+        "--record",
+        action="store_true",
+        help="Record a new approval observation (requires correlation_id, --blueprint, --op-class, --elapsed-seconds, --reason)",
+    )
+    cb_cmd.add_argument(
+        "correlation_id",
+        nargs="?",
+        help="Correlation id for the observation (omit unless using --record)",
+    )
+    cb_cmd.add_argument(
+        "--blueprint",
+        choices=[
+            "axiomatic_judgment", "fence_reconstruction", "consequence_chain",
+            "cascade_escalation", "fallback", "unknown",
+        ],
+        help="Blueprint slug for the observation (axiomatic_judgment / fence_reconstruction / consequence_chain / cascade_escalation / fallback / unknown)",
+    )
+    cb_cmd.add_argument(
+        "--op-class",
+        dest="op_class",
+        choices=["bash", "edit", "cascade", "other"],
+        help="Op class for the observation",
+    )
+    cb_cmd.add_argument(
+        "--elapsed-seconds",
+        dest="elapsed_seconds",
+        type=float,
+        help="Approval elapsed seconds (≥ 0)",
+    )
+    cb_cmd.add_argument(
+        "--reason",
+        help="Substantive reason for the observation (min 15 chars; lazy tokens rejected)",
+    )
+    cb_cmd.add_argument(
+        "--window",
+        type=int,
+        default=None,
+        help="Most-recent N observations to consider for --summary (default: all)",
+    )
+    cb_cmd.add_argument(
+        "--tail",
+        type=int,
+        default=None,
+        help="Default mode: print most-recent N observations (default 10)",
+    )
+
     # CP9 — Pillar 3 active guidance query.
     guide_cmd = sub.add_parser(
         "guide",
@@ -5615,6 +5824,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0
     if args.command == "history":
         return _profile_history_cli(args)
+    if args.command == "cognitive-budget":
+        return _cognitive_budget_cli(args)
     if args.command == "profile":
         if args.profile_action == "show":
             return _profile_show()
