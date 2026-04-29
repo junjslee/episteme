@@ -48,8 +48,11 @@ Scope key:
 | Command | Scope | What it does |
 |---|---|---|
 | `episteme kernel {verify,update}` | framework | Kernel integrity manifest — verify working tree against `kernel/MANIFEST.sha256`, or regenerate it. |
-| `episteme chain {verify,reset,upgrade}` | framework | Pillar 2 hash-chain operations over the framework's synthesized protocols. |
+| `episteme chain {verify,reset,upgrade,recover}` | framework | Pillar 2 hash-chain operations over framework + reflective streams. `recover` covers reset / selective / migrate modes (CP-CHAIN-RECOVERY-PROTOCOL-01). |
 | `episteme guide [--deferred]` | framework | List synthesized framework protocols and (with `--deferred`) open deferred discoveries. |
+| `episteme history {axis,policy,protocol}` | framework | Walk Cognitive Arm A supersede-with-history streams: profile axis trajectories (Event 82), policy section changes (Event 83), synthesized-protocol supersede chains (Event 84). |
+| `episteme cognitive-budget {--summary,--check,--record,--list,--tail}` | framework | Inspect operator approval-time observations + D11 fatigue signal (Event 88, Cognitive Arm A). |
+| `episteme profile {show,audit,override,survey,infer,hybrid,gap}` | framework | Profile inspection + Phase 12 audit + per-project override (Event 85, CP-CONTEXT-AWARE-PROFILE-OVERRIDE-01). `audit ack <audit-id>` acknowledges a drift verdict (Event 78). |
 | `episteme inject` | framework | Deploy cognitive enforcement to any directory in one command. |
 | `episteme log` | framework | Show audit log of reasoning-surface checks (passed / advisory / blocked). |
 | `episteme review` | framework | Review sampled Layer 8 spot-check entries (operator verdicts). |
