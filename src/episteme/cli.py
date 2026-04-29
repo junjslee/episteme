@@ -3002,6 +3002,71 @@ def _print_profile_summary(mode: str, payload: dict) -> None:
             print(f"  {dim}: {dim_evidence[0]}")
 
 
+def _profile_override_cli(args) -> int:
+    """CLI entry for `episteme profile override` (Event 85 / CP-CONTEXT-
+    AWARE-PROFILE-OVERRIDE-01 first slice)."""
+    from episteme import _profile_override as po_mod
+
+    project_path = Path(getattr(args, "project_path", ".")).resolve()
+
+    if getattr(args, "list_overrides", False):
+        overrides = po_mod.list_project_overrides(project_path)
+        if not overrides:
+            print(f"No profile overrides at {project_path}/.episteme/profile-override.yaml")
+            return 0
+        print(f"Project overrides at {project_path}/.episteme/profile-override.yaml ({len(overrides)} axes):")
+        for axis, fields in sorted(overrides.items()):
+            if isinstance(fields, dict):
+                value = fields.get("value", "?")
+                applied = fields.get("applied_since", "?")
+                rationale = fields.get("rationale", "")
+                print(f"  {axis:25s}  value={value!r}  applied_since={applied}")
+                if rationale:
+                    print(f"    rationale: {rationale}")
+        return 0
+
+    axis_name = getattr(args, "axis_name", None)
+    if not axis_name:
+        print("axis_name required (or use --list).", file=sys.stderr)
+        return 2
+
+    if getattr(args, "remove", False):
+        try:
+            removed = po_mod.remove_project_override(project_path, axis_name)
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if removed:
+            print(f"Removed override for {axis_name} at {project_path}.")
+        else:
+            print(f"No existing override for {axis_name}.")
+        return 0
+
+    value = getattr(args, "value", None)
+    rationale = getattr(args, "rationale", None)
+    evidence_refs = getattr(args, "evidence_refs", None) or []
+
+    if value is None or not rationale:
+        print("value + --rationale required (min 15 chars; lazy tokens rejected).", file=sys.stderr)
+        return 2
+
+    try:
+        path = po_mod.write_project_override(
+            project_path, axis_name, value,
+            rationale=rationale, evidence_refs=evidence_refs,
+        )
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+    print(f"Recorded project override for {axis_name} at {path}.")
+    print(f"  value:   {value!r}")
+    print(f"  scope:   project")
+    if evidence_refs:
+        print(f"  evidence: {', '.join(evidence_refs)}")
+    return 0
+
+
 def _profile_audit_cli(*, since: str, write: bool, as_json: bool) -> int:
     """CLI entry for `episteme profile audit` (phase 12).
 
@@ -4850,6 +4915,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     profile_sub.add_parser("show", help="Show the latest generated workstyle scorecard")
 
+    # CP-CONTEXT-AWARE-PROFILE-OVERRIDE-01 / Event 85
+    p_override = profile_sub.add_parser(
+        "override",
+        help="Per-project profile axis override (project-local supersedes global)",
+    )
+    p_override.add_argument("axis_name", nargs="?", help="One of the 16 axes (omit with --list)")
+    p_override.add_argument("value", nargs="?", help="Override value (free-form)")
+    p_override.add_argument("--rationale", help="Min 15 chars; lazy tokens rejected")
+    p_override.add_argument("--evidence-refs", dest="evidence_refs", nargs="*", default=[], metavar="REF")
+    p_override.add_argument("--scope", default="project", choices=["project"])
+    p_override.add_argument("--list", dest="list_overrides", action="store_true")
+    p_override.add_argument("--remove", action="store_true")
+    p_override.add_argument("--project-path", dest="project_path", default=".")
+
     p_audit = profile_sub.add_parser(
         "audit",
         help="Audit the declared cognitive profile against the lived episodic record (phase 12)",
@@ -5453,6 +5532,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "profile":
         if args.profile_action == "show":
             return _profile_show()
+        if args.profile_action == "override":
+            return _profile_override_cli(args)
         if args.profile_action == "audit":
             if getattr(args, "audit_action", None) == "ack":
                 return _profile_audit_ack_cli(args)
