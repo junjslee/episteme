@@ -11,6 +11,14 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## [1.2.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.1.0-rc1...episteme-v1.2.0-rc1) (2026-04-30)
+
+
+### Features
+
+* **arm-a:** auto-instrument profile + policy edits → trajectory streams (Event 91) ([f1cbe47](https://github.com/junjslee/episteme/commit/f1cbe47b11564c3548f4bf39a9c3a5f5fead8922))
+* **docs:** Event 92 — v1.1.0-rc1 framing flip + i18n parity + orphan asset cleanup ([#49](https://github.com/junjslee/episteme/issues/49)) ([f382360](https://github.com/junjslee/episteme/commit/f382360285e355ea58e8ed7a19a8df0a7846e8eb))
+
 ## [1.1.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.0.0-rc1...episteme-v1.1.0-rc1) (2026-04-29)
 
 
