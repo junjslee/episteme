@@ -1,5 +1,6 @@
 import { Header } from "@/components/site/Header";
 import { Hero } from "@/components/site/Hero";
+import { ReasoningSurfaceValidator } from "@/components/site/ReasoningSurfaceValidator";
 import { PillarsGrid } from "@/components/site/PillarsGrid";
 import { LiveExhibit } from "@/components/site/LiveExhibit";
 import { FrameworkExplainer } from "@/components/site/FrameworkExplainer";
@@ -14,6 +15,7 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
+        <ReasoningSurfaceValidator />
         <PillarsGrid />
         <LiveExhibit />
         <FrameworkExplainer />
