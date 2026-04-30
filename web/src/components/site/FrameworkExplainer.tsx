@@ -31,7 +31,7 @@ const stages = [
 export function FrameworkExplainer() {
   return (
     <Sectioned
-      index="03"
+      index="04"
       label="the loop"
       kicker="frame · decompose · execute · verify · handoff"
     >

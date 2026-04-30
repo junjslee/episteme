@@ -25,7 +25,7 @@ export function PillarsGrid() {
   return (
     <Sectioned
       id="framework"
-      index="01"
+      index="02"
       label="three pillars"
       kicker="not a library, a substrate"
     >

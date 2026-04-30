@@ -6,7 +6,7 @@ export function ProtocolsSection() {
   return (
     <Sectioned
       id="protocols"
-      index="04"
+      index="05"
       label="synthesized protocols"
       kicker="extracted, not authored"
     >

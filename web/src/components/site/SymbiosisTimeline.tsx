@@ -173,7 +173,7 @@ export function SymbiosisTimeline() {
   return (
     <Sectioned
       id="symbiosis"
-      index="06"
+      index="07"
       label="the symbiosis loop"
       kicker="real, audit-trailed · agent and human debug each other's intent"
     >

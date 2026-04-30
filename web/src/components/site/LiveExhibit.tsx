@@ -7,7 +7,7 @@ export function LiveExhibit() {
   return (
     <Sectioned
       id="surface"
-      index="02"
+      index="03"
       label="the reasoning surface"
       kicker="distinction, not decoration"
     >

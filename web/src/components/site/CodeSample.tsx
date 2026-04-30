@@ -41,7 +41,7 @@ const toneMap: Record<string, string> = {
 export function CodeSample() {
   return (
     <Sectioned
-      index="05"
+      index="06"
       label="active guidance"
       kicker="the kernel speaks"
     >
