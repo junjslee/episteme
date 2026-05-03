@@ -11,6 +11,39 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## [1.2.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.1.0-rc1...episteme-v1.2.0-rc1) (2026-05-03)
+
+
+### Features
+
+* **arm-a:** auto-instrument profile + policy edits → trajectory streams (Event 91) ([f1cbe47](https://github.com/junjslee/episteme/commit/f1cbe47b11564c3548f4bf39a9c3a5f5fead8922))
+* **demos:** Event 94 — the Symbiosis Demo (demos/04_symbiosis/) ([#52](https://github.com/junjslee/episteme/issues/52)) ([29c43fc](https://github.com/junjslee/episteme/commit/29c43fc0f3db510bf672299dc84c09ca81e82a3c))
+* **docs:** Event 92 — v1.1.0-rc1 framing flip + i18n parity + orphan asset cleanup ([#49](https://github.com/junjslee/episteme/issues/49)) ([f382360](https://github.com/junjslee/episteme/commit/f382360285e355ea58e8ed7a19a8df0a7846e8eb))
+* **web,docs:** Event 101 — Showcase hybrid (1 internal + 2 generic) with naive-vs-structural contrast + DEMOS.md 4-demo deep matrix ([#59](https://github.com/junjslee/episteme/issues/59)) ([366a6da](https://github.com/junjslee/episteme/commit/366a6dad93151258551cf3ce19288c255a39d7c6))
+* **web:** Event 102 — light editorial substrate + three architecture diagrams (Framework Loop · Three-Pillar · Hash Chain) ([#60](https://github.com/junjslee/episteme/issues/60)) ([2c61885](https://github.com/junjslee/episteme/commit/2c61885e4b79c36804ea0344dce9025b6bff3018))
+* **web:** Event 98 — Reasoning Surface Validator widget on landing page ([#56](https://github.com/junjslee/episteme/issues/56)) ([df3a68a](https://github.com/junjslee/episteme/commit/df3a68a321b29a30ab2e3fd7a5047ce386295164))
+* **web:** Event 99 — Symbiosis Timeline stepper on landing page ([#57](https://github.com/junjslee/episteme/issues/57)) ([67dd8ef](https://github.com/junjslee/episteme/commit/67dd8ef1056d63fc679dc5d1a4eb0ce0be1d0f30))
+
+
+### Bug Fixes
+
+* **docs:** Event 114 — remove duplicate Epistemic Drift paragraphs left after Event 113 rewrite ([f49210c](https://github.com/junjslee/episteme/commit/f49210c575564a7ac91f5fd96af63996f18398f4))
+* **docs:** Event 114 — remove duplicate Epistemic Drift paragraphs left after Event 113 rewrite ([4c92291](https://github.com/junjslee/episteme/commit/4c92291b24e6c7800a6a29be44356afe17aec5c1))
+* **evolve:** Event 103 — friction-analyzer no-match filter ([c960c44](https://github.com/junjslee/episteme/commit/c960c448ab5d5b815d71f4294be7d5ee730cd00a))
+* **evolve:** Event 103 — friction-analyzer no-match filter (grep/diff/test exit=1 is benign) ([bad8732](https://github.com/junjslee/episteme/commit/bad87326a5fd98fa84b62b2a99adbf74a8f95370))
+* **tests:** Event 104 — CI test isolation (cwd pollution + gitignored fixture) ([73eb2f5](https://github.com/junjslee/episteme/commit/73eb2f50f98442f087ee281a8a8da3bd849fdd6f))
+* **tests:** Event 104 — CI test isolation (unblocks Linux green) ([975dfd0](https://github.com/junjslee/episteme/commit/975dfd0f9b7dda29a449b1d4e75ac83842dee1a5))
+* **web,docs:** Event 110 — make stories real, strip fabricated metrics, universalize hash chain, fix diagram overflow ([1a06338](https://github.com/junjslee/episteme/commit/1a06338c50675329903baee7fa68e324f0ae0e96))
+* **web,docs:** Event 110 — replace generic 400k story; sharpen 'thorough' framing; strip fabricated metrics; universalize hash-chain example; fix diagram text overflow ([2a3a595](https://github.com/junjslee/episteme/commit/2a3a595c777feb9bc6822cb43ca0c6836bf0ea0f))
+* **web,docs:** Event 113 — fix diagram overlaps + drop fictional README story for declarative + agent what/why/how thinking + add Hero visual ([65684da](https://github.com/junjslee/episteme/commit/65684da49f778cd17386754e40029eb6e984ebb3))
+* **web,docs:** Event 113 — fix diagram overlaps + drop fictional story for declarative + agent what/why/how + Hero visual ([37d9d11](https://github.com/junjslee/episteme/commit/37d9d11dcd049e05cfff82ac33e64a395d016f3d))
+* **web/security:** Event 105 — pnpm override for postcss XSS (GHSA-qx2v-qp2m-jg93) ([c7f0296](https://github.com/junjslee/episteme/commit/c7f0296f42d7ab786a288a3b152e083b8539cab0))
+* **web/security:** Event 105 — postcss XSS override (GHSA-qx2v-qp2m-jg93) ([9ed350b](https://github.com/junjslee/episteme/commit/9ed350b4ec9d1dabae5f658bb5b173f7fa238e67))
+* **web:** Event 111 — close residual jargon gaps that survived [#68](https://github.com/junjslee/episteme/issues/68) ([c3b99ae](https://github.com/junjslee/episteme/commit/c3b99ae4d309b9a2c79fe0e7b24c18d4cd7e9faa))
+* **web:** Event 111 — strip residual jargon (PillarsArch second chain, SymbiosisTimeline hex/path/percentages, CodeSample fence-reconstruct) ([ebbc3e4](https://github.com/junjslee/episteme/commit/ebbc3e4f55988e95f2b8f12b0edcb9966eca3699))
+* **web:** Event 112 — drop redundant 'envelope · ' prefix that overflowed Pillars rect ([ba9a7f4](https://github.com/junjslee/episteme/commit/ba9a7f4ce3ac8112ed6b4100a516ff1e8ca5faf4))
+* **web:** Event 112 — drop redundant 'envelope · ' prefix that overflowed Pillars rect ([2d2e713](https://github.com/junjslee/episteme/commit/2d2e713984f1d116e645074bcd1aed2bdb378e09))
+
 ## [1.1.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.0.0-rc1...episteme-v1.1.0-rc1) (2026-04-29)
 
 
