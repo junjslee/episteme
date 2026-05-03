@@ -154,7 +154,7 @@ All three deferred-by-design with named dependencies. Component 3 (THIS doc enum
 - [`kernel/CONSTITUTION.md`](./CONSTITUTION.md) — the four principles whose invariant-shape this file makes explicit.
 - [`kernel/FAILURE_MODES.md`](./FAILURE_MODES.md) — the 11-mode taxonomy that motivates each per-surface invariant; failures-mapped-to-counters is the parent of this file's invariants-per-surface.
 - [`kernel/FALSIFIABILITY_CONDITIONS.md`](./FALSIFIABILITY_CONDITIONS.md) — the load-bearing-claims falsifiability matrix; this file is the per-surface-invariants matrix that operationalizes those claims at the runtime layer. § A1 (Pillar 2 hash chain), § A3 (PreToolUse refusal), § C2 (counters fire feedforward), § D1 (profile axes are control signals) are the most direct overlap.
-- [`docs/HOOKS_MAP.md`](../docs/HOOKS_MAP.md) — the existing hook inventory; this file's § A invariants map onto specific hook surfaces named there.
+- [`kernel/HOOKS_MAP.md`](./HOOKS_MAP.md) — the existing hook inventory; this file's § A invariants map onto specific hook surfaces named there.
 - `~/episteme-private/docs/cp-v1.1-architectural.md` § CP-DESIGN-BEHAVIOR-VERIFICATION-01 — spec source.
 
 ---

@@ -579,9 +579,9 @@ shipped; concept overlap is convergent, not derivative.
 Agents: Structured Cognitive Loop with a Governance Layer* (2025).
 arXiv:2511.17673.**
 
-Validates the [workflow loop](../core/memory/global/workflow_policy.md)
-and the *Soft Symbolic Control* role assigned to the Reasoning Surface
-guard. SCL's five phases (Retrieval, Cognition, Control, Action, Memory) are
+Validates the kernel's workflow loop (Frame → Decompose → Execute → Verify
+→ Handoff — see [CONSTITUTION.md](./CONSTITUTION.md) Principle IV) and the
+*Soft Symbolic Control* role assigned to the Reasoning Surface guard. SCL's five phases (Retrieval, Cognition, Control, Action, Memory) are
 structurally analogous to the kernel's Frame → Decompose → Execute → Verify
 → Handoff. SCL's "Soft Symbolic Control" governance layer maps onto the
 kernel's PreToolUse hook layer: symbolic constraints applied to probabilistic
