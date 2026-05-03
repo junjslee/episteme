@@ -1,31 +1,33 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   episteme — operator console tokens
-   Colors are scarce by construction. Signal colors earn their brightness
-   by being rare. No gradients. No saturated blues. Bone white, not pure.
+   episteme — editorial light substrate (Event 102)
+   Warm cream substrate, dark warm ink, four scarce signal accents
+   recalibrated for light-contrast. No gradients on type. No saturated
+   blues. Cream is not pure white; ink is not pure black — both warm.
    ────────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Substrate */
-  --color-void: #07080a;
-  --color-surface: #0d0f13;
-  --color-elevated: #14171d;
-  --color-hairline: #1a1e26;
-  --color-line: #272c36;
-  --color-line-strong: #3a404c;
+  /* Substrate (light, layered cream — book paper) */
+  --color-void: #f4f0e8;          /* page substrate — warm cream */
+  --color-surface: #ece6d8;        /* layered surface */
+  --color-elevated: #e0d8c5;       /* panel / card */
+  --color-hairline: #d0c7b0;       /* delicate borders */
+  --color-line: #a89a7e;           /* stronger lines */
+  --color-line-strong: #807156;    /* deepest line */
 
-  /* Type on substrate */
-  --color-bone: #e8e9ec;
-  --color-ash: #8b909b;
-  --color-muted: #4f5562;
-  --color-whisper: #373c45;
+  /* Type on substrate (warm ink — not pure black) */
+  --color-bone: #1a1612;           /* primary ink */
+  --color-ash: #524a40;            /* secondary text */
+  --color-muted: #8a8174;          /* muted */
+  --color-whisper: #b8ae9c;        /* very light, near-hairline */
 
-  /* Signals — used sparingly for state communication */
-  --color-verified: #7de0b0;
-  --color-unknown: #f5b764;
-  --color-disconfirm: #e87464;
-  --color-chain: #64a0f5;
+  /* Signals — recalibrated for light substrate (deeper hues, no neon).
+     Each pulled toward editorial-print accent palette. */
+  --color-verified: #2f7a4f;       /* forest green */
+  --color-unknown: #b07013;        /* ochre / amber */
+  --color-disconfirm: #b33c28;     /* terra-cotta */
+  --color-chain: #2d5ba3;          /* deep blue — chain identity preserved */
 
   /* Fonts wired via next/font in layout.tsx */
   --font-display: var(--font-fraunces);
@@ -58,31 +60,33 @@ body {
 }
 
 /* Hairline grid overlay — 1px, 4% opacity, 48px cadence.
-   Rendered once in <body>, pointer-events none, z-index -1. */
+   Rendered once in <body>, pointer-events none, z-index -1.
+   On light substrate, ink-on-cream rather than light-on-dark. */
 .grid-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
 }
 
-/* Noise layer — very low opacity film grain */
+/* Noise layer — film grain, lower opacity on light substrate so it
+   reads as paper texture, not as visible noise. */
 .noise-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.06;
-  mix-blend-mode: overlay;
+  opacity: 0.035;
+  mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Scrollbar — thin, muted */
+/* Scrollbar — thin, muted, ink-on-cream */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -91,17 +95,17 @@ body {
   background: var(--color-void);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-hairline);
+  background: var(--color-line);
   border-radius: 1px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-line);
+  background: var(--color-line-strong);
 }
 
 /* Utility: ambient pulse for unknown quadrants */
 @keyframes pulse-unknown {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 183, 100, 0); }
-  50% { box-shadow: 0 0 24px -4px rgba(245, 183, 100, 0.25); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(176, 112, 19, 0); }
+  50% { box-shadow: 0 0 24px -4px rgba(176, 112, 19, 0.3); }
 }
 .pulse-unknown {
   animation: pulse-unknown 4.2s var(--ease-standard) infinite;
@@ -109,7 +113,7 @@ body {
 
 /* Hash chain new-entry flash */
 @keyframes flash-chain {
-  0% { background: rgba(100, 160, 245, 0.22); border-color: rgba(100, 160, 245, 0.6); }
+  0% { background: rgba(45, 91, 163, 0.18); border-color: rgba(45, 91, 163, 0.65); }
   100% { background: transparent; border-color: var(--color-hairline); }
 }
 .flash-chain {
@@ -118,43 +122,43 @@ body {
 
 /* Broken-link alert */
 @keyframes flash-break {
-  0%, 100% { background: rgba(232, 116, 100, 0.18); }
-  50% { background: rgba(232, 116, 100, 0.28); }
+  0%, 100% { background: rgba(179, 60, 40, 0.16); }
+  50% { background: rgba(179, 60, 40, 0.26); }
 }
 .flash-break {
   animation: flash-break 1.8s var(--ease-standard) infinite;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   v1.1 polish — atmosphere, gradient borders, progressive blur,
+   Editorial richness — atmosphere, gradient borders, progressive blur,
    column-grid data streams, mask-word reveal, corner markers.
-   Bridges "austere terminal" → "alive operator console" without
-   touching typography, narrative, or signal palette.
+   Recalibrated for light substrate: ink-on-cream rather than
+   light-on-dark; chromatic glows softened to whispers, not auras.
    ────────────────────────────────────────────────────────────────────────── */
 
-/* 1. Atmospheric radial glow mesh.
-   Two low-opacity color glows using signal accents at the page corners.
-   Heavy blur + tiny opacity = chromatic without saturation. */
+/* 1. Atmospheric chromatic whispers.
+   On light substrate, signal-color glows read as faint warm tints in
+   the page corners, not as dark-mode auras. Opacity reduced 30-50%. */
 .atmosphere {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 8%, rgba(100, 160, 245, 0.055), transparent 42%),
-    radial-gradient(circle at 82% 92%, rgba(232, 116, 100, 0.042), transparent 42%),
-    radial-gradient(circle at 50% 50%, rgba(125, 224, 176, 0.025), transparent 55%);
+    radial-gradient(circle at 18% 8%, rgba(45, 91, 163, 0.045), transparent 42%),
+    radial-gradient(circle at 82% 92%, rgba(176, 112, 19, 0.038), transparent 42%),
+    radial-gradient(circle at 50% 50%, rgba(47, 122, 79, 0.022), transparent 55%);
   filter: blur(80px);
 }
 
-/* 2. Gradient-lit panel borders.
-   Two-stop light-from-top simulation via double-background on padding-box
-   + border-box. Brighter on top edge, fades to near-invisible at bottom. */
+/* 2. Gradient-lit panel borders — light-from-top simulation.
+   On cream substrate, the "light" comes from a soft ink shadow at top
+   fading to near-transparent at bottom. Inverts the dark-mode logic. */
 .panel-gradient {
   background:
     linear-gradient(color-mix(in oklab, var(--color-surface) 92%, transparent), color-mix(in oklab, var(--color-surface) 92%, transparent))
       padding-box,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.02) 55%, rgba(255, 255, 255, 0.06) 100%)
+    linear-gradient(180deg, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.02) 55%, rgba(0, 0, 0, 0.05) 100%)
       border-box;
   border: 1px solid transparent;
 }
@@ -162,15 +166,12 @@ body {
 .panel-gradient-strong {
   background:
     linear-gradient(var(--color-elevated), var(--color-elevated)) padding-box,
-    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(255, 255, 255, 0.1) 100%)
+    linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0%, rgba(0, 0, 0, 0.03) 50%, rgba(0, 0, 0, 0.08) 100%)
       border-box;
   border: 1px solid transparent;
 }
 
-/* 3. Progressive-blur top gradient.
-   Six overlapping backdrop-blur bands masked to different stripes so blur
-   intensity increases toward the nav edge. Makes the header feel correctly
-   floating over atmospheric content. */
+/* 3. Progressive-blur top gradient (theme-agnostic — blur is opacity-free) */
 .gradient-blur {
   position: fixed;
   z-index: 40;
@@ -223,10 +224,7 @@ body {
   mask: linear-gradient(to top, rgba(0, 0, 0, 0) 75%, rgba(0, 0, 0, 1) 87.5%, rgba(0, 0, 0, 1) 100%);
 }
 
-/* 4. Animated column-grid data streams.
-   Fixed full-height 4-column grid under page content. Each divider hosts
-   a short vertical gradient line that translates top→bottom on a loop,
-   staggered per column. Tinted with --color-chain for identity. */
+/* 4. Animated column-grid data streams — ink-on-cream with chain tint. */
 .column-grid {
   position: fixed;
   inset: 0;
@@ -238,16 +236,16 @@ body {
 }
 .column-grid-inner {
   width: 100%;
-  max-width: 80rem; /* matches max-w-7xl */
+  max-width: 80rem;
   height: 100%;
-  border-left: 1px solid rgba(255, 255, 255, 0.04);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-left: 1px solid rgba(0, 0, 0, 0.05);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   position: relative;
 }
 .column-grid-inner > div {
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
   display: none;
@@ -267,9 +265,9 @@ body {
   background: linear-gradient(
     to bottom,
     transparent 0%,
-    rgba(100, 160, 245, 0.0) 10%,
-    rgba(100, 160, 245, 0.45) 50%,
-    rgba(100, 160, 245, 0.0) 90%,
+    rgba(45, 91, 163, 0.0) 10%,
+    rgba(45, 91, 163, 0.45) 50%,
+    rgba(45, 91, 163, 0.0) 90%,
     transparent 100%
   );
   animation: data-stream-flow linear infinite;
@@ -299,12 +297,13 @@ body {
   100% { transform: translateY(0); opacity: 1; }
 }
 
-/* 6. Corner markers — outward-offset + glyphs at panel corners. */
+/* 6. Corner markers — outward-offset + glyphs at panel corners.
+   Ink-on-cream visibility: 0.30 alpha vs prior 0.22 white-on-dark. */
 .corner-marker {
   position: absolute;
   width: 10px;
   height: 10px;
-  color: rgba(255, 255, 255, 0.22);
+  color: rgba(0, 0, 0, 0.30);
   pointer-events: none;
 }
 .corner-marker svg { width: 100%; height: 100%; }

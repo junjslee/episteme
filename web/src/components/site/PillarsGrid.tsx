@@ -1,4 +1,5 @@
 import { Sectioned } from "@/components/ui/Sectioned";
+import { PillarsArchitectureDiagram } from "@/components/site/diagrams/PillarsArchitectureDiagram";
 
 const pillars = [
   {
@@ -38,10 +39,14 @@ export function PillarsGrid() {
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
-          Agents fail confidently when they confuse fluent pattern-match with
-          reasoning. episteme does not block that failure mode — it makes the
-          mode structurally unavailable. Pillars below.
+          Each pillar earns its place by making a specific failure mode
+          structurally unavailable. The architecture below is what visitors
+          install, not what we describe.
         </p>
+      </div>
+
+      <div className="mb-14">
+        <PillarsArchitectureDiagram />
       </div>
 
       <ol className="grid grid-cols-1 gap-0 border border-hairline md:grid-cols-3">

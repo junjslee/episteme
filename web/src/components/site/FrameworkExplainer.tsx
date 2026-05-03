@@ -1,4 +1,5 @@
 import { Sectioned } from "@/components/ui/Sectioned";
+import { FrameworkLoopDiagram } from "@/components/site/diagrams/FrameworkLoopDiagram";
 
 const stages = [
   {
@@ -44,10 +45,13 @@ export function FrameworkExplainer() {
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
-          Speed comes from loop completion, not step-skipping. The agent that
-          consistently closes Observe → Orient → Decide → Act outruns the one
-          that collapses stages to feel fast.
+          The agent that consistently closes Observe → Orient → Decide → Act
+          outruns the one that collapses stages to feel fast.
         </p>
+      </div>
+
+      <div className="mb-12">
+        <FrameworkLoopDiagram />
       </div>
 
       <ol className="grid grid-cols-1 gap-0 border border-hairline md:grid-cols-5">
