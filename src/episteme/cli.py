@@ -5773,6 +5773,63 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of top-ranked unknowns / ops to surface (default: 5)",
     )
 
+    # Tier 2.1b — `episteme check new <name>` scaffolder (Event 111).
+    check_cmd = sub.add_parser(
+        "check",
+        help="Manage user-authored PreToolUse checks (scaffold from a template)",
+    )
+    check_sub = check_cmd.add_subparsers(dest="check_action", required=True)
+    ch_new = check_sub.add_parser(
+        "new",
+        help="Scaffold a new check from a template into examples/checks/<name>.py",
+    )
+    ch_new.add_argument("name", nargs="?", default=None, help="Check name (kebab-case)")
+    ch_new.add_argument(
+        "--type",
+        dest="check_type",
+        default="block",
+        choices=("block", "advisory", "surface"),
+        help="Template shape: block (refuse on match) | advisory (warn but pass) | surface (gate on Reasoning Surface field)",
+    )
+    ch_new.add_argument(
+        "--output",
+        default=None,
+        help="Custom output path (default: examples/checks/<name>.py)",
+    )
+    ch_new.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite the target file if it already exists",
+    )
+    ch_new.add_argument(
+        "--list-templates",
+        action="store_true",
+        help="List available template types and exit",
+    )
+
+    # Tier 2.2 — `episteme status [--watch] [--json] [--interval=N]` (Event 111).
+    status_cmd = sub.add_parser(
+        "status",
+        help="Print runtime-state snapshot (surface freshness + branch + rigor + framework counts + profile drift)",
+    )
+    status_cmd.add_argument(
+        "--watch",
+        action="store_true",
+        help="Refresh and reprint the snapshot every --interval seconds (Ctrl-C to exit)",
+    )
+    status_cmd.add_argument(
+        "--json",
+        dest="json_out",
+        action="store_true",
+        help="Emit machine-readable JSON instead of formatted text",
+    )
+    status_cmd.add_argument(
+        "--interval",
+        type=float,
+        default=2.0,
+        help="Watch-mode refresh interval in seconds (default: 2.0)",
+    )
+
     return parser
 
 
@@ -6062,8 +6119,60 @@ def main(argv: Iterable[str] | None = None) -> int:
         if args.kernel_action == "update":
             return _kernel_update()
         return 0
+    if args.command == "check":
+        return _check_dispatch(args)
+    if args.command == "status":
+        return _status_dispatch(args)
     parser.error(f"unsupported command: {args.command}")
     return 2
+
+
+def _check_dispatch(args) -> int:
+    """Dispatch `episteme check <action>` subcommands."""
+    from . import _check_new
+
+    if args.check_action != "new":
+        sys.stderr.write(f"unknown check action: {args.check_action}\n")
+        return 2
+    if args.list_templates:
+        sys.stdout.write("Available templates:\n")
+        sys.stdout.write(_check_new.list_templates() + "\n")
+        return 0
+    if not args.name:
+        sys.stderr.write(
+            "episteme check new: name argument required (or pass --list-templates)\n"
+        )
+        return 2
+    try:
+        path = _check_new.scaffold_check(
+            name=args.name,
+            type_=args.check_type,
+            output=Path(args.output) if args.output else None,
+            force=args.force,
+        )
+    except _check_new.CheckNewError as exc:
+        sys.stderr.write(f"episteme check new: {exc}\n")
+        return 2
+    sys.stdout.write(
+        f"Created {path}\n"
+        f"\n"
+        f"Wire it into ~/.claude/settings.json:\n"
+        f'  {{"type": "command", "command": "python3 {path}"}}\n'
+        f"\n"
+        f"See examples/checks/README.md for the full check contract.\n"
+    )
+    return 0
+
+
+def _status_dispatch(args) -> int:
+    """Dispatch `episteme status` runtime-state TUI."""
+    from . import _status
+
+    return _status.run_status(
+        watch=args.watch,
+        json_out=args.json_out,
+        interval=args.interval,
+    )
 
 
 if __name__ == "__main__":

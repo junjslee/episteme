@@ -110,7 +110,20 @@ These are not enforced by the check contract — they are the customs that keep 
 
 ## Authoring a new check
 
-For now: copy any of the three examples, rename it, edit the pattern. The CLI scaffolder `episteme check new <name>` is staged for a follow-up Event but not yet shipped.
+Use the scaffolder:
+
+```
+episteme check new <name>                    # block-pattern check (default)
+episteme check new <name> --type=advisory    # advisory-not-block
+episteme check new <name> --type=surface     # reads .episteme/reasoning-surface.json
+episteme check new <name> --output=<path>    # custom destination
+episteme check new <name> --force            # overwrite existing
+episteme check new --list-templates          # show all template shapes
+```
+
+The scaffolder writes to `examples/checks/<name>.py` by default. Each generated file is a complete, syntactically-valid Python script you can wire into `~/.claude/settings.json` immediately. The TODO comments in the generated file mark the one-line edits you'll need to make (regex / path prefix / blueprint field) to specialize the check.
+
+If you'd rather start from a working example: copy any of the three examples in this directory, rename it, edit the pattern.
 
 ---
 
