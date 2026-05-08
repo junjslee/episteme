@@ -142,4 +142,107 @@ Pick one:
 - Reporter module: `src/episteme/_bench_report.py`
 - Operator decisions locked Event 116: `README.md` § 11
 
-*End of v1 calibration notes. v2 plan + actual v2 calibration run is its own Event after operator authorization.*
+*End of v1 calibration notes.*
+
+---
+
+# v2 Calibration — 2026-05-08, Same Event 117 (Operator Authorized $5)
+
+**Status:** ✅ **SUCCESS — load-bearing question resolved.** Kernel hooks DO fire under `claude --print`. The A/B paired comparison is viable. Phase 2 productive runs are unblocked.
+
+## Runner v2 changes applied
+
+Single edit to `_default_claude_command_for_session` in `_bench_run.py`:
+
+```python
+common = [
+    "--print",
+    "--verbose",  # required by claude when paired with stream-json
+    "--output-format", "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd", "2.00",
+]
+# Session A: + ["--setting-sources", "project"]   (replaces v1's --bare; preserves OAuth)
+# Session B: (no extra flags; user-global hooks load by default)
+```
+
+One small additional finding: claude requires `--verbose` to pair with `--output-format=stream-json`; v2 first attempt failed in 3s with that error — added `--verbose` and proceeded.
+
+## Calibration v2 results
+
+| | Session A (control) | Session B (treatment) |
+| --- | --- | --- |
+| Run id | `axiomatic-judgment-01-orm-cache-pattern-A-a48e137f` | `axiomatic-judgment-01-orm-cache-pattern-B-5320c200` |
+| Returncode | 0 ✅ | 0 ✅ |
+| Wall-clock | 99.5s | 190.6s |
+| Total events captured | 32 | 242 |
+| Hook lifecycle events | **0** | **194** |
+| Assistant turns | 19 | 30 |
+| User events (tool results) | 10 | 15 |
+
+The hook-event count alone is the load-bearing finding. Session A had 0 hook events — confirms `--setting-sources project` correctly isolates per-cwd settings (which the runner writes with empty hooks). Session B had 194 hook events spanning `SessionStart:startup` and `PreToolUse` triggers — confirms the kernel's full hook chain fires under `claude --print` mode.
+
+Sample Session B hook event (verbatim from `transcript.txt`):
+
+```json
+{
+  "type": "system",
+  "subtype": "hook_started",
+  "hook_id": "2058fa90-8ff0-403d-b65b-8578581d5a9f",
+  "hook_name": "SessionStart:startup",
+  "hook_event": "SessionStart",
+  "uuid": "8ead893d-b177-4150-b9c2-494c31b494ee",
+  "session_id": "e6057851-ebb5-453a-998e-8b83d92de878"
+}
+```
+
+This format is exactly what the spec § 5 metrics pipeline needs. `time_to_first_disconfirmation`, `disconfirmation_surfaced`, etc. become extractable from the assistant-message text contents + the structured tool-call sequence.
+
+## v2 findings — what changed from v1
+
+| v1 finding | v2 status |
+| --- | --- |
+| C-1 `--bare` strips OAuth | ✅ Resolved — replaced with `--setting-sources project` which preserves OAuth |
+| C-2 `--max-budget-usd 0.50` too tight | ✅ Resolved — $2.00 cap allowed Session A 99s + Session B 190s of productive work |
+| C-3 `--print` text mode loses partial transcript | ✅ Resolved — `stream-json` format captures every event as it streams, survives any termination mode |
+| C-4 Did kernel hooks fire? UNKNOWN | ✅ Resolved — **194 hook events** in Session B, **0 in Session A** |
+
+## Cost actually burned (estimated)
+
+Session A: ~$0.50-1.00 of plan quota (99s × ~30 model+tool calls)
+Session B: ~$1.50-2.00 of plan quota (190s × ~45 model+tool calls; hit budget cap at $2.00 ceiling)
+v1 attempts (failed quickly): ~$0.50-1.00 cumulative
+
+**Total ~$3.50-5.00** within the operator's $5 authorization. Per-task A/B pair budget for Phase 2 productive runs at this rate: ~$3-4 per task. 12 tasks × $4 = $48 max for full Phase 2 first-run methodology refinement.
+
+## Remaining gap before Phase 2 runs (v3 concern)
+
+The grader (`_bench_grade.py`) expects a **human-readable transcript.txt**, but v2 stores the JSONL stream there. A grader run on v2 transcripts would fail or produce nonsense.
+
+**v3 fix (small, additive, ~50 LOC):** runner extracts a human-readable transcript from the JSONL stream — concatenate the `text` content of each `assistant` event, prefix tool calls as `[Tool: name args]`, prefix tool results as `[Result: ...]`. Write that as `transcript.txt`; preserve the raw stream as `transcript.jsonl` for hook-event inspection.
+
+Once v3 lands, the full pipeline is production-ready: scaffold task → run A → run B → grade A → grade B → report. 12 tasks × 4 metrics × 2 sessions = the Phase 2 result.
+
+## What this calibration tells the operator (v2 wrap-up)
+
+1. **The benchmark architecture is empirically validated.** Hooks fire in B, not in A. The discriminator signal exists.
+2. **Phase 2 is unblocked at the harness level** — only the JSONL→text extraction (v3) sits between current state and a productive multi-task run.
+3. **Cost-per-task is bounded** at ~$3-4 per A/B pair under the $2.00 budget cap; full 12-task Phase 2 ≈ $48 plan-quota max.
+4. **No code rewrite required.** The runner v2 change was 4 lines (4 new flags in the common list, replace `--bare`/`--debug hooks` with their v2 alternatives). The system is structurally sound.
+
+## Recommended next move
+
+**A. Ship v3 in next session — JSONL→text extraction (~50 LOC + tests).** Then immediately run all 4 tasks × A/B = 8 sessions for the first methodology-refinement Phase 2 result. Estimated cost: ~$24-32 plan-quota.
+
+**B. Stop here for the operator to review v2 findings before authorizing v3 + the 8-session run.**
+
+Default proposal: B (operator review). v2 has resolved the foundational uncertainty; the next decision (whether to run all 4 tasks now, refine task quality first, or expand the task set) is operator-shape, not technical-shape.
+
+## Provenance
+
+- v2 run A: `runs/axiomatic-judgment-01-orm-cache-pattern-A-a48e137f/`
+- v2 run B: `runs/axiomatic-judgment-01-orm-cache-pattern-B-5320c200/`
+- Runner v2 change committed in this Event (Event 117, sub-phase B.2)
+
+*End of v2 calibration notes. v3 (transcript extraction) + Phase 2 first run is its own Event after operator review.*
