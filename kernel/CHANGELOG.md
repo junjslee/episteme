@@ -11,6 +11,20 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## Unreleased — 2026-05-08 — Event 110 — Blueprint D schema extension (minor)
+
+Three additive extensions to the cascade-architectural Reasoning Surface schema in `core/hooks/_blueprint_d.py`. All backward-compatible: existing valid surfaces remain valid; only the set of newly-accepted surfaces is enlarged.
+
+- **`POSTURE_VALUES`** extended `{patch, refactor}` → `{patch, refactor, analysis}`. The `analysis` posture names a meta-cognitive Event whose deliverable is a documentation artifact (architecture comparison, design spec, post-mortem) rather than a runtime mutation. The validator still requires `blast_radius_map` and `sync_plan` so the doc surfaces touched are enumerated; only the implicit assumption that the surfaces include runtime-mutating code is relaxed.
+- **`BLAST_RADIUS_STATUS_VALUES`** extended `{needs_update, not-applicable}` → `{needs_update, not-applicable, deferred}`. The `deferred` status names a surface that IS in the cascade's blast radius but is being held back to its own gated Event. Like `not-applicable`, `deferred` requires a `rationale` field; unlike `not-applicable`, it does not imply the surface is outside the cascade's reach. Both are excluded from `sync_plan` matching (a `sync_plan` entry is only required for `needs_update`). All-`not-applicable` continues to fire the cascade-theater advisory; all-`deferred` does NOT (deferred entries indicate active work in flight elsewhere).
+- **`_validate_deferred_discoveries`** relaxed: only `description` (≥ `MIN_DESCRIPTION_LEN` = 15 chars) is required. `observable` and `log_only_rationale` are accepted as optional non-empty strings (the writer at L446 of `_blueprint_d.py` already tolerated empty values via `entry.get(field, "")`; the validator now matches the writer's tolerance). This closes the friction tax on ad-hoc deferred-discovery logging during meta-cognitive Events where the observable is not yet defined.
+
+Both `core/blueprints/architectural_cascade.yaml` and `tests/test_blueprint_d_cascade.py` updated for spec parity. New tests cover analysis-posture acceptance, deferred-status acceptance with rationale, deferred-status rationale-required rejection, all-deferred non-theater, deferred-discoveries minimal-shape acceptance, and optional-field non-empty-when-present validation.
+
+This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (the schema gap that required analysis-shape and deferred-scope work to misuse the existing posture and status enums, producing recurring schema-incomplete advisories during Events 108.5, 109, and 110).
+
+---
+
 ## [1.1.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.0.0-rc1...episteme-v1.1.0-rc1) (2026-04-29)
 
 

@@ -7,25 +7,36 @@ after the cascade detector fires and the guard determines
 ## Required surface fields (spec § Blueprint D)
 
 - ``flaw_classification`` — one of the 7 named classes or ``other``.
-- ``posture_selected`` — ``patch`` or ``refactor``.
+- ``posture_selected`` — ``patch``, ``refactor``, or ``analysis``.
+  ``analysis`` (Event 110) names a meta-cognitive Event whose
+  deliverable is a documentation artifact rather than a runtime
+  mutation — still requires blast_radius_map + sync_plan so the
+  doc surfaces touched are enumerated.
 - ``patch_vs_refactor_evaluation`` — non-generic rationale referencing
   concrete blast-radius surfaces. Must be ≥ 20 chars AND NOT
   consist solely of generic-evaluation tokens
   (``simpler`` / ``easier`` / ``local`` / etc).
 - ``blast_radius_map`` — list of dicts. Each entry:
     ``surface`` (string, path or category name) + ``status`` (one of
-    ``needs_update`` / ``not-applicable``). ``not-applicable`` entries
-    require ``rationale``. Minimum 1 entry. All-``not-applicable``
+    ``needs_update`` / ``not-applicable`` / ``deferred``).
+    ``not-applicable`` AND ``deferred`` entries both require
+    ``rationale``. Minimum 1 entry. All-``not-applicable``
     yields an advisory (spec's "cascade-theater" hint) — Layer 8's
     ``cascade_integrity`` verdict dimension closes the loop at
-    verdict time.
+    verdict time. ``deferred`` (Event 110) names a surface in
+    blast radius held to its own gated Event with its own surface;
+    rationale carries the deferral note + trigger condition. All-
+    ``deferred`` does NOT fire cascade-theater (active work in
+    flight elsewhere).
 - ``sync_plan`` — list of dicts. Every ``blast_radius_map`` entry with
   ``status: needs_update`` has a matching ``sync_plan`` entry (by
   ``surface``). Each plan entry carries either ``action`` (string)
-  or ``no_change_reason`` (string).
+  or ``no_change_reason`` (string). ``not-applicable`` and
+  ``deferred`` entries do NOT require sync_plan entries.
 - ``deferred_discoveries`` — optional empty list OR list of dicts.
-  Each entry: ``description`` (≥ 15 chars), ``observable``,
-  ``log_only_rationale``.
+  Each entry requires ``description`` (≥ 15 chars). ``observable``
+  and ``log_only_rationale`` are optional but, if provided, must
+  be non-empty strings.
 
 ## Verdicts
 
@@ -80,10 +91,10 @@ FLAW_CLASSES: frozenset[str] = frozenset({
     "other",
 })
 
-POSTURE_VALUES: frozenset[str] = frozenset({"patch", "refactor"})
+POSTURE_VALUES: frozenset[str] = frozenset({"patch", "refactor", "analysis"})
 
 BLAST_RADIUS_STATUS_VALUES: frozenset[str] = frozenset({
-    "needs_update", "not-applicable",
+    "needs_update", "not-applicable", "deferred",
 })
 
 # Evaluation tokens that by themselves do NOT constitute a
@@ -187,15 +198,15 @@ def _validate_blast_radius_map(
                 f"{sorted(BLAST_RADIUS_STATUS_VALUES)} (got {status!r})",
                 False,
             )
-        if status == "not-applicable":
+        if status in ("not-applicable", "deferred"):
             rationale = entry.get("rationale")
             if not isinstance(rationale, str) or not rationale.strip():
                 return (
                     f"blast_radius_map[{i}].rationale required when "
-                    f"status is `not-applicable` (got {rationale!r})",
+                    f"status is `{status}` (got {rationale!r})",
                     False,
                 )
-        else:
+        if status != "not-applicable":
             all_not_applicable = False
     return (None, all_not_applicable)
 
@@ -246,8 +257,12 @@ def _validate_sync_plan(
 
 def _validate_deferred_discoveries(raw: Any) -> str | None:
     """Optional empty list; when present, each entry requires
-    description (≥ MIN_DESCRIPTION_LEN), observable (non-empty),
-    log_only_rationale (non-empty)."""
+    description (≥ MIN_DESCRIPTION_LEN). observable and
+    log_only_rationale are optional (Event 110 relaxation) but, if
+    provided, must be non-empty strings — the writer at
+    write_cascade_deferred_discoveries already tolerates empty
+    values via ``entry.get(field, "")``; the validator now matches
+    the writer's tolerance."""
     if not isinstance(raw, list):
         return (
             f"deferred_discoveries must be a list "
@@ -260,23 +275,21 @@ def _validate_deferred_discoveries(raw: Any) -> str | None:
                 f"(got {type(entry).__name__})"
             )
         desc = entry.get("description")
-        obs = entry.get("observable")
-        rat = entry.get("log_only_rationale")
         if not isinstance(desc, str) or len(desc.strip()) < MIN_DESCRIPTION_LEN:
             return (
                 f"deferred_discoveries[{i}].description must be a "
                 f"string of ≥ {MIN_DESCRIPTION_LEN} chars"
             )
-        if not isinstance(obs, str) or not obs.strip():
-            return (
-                f"deferred_discoveries[{i}].observable must be a "
-                f"non-empty string"
-            )
-        if not isinstance(rat, str) or not rat.strip():
-            return (
-                f"deferred_discoveries[{i}].log_only_rationale must "
-                f"be a non-empty string"
-            )
+        # observable and log_only_rationale are optional (Event 110).
+        # If provided, must be non-empty strings.
+        for optional_field in ("observable", "log_only_rationale"):
+            if optional_field in entry:
+                value = entry.get(optional_field)
+                if not isinstance(value, str) or not value.strip():
+                    return (
+                        f"deferred_discoveries[{i}].{optional_field} "
+                        f"must be a non-empty string when present"
+                    )
     return None
 
 
