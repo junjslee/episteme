@@ -33,6 +33,39 @@ class BenchRunError(Exception):
     """Raised on runner-side failures."""
 
 
+def _default_claude_command_for_session(session: str) -> list[str]:
+    """Per-session claude invocation defaults.
+
+    Session A (control / no-kernel) uses ``--bare`` which per ``claude --help``
+    'skips hooks, LSP, plugin sync, attribution, auto-memory, background
+    prefetches, keychain reads, and CLAUDE.md auto-discovery'. This is the
+    cleanest kernel-disable mechanism — much stronger than per-cwd settings
+    overrides.
+
+    Session B (treatment / kernel-strict-mode) uses default invocation so
+    plugin hooks load + ``--debug hooks`` to surface hook events in stderr
+    for calibration visibility.
+
+    Both sessions:
+    - ``--print`` for non-interactive mode (single-shot)
+    - ``--allow-dangerously-skip-permissions`` for headless reliability —
+      tasks may require shell ops the agent would otherwise prompt on
+    - ``--max-budget-usd 0.50`` to bound per-session cost during Phase 2
+
+    The prompt is appended by the caller; this returns the prefix only.
+    """
+    common = [
+        "--print",
+        "--allow-dangerously-skip-permissions",
+        "--max-budget-usd", "0.50",
+    ]
+    if session == "A":
+        return ["claude", "--bare", *common]
+    if session == "B":
+        return ["claude", *common, "--debug", "hooks"]
+    raise BenchRunError(f"unknown session: {session!r}")
+
+
 def _resolve_task_dir(combined_id: str, tasks_root: Path) -> Path:
     if "/" not in combined_id:
         raise BenchRunError(
@@ -136,7 +169,7 @@ def run_session(
     runs_root = (runs_root or project_root / DEFAULT_RUNS_ROOT).resolve()
     tasks_root = (tasks_root or project_root / DEFAULT_TASKS_ROOT).resolve()
     if claude_command is None:
-        claude_command = ["claude", "--print"]
+        claude_command = _default_claude_command_for_session(session)
     if user_settings_path is None:
         user_settings_path = Path.home() / ".claude" / "settings.json"
 

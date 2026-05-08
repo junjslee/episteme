@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "registered_handlers": {
+    "auth_handler": {
+      "module": "auth_handler",
+      "verify_method": "verify"
+    }
+  }
+}

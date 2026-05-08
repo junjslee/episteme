@@ -1,0 +1,17 @@
+{
+  "run_id": "axiomatic-judgment-01-orm-cache-pattern-B-b97c5e87",
+  "task_id": "axiomatic-judgment/01-orm-cache-pattern",
+  "session": "B",
+  "wall_clock_seconds": 40.24,
+  "returncode": 1,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "0.50",
+    "--debug",
+    "hooks"
+  ]
+}
