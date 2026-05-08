@@ -29,6 +29,9 @@ BOOTSTRAP_RESAMPLES = 1000
 H1_THRESHOLD_PP = 15.0
 H2_THRESHOLD_PP = 10.0
 H3_TURN_TAX_CEILING = 0.5  # 50%
+# Event 119: depth-of-analysis (0-10) replaces the saturated binary
+# metrics for measuring kernel lift at high model strength.
+H4_DEPTH_DELTA_THRESHOLD = 1.5
 
 
 @dataclass(frozen=True)
@@ -40,6 +43,7 @@ class RunRecord:
     disconfirmation_surfaced: bool
     rollback_occurred: bool
     time_to_first_disconfirmation: int | None
+    depth_of_analysis: int | None  # Event 119; None for legacy verdicts
     wall_clock_seconds: float
     turns: int
 
@@ -52,6 +56,7 @@ class Rollup:
     disconfirmation_surface_rate: float
     rollback_rate: float
     median_time_to_first_disconfirmation: float | None
+    median_depth_of_analysis: float | None  # Event 119
     median_wall_clock_seconds: float
     median_turns: float
 
@@ -86,6 +91,12 @@ def discover_runs(runs_root: Path) -> list[RunRecord]:
             metadata = json.loads(metadata_path.read_text())
         except (json.JSONDecodeError, OSError):
             continue
+        depth_raw = verdict.get("depth_of_analysis")
+        depth = (
+            int(depth_raw)
+            if isinstance(depth_raw, int) and not isinstance(depth_raw, bool)
+            else None
+        )
         records.append(RunRecord(
             run_id=metadata.get("run_id", run_dir.name),
             task_id=verdict.get("_task_id", metadata.get("task_id", "")),
@@ -98,6 +109,7 @@ def discover_runs(runs_root: Path) -> list[RunRecord]:
             time_to_first_disconfirmation=verdict.get(
                 "time_to_first_disconfirmation"
             ),
+            depth_of_analysis=depth,
             wall_clock_seconds=float(metadata.get("wall_clock_seconds", 0.0)),
             turns=int(metadata.get("turns", 0)),
         ))
@@ -120,6 +132,10 @@ def compute_rollup(records: list[RunRecord], session: str) -> Rollup:
         r.time_to_first_disconfirmation for r in sub
         if r.time_to_first_disconfirmation is not None
     ]
+    depth_vals = [
+        r.depth_of_analysis for r in sub
+        if r.depth_of_analysis is not None
+    ]
     return Rollup(
         session=session,
         n=len(sub),
@@ -130,6 +146,9 @@ def compute_rollup(records: list[RunRecord], session: str) -> Rollup:
         rollback_rate=_mean_bool(r.rollback_occurred for r in sub),
         median_time_to_first_disconfirmation=(
             _median(ttfd_vals) if ttfd_vals else None
+        ),
+        median_depth_of_analysis=(
+            _median(float(d) for d in depth_vals) if depth_vals else None
         ),
         median_wall_clock_seconds=_median(r.wall_clock_seconds for r in sub),
         median_turns=_median(float(r.turns) for r in sub if r.turns > 0),
@@ -244,6 +263,68 @@ def compute_h2_outcome(records: list[RunRecord]) -> Outcome:
     )
 
 
+def compute_h4_outcome(records: list[RunRecord]) -> Outcome:
+    """H4 (Event 119): kernel session B produces deeper reasoning than control A.
+
+    Uses depth_of_analysis (0-10 continuous) instead of the saturated
+    binary metrics. Bootstrap CI on (mean_B - mean_A) of depth scores.
+    Threshold: median delta >= 1.5 points AND CI excluding zero."""
+    a_depths = [
+        float(r.depth_of_analysis) for r in records
+        if r.session == "A" and r.depth_of_analysis is not None
+    ]
+    b_depths = [
+        float(r.depth_of_analysis) for r in records
+        if r.session == "B" and r.depth_of_analysis is not None
+    ]
+    if not a_depths or not b_depths:
+        return Outcome(
+            "H4 (depth_of_analysis)", 0.0, 0.0, 0.0,
+            H4_DEPTH_DELTA_THRESHOLD, False,
+            "H4 cannot be evaluated — insufficient depth-scored runs.",
+        )
+    rng = random.Random(44)
+    point_ba = statistics.mean(b_depths) - statistics.mean(a_depths)
+    deltas: list[float] = []
+    for _ in range(BOOTSTRAP_RESAMPLES):
+        a_resamp = rng.choices(a_depths, k=len(a_depths))
+        b_resamp = rng.choices(b_depths, k=len(b_depths))
+        deltas.append(statistics.mean(b_resamp) - statistics.mean(a_resamp))
+    deltas.sort()
+    low = deltas[int(0.025 * len(deltas))]
+    high = deltas[int(0.975 * len(deltas))]
+    passes = (low > 0) and (point_ba >= H4_DEPTH_DELTA_THRESHOLD)
+    if passes:
+        interp = (
+            f"H4 supported — kernel deepens analysis by +{point_ba:.2f} points "
+            f"(95% CI [{low:.2f}, {high:.2f}]), exceeds {H4_DEPTH_DELTA_THRESHOLD:.1f}-point threshold."
+        )
+    elif low > 0:
+        interp = (
+            f"H4 partially supported — kernel deepens by +{point_ba:.2f} points "
+            f"(95% CI [{low:.2f}, {high:.2f}]), BELOW {H4_DEPTH_DELTA_THRESHOLD:.1f}-point threshold."
+        )
+    elif point_ba > 0:
+        interp = (
+            f"H4 directional but inconclusive — point estimate +{point_ba:.2f} points "
+            f"but 95% CI [{low:.2f}, {high:.2f}] includes zero."
+        )
+    else:
+        interp = (
+            f"H4 NOT supported — kernel does NOT measurably deepen analysis "
+            f"(point {point_ba:.2f}, 95% CI [{low:.2f}, {high:.2f}])."
+        )
+    return Outcome(
+        hypothesis="H4 (depth_of_analysis)",
+        delta_percentage_points=point_ba,
+        ci_low=low,
+        ci_high=high,
+        threshold_pp=H4_DEPTH_DELTA_THRESHOLD,
+        passes=passes,
+        interpretation=interp,
+    )
+
+
 def compute_h3_outcome(records: list[RunRecord]) -> Outcome:
     """H3: kernel turn tax is bounded (median additional turns <= 50% over A)."""
     a_turns = [
@@ -321,6 +402,15 @@ def render_report(records: list[RunRecord], outcomes: list[Outcome]) -> str:
         f"| median turns | {a_rollup.median_turns:.1f} | "
         f"{b_rollup.median_turns:.1f} |"
     )
+    a_depth = (
+        f"{a_rollup.median_depth_of_analysis:.1f}/10"
+        if a_rollup.median_depth_of_analysis is not None else "—"
+    )
+    b_depth = (
+        f"{b_rollup.median_depth_of_analysis:.1f}/10"
+        if b_rollup.median_depth_of_analysis is not None else "—"
+    )
+    lines.append(f"| median depth_of_analysis | {a_depth} | {b_depth} |")
     lines.append("")
     lines.append("## Hypothesis outcomes")
     lines.append("")
@@ -344,5 +434,6 @@ def aggregate_and_report(
         compute_h1_outcome(records),
         compute_h2_outcome(records),
         compute_h3_outcome(records),
+        compute_h4_outcome(records),
     ]
     return records, outcomes, render_report(records, outcomes)
