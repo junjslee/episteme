@@ -538,5 +538,193 @@ class ScenarioDispatchPriority(unittest.TestCase):
         )
 
 
+# ---------- Event 110 — schema extension ---------------------------------
+
+
+class SchemaExtensionAnalysisPosture(unittest.TestCase):
+    """Event 110 — `analysis` posture accepted alongside `patch` and
+    `refactor`. Meta-cognitive Events whose deliverable is a doc
+    artifact (architecture comparison, design spec, post-mortem)
+    declare posture_selected: analysis."""
+
+    def test_analysis_posture_passes(self):
+        verdict, _ = _blueprint_d.validate_blueprint_d(
+            _valid_surface(posture_selected="analysis")
+        )
+        self.assertEqual(verdict, "pass")
+
+    def test_unknown_posture_still_rejected(self):
+        verdict, detail = _blueprint_d.validate_blueprint_d(
+            _valid_surface(posture_selected="rewrite")
+        )
+        self.assertEqual(verdict, "reject")
+        self.assertIn("posture_selected", detail)
+
+
+class SchemaExtensionDeferredStatus(unittest.TestCase):
+    """Event 110 — `deferred` blast_radius_map status accepted alongside
+    `needs_update` and `not-applicable`. Like `not-applicable`,
+    requires `rationale`. Unlike `not-applicable`, all-deferred maps
+    do NOT trigger the cascade-theater advisory (deferred entries
+    indicate active work in flight elsewhere)."""
+
+    def test_deferred_status_with_rationale_passes(self):
+        verdict, _ = _blueprint_d.validate_blueprint_d(_valid_surface(
+            blast_radius_map=[
+                {"surface": "core/hooks/x.py", "status": "needs_update"},
+                {
+                    "surface": "kernel/x.md",
+                    "status": "deferred",
+                    "rationale": (
+                        "held to follow-up Event 111 — schema-implementation "
+                        "drift requires its own gated Event per Principle IV"
+                    ),
+                },
+            ],
+            sync_plan=[
+                {"surface": "core/hooks/x.py", "action": "Update module"},
+            ],
+        ))
+        self.assertEqual(verdict, "pass")
+
+    def test_deferred_status_missing_rationale_rejected(self):
+        verdict, detail = _blueprint_d.validate_blueprint_d(_valid_surface(
+            blast_radius_map=[
+                {"surface": "core/hooks/x.py", "status": "needs_update"},
+                {"surface": "kernel/x.md", "status": "deferred"},
+            ],
+            sync_plan=[
+                {"surface": "core/hooks/x.py", "action": "Update module"},
+            ],
+        ))
+        self.assertEqual(verdict, "reject")
+        self.assertIn("rationale required", detail)
+        self.assertIn("deferred", detail)
+
+    def test_all_deferred_does_not_fire_cascade_theater(self):
+        verdict, _ = _blueprint_d.validate_blueprint_d(_valid_surface(
+            blast_radius_map=[
+                {
+                    "surface": "core/hooks/x.py",
+                    "status": "deferred",
+                    "rationale": "held to Event 111 per Principle IV decomposition",
+                },
+                {
+                    "surface": "core/hooks/y.py",
+                    "status": "deferred",
+                    "rationale": "held to Event 112 per Principle IV decomposition",
+                },
+            ],
+            sync_plan=[],
+        ))
+        self.assertEqual(verdict, "pass")
+
+    def test_all_not_applicable_still_fires_cascade_theater(self):
+        # Regression check: theater advisory still fires on all-not-applicable.
+        verdict, detail = _blueprint_d.validate_blueprint_d(_valid_surface(
+            blast_radius_map=[
+                {
+                    "surface": "kernel/x.md",
+                    "status": "not-applicable",
+                    "rationale": "philosophy unchanged",
+                },
+            ],
+            sync_plan=[],
+        ))
+        self.assertIn("advisory-theater", verdict)
+        self.assertIn("not-applicable", detail)
+
+    def test_deferred_does_not_require_sync_plan_entry(self):
+        # sync_plan should match needs_update only.
+        verdict, _ = _blueprint_d.validate_blueprint_d(_valid_surface(
+            blast_radius_map=[
+                {"surface": "core/hooks/x.py", "status": "needs_update"},
+                {
+                    "surface": "kernel/y.md",
+                    "status": "deferred",
+                    "rationale": "held to Event 111",
+                },
+            ],
+            sync_plan=[
+                {"surface": "core/hooks/x.py", "action": "Update module"},
+                # No entry for kernel/y.md — should still pass.
+            ],
+        ))
+        self.assertEqual(verdict, "pass")
+
+
+class SchemaExtensionDeferredDiscoveriesRelaxed(unittest.TestCase):
+    """Event 110 — `observable` and `log_only_rationale` are optional
+    in deferred_discoveries[] entries. Only `description` (≥ 15
+    chars) is required. Optional fields, when provided, must still
+    be non-empty strings."""
+
+    def test_minimal_shape_description_only_passes(self):
+        verdict, _ = _blueprint_d.validate_blueprint_d(_valid_surface(
+            deferred_discoveries=[
+                {
+                    "description": (
+                        "Follow-up audit needed for kernel/SUMMARY rendering"
+                    ),
+                },
+            ],
+        ))
+        self.assertEqual(verdict, "pass")
+
+    def test_observable_when_present_must_be_non_empty(self):
+        verdict, detail = _blueprint_d.validate_blueprint_d(_valid_surface(
+            deferred_discoveries=[
+                {
+                    "description": (
+                        "Follow-up audit needed for kernel/SUMMARY rendering"
+                    ),
+                    "observable": "",
+                },
+            ],
+        ))
+        self.assertEqual(verdict, "reject")
+        self.assertIn("observable", detail)
+
+    def test_log_only_rationale_when_present_must_be_non_empty(self):
+        verdict, detail = _blueprint_d.validate_blueprint_d(_valid_surface(
+            deferred_discoveries=[
+                {
+                    "description": (
+                        "Follow-up audit needed for kernel/SUMMARY rendering"
+                    ),
+                    "log_only_rationale": "",
+                },
+            ],
+        ))
+        self.assertEqual(verdict, "reject")
+        self.assertIn("log_only_rationale", detail)
+
+    def test_description_still_required(self):
+        verdict, detail = _blueprint_d.validate_blueprint_d(_valid_surface(
+            deferred_discoveries=[
+                {
+                    "observable": "grep returns zero",
+                    "log_only_rationale": "deferred to v1.0.1",
+                },
+            ],
+        ))
+        self.assertEqual(verdict, "reject")
+        self.assertIn("description", detail)
+
+    def test_partial_optional_fields_pass(self):
+        # description + observable, no log_only_rationale.
+        verdict, _ = _blueprint_d.validate_blueprint_d(_valid_surface(
+            deferred_discoveries=[
+                {
+                    "description": (
+                        "Follow-up audit needed for kernel/SUMMARY rendering"
+                    ),
+                    "observable": "grep 'Blueprint D' kernel/SUMMARY.md",
+                },
+            ],
+        ))
+        self.assertEqual(verdict, "pass")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -20,6 +20,8 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
+> **代理 harness 有很多。`episteme` 是运行在它们之上的认知层** — 为你已经在出货的 AI 编码代理而设的思考框架。在任何高影响动作（不仅是 shell 命令，而是*任务本身*）之前，代理必须把自己的推理写到磁盘上：核心问题、已知事实、未知项、什么会证明这个计划是错的。即使是操作者自己请求的动作，只要那个表面（surface）缺失或空泛，文件系统 hook 就会拒绝继续。每一次解决的冲突都成为可复用协议，以防篡改的方式链接起来，并在下一次匹配的决策点重新浮现。构建为 **Sovereign Cognitive Kernel** — **생각의 틀**（"思想之框"），姿态而非 prompt。
+
 ---
 
 ## 为什么 prompt 不是真理

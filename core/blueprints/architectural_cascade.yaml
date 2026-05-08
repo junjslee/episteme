@@ -28,11 +28,17 @@
 name: architectural_cascade
 description: >
   Continuous self-maintenance on emergent architectural flaws. Forces
-  flaw_classification + posture_selected (patch|refactor) +
-  patch_vs_refactor_evaluation (with concrete blast-radius reference)
-  + blast_radius_map (enumerated surfaces; not-applicable entries must
-  carry a reason) + sync_plan (one concrete action per map entry) +
-  deferred_discoveries (adjacent gaps hash-chained into the framework).
+  flaw_classification + posture_selected (patch|refactor|analysis;
+  Event 110 added analysis for meta-cognitive Events whose deliverable
+  is a doc artifact) + patch_vs_refactor_evaluation (with concrete
+  blast-radius reference) + blast_radius_map (enumerated surfaces;
+  not-applicable AND deferred entries both require a rationale; Event
+  110 added deferred for surfaces in blast radius held to their own
+  gated Event) + sync_plan (one concrete action per needs_update map
+  entry; not-applicable and deferred entries do not require sync_plan
+  entries) + deferred_discoveries (adjacent gaps hash-chained into the
+  framework; description required, observable and log_only_rationale
+  optional per Event 110 relaxation).
   CP10 ships the four-trigger cascade detector, structural validation,
   and immediate hash-chained writes of deferred_discoveries entries.
   Retrospective sync-plan orphan-reference detection lands in v1.0.1.

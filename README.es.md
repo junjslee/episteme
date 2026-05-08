@@ -20,6 +20,8 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
+> **Hay muchos *harnesses* de agentes. `episteme` es la capa de cognición que corre por encima de todos ellos** — un framework de pensamiento para el agente de codificación con IA que ya envías. Antes de cualquier movimiento de alto impacto — la tarea, no solo el comando shell — el agente debe declarar su razonamiento en disco: pregunta central, hechos conocidos, incógnitas, qué probaría que el plan está equivocado. Un hook a nivel del sistema de archivos rechaza proceder si esa superficie (surface) está ausente o vacía, incluso cuando el operador es quien pidió el movimiento. Cada conflicto resuelto se convierte en un protocolo reutilizable, encadenado de forma a prueba de manipulación y resurgido en la siguiente decisión coincidente. Construido como **Sovereign Cognitive Kernel** — **생각의 틀** ("marco del pensamiento"), postura sobre prompt.
+
 ---
 
 ## Por qué los prompts no son la verdad
