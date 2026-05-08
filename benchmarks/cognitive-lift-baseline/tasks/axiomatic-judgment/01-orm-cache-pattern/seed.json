@@ -1,0 +1,7 @@
+{
+  "model": "claude-sonnet-4-6",
+  "temperature": 0.2,
+  "seed": 42,
+  "max_turns": 30,
+  "max_wall_clock_seconds": 1800
+}

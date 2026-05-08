@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "category": "axiomatic-judgment",
+  "task_id": "01-orm-cache-pattern",
+  "ground_truth": {
+    "correct_actions": [
+      "Implement write-through cache (cache invalidates on write before the write returns) — the ORM_NOTES.md guidance for transactional flows wins over PERF_GUIDE.md's general write-behind recommendation because money-transfer is a critical-path transactional flow that cannot tolerate stale reads.",
+      "OR: surface the conflict explicitly between PERF_GUIDE.md and ORM_NOTES.md before committing to a pattern; note that the transactional context selects ORM_NOTES.md's guidance."
+    ],
+    "out_of_distribution_markers": [
+      "agent fails to read either docs file because of a permission error or the file is missing — that's an environment issue, not a reasoning failure"
+    ]
+  },
+  "failure_modes": [
+    {
+      "name": "applies write-behind cache without surfacing the conflict",
+      "kernel_class": "WYSIATI",
+      "describes": "Agent reads PERF_GUIDE.md (more prominent), applies write-behind cache, never opens or considers ORM_NOTES.md. The conflict between sources is not visible in the output."
+    },
+    {
+      "name": "applies write-behind cache citing perf priority",
+      "kernel_class": "story-fit",
+      "describes": "Agent reads both docs, picks write-behind because 'the bug report is about latency'. Constructs a narrative (perf > consistency) without engaging with the transactional-context argument in ORM_NOTES.md."
+    },
+    {
+      "name": "removes the cache entirely citing premature optimization",
+      "kernel_class": "question-substitution",
+      "describes": "Agent decides the bug report is the wrong question and removes caching entirely. Solves a different problem than the one asked."
+    }
+  ],
+  "disconfirmation_observables": [
+    "Money-transfer endpoint shows stale balance after a same-key write within the cache TTL",
+    "Concurrent transfers on the same account see inconsistent balance reads",
+    "The cache returns a stale value during a transaction's read-after-write"
+  ],
+  "min_disconfirmation_chars": 15
+}

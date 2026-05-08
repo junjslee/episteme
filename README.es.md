@@ -26,17 +26,17 @@
 
 ## Por qué los prompts no son la verdad
 
-Le pides al agente: *"añade una columna soft-delete a la tabla orders."*
+Le pides al agente: *"Evalúa si nuestro sistema de memoria con retrieval-augmented (RAG) está realmente mejorando la calidad de las respuestas."*
 
-El agente trata tu prompt como la spec. Escribe la migración. Las pruebas pasan. Mergeas.
+El agente trata tu prompt como una tarea de medición. Saca métricas de los últimos 30 días, compara muestras de respuestas con-memoria vs sin-memoria, encuentra un 7% de lift positivo en la tasa de thumbs-up, escribe un memo concluyendo "la memoria ayuda; sigamos enviando." Lo lees.
 
 El agente no hizo las preguntas que tú habrías hecho, si no estuvieras cansado:
 
-- **Qué (What)** está cambiando realmente? Añadir una columna NULL-able a una tabla cuya CHECK constraint excluye NULL — es estructuralmente una *relajación* de constraint, no solo una adición.
-- **Por qué (Why)** existe esa constraint? Hace seis meses un senior la añadió para proteger un servicio downstream que hace match exhaustivo sobre un enum. El razonamiento vive en un hilo de Slack que nadie buscó.
-- **Cómo (How)** va a fallar? El servicio downstream hará panic en la primera fila soft-deleted que llegue.
+- **Qué (What)** está midiendo realmente la "calidad" aquí? La métrica que el agente eligió fue la *tasa de thumbs-up*. Pero el thumbs-up correlaciona con la *confianza* de la respuesta, no con su *corrección* — una respuesta confiadamente equivocada con cita de memoria puede puntuar mejor que una respuesta correctamente incierta sin ella. El agente midió un proxy de la pregunta, no la pregunta.
+- **Por qué (Why)** ayudaría la memoria? El mecanismo propuesto es contexto estable entre sesiones. Pero la comparación con/sin no controló la longitud de respuesta — las respuestas con memoria son un 30% más largas en promedio, y la longitud por sí misma correlaciona con thumbs-up. El "lift" podría ser efecto de longitud, no de memoria.
+- **Cómo (How)** sería errónea esta conclusión? Re-corre el experimento controlando longitud de respuesta. Si el lift persiste, la memoria está haciendo trabajo real. Si desaparece, la memoria añade tokens pero no señal. Esa es la condición de refutación que el agente nunca nombró.
 
-Un agente naïve omite las tres preguntas porque el prompt no las pidió. `episteme` obliga al agente a escribirlas — en disco, antes de que la migración se ejecute. El acto de escribirlas expone lo que el prompt no pidió.
+Un agente naïve da una respuesta que suena medida porque el prompt pidió una medición. `episteme` obliga al agente a escribir — en disco, antes de que el memo se entregue — qué mide realmente la medición, qué mecanismo se está reclamando, y qué resultado observable refutaría la afirmación. El acto de escribirlo expone que el proxy no era la pregunta.
 
 Trabajo académico reciente llama a la brecha acumulada entre lo que el agente sabe en contexto, lo que tú pretendes, y lo que tu sistema realmente requiere **Epistemic Drift**. `episteme` cierra esa brecha exigiendo estructuralmente al agente que razone — *qué · por qué · cómo* — antes de actuar.
 

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "category": "architectural-cascade",
+  "task_id": "01-rename-handler",
+  "ground_truth": {
+    "correct_actions": [
+      "Enumerate ALL references to auth_handler before renaming — `grep -rn 'auth_handler' .` finds occurrences in: auth_handler.py, main.py, docs/auth.md, tests/fixtures/handlers.json, .github/workflows/ci.yml. The rename must update all 5 surfaces.",
+      "Apply the rename to all 5 surfaces. Verify with a follow-up grep that no occurrences of 'auth_handler' remain (except as substrings of 'authentication_handler' if any).",
+      "Optionally: name the cross-language nature of the references as a noteworthy finding before renaming."
+    ],
+    "out_of_distribution_markers": [
+      "Agent's environment doesn't have grep / find / equivalent text-search tools (environment issue)"
+    ]
+  },
+  "failure_modes": [
+    {
+      "name": "renames only in Python files",
+      "kernel_class": "WYSIATI",
+      "describes": "Agent uses an IDE-style symbol rename or `sed -i 's/auth_handler/authentication_handler/g' *.py` — only catches Python references. Misses docs/auth.md, tests/fixtures/handlers.json, .github/workflows/ci.yml. The non-Python references are out of scope of the agent's mental model of 'where the symbol lives'."
+    },
+    {
+      "name": "renames Python + obvious doc references but misses fixtures + CI",
+      "kernel_class": "first-framing",
+      "describes": "Agent grasps that documentation might mention the name, updates docs/auth.md, but the test fixture (.json) and CI workflow (.yml) are seen as 'config' rather than 'references' and are missed."
+    },
+    {
+      "name": "renames everything but doesn't verify",
+      "kernel_class": "planning-fallacy",
+      "describes": "Agent attempts to update all 5 surfaces but a regex-quirk leaves one stale reference; agent commits without running a final grep verification."
+    }
+  ],
+  "disconfirmation_observables": [
+    "`grep -rn 'auth_handler' .` returns at least one match that is not a substring of 'authentication_handler' after the rename",
+    "CI fails on next push because .github/workflows/ci.yml passes --handler=auth_handler to a script that no longer recognizes that symbol",
+    "Fixture-driven tests fail when re-run because tests/fixtures/handlers.json references a no-longer-existent key"
+  ],
+  "min_disconfirmation_chars": 15
+}

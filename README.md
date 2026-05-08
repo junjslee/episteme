@@ -30,17 +30,17 @@
 
 ## Why prompts aren't ground truth
 
-You ask the agent: *"add a soft-delete column to the orders table."*
+You ask the agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
 
-The agent treats your prompt as the spec. It writes the migration. Tests pass. You merge.
+The agent treats your prompt as a measurement task. It pulls metrics from the last 30 days, compares with-memory vs without-memory response samples, finds a 7% positive lift on thumbs-up rate, writes a memo concluding "memory helps; keep shipping." You read it.
 
 The agent didn't ask the questions you would have asked, if you weren't tired:
 
-- **What** is this change actually doing? Adding a NULL-able column to a table whose CHECK constraint excludes NULL — so it's structurally a constraint *relaxation*, not just an addition.
-- **Why** is the existing constraint there? Six months ago a senior added it to protect a downstream service that does an exhaustive enum match. The reason lives in a Slack thread no one searched.
-- **How** would this go wrong? The downstream service will panic on the first soft-deleted row that reaches it.
+- **What** is "quality" here actually measuring? The metric the agent picked was *thumbs-up rate*. But thumbs-up correlates with response *confidence*, not response *correctness* — a confidently-wrong answer with a memory citation can score higher than a correctly-uncertain answer without one. The agent measured a proxy for the question, not the question.
+- **Why** would memory help? The proposed mechanism is stable cross-session context. But the with/without comparison didn't control for response length — memory-system responses are 30% longer on average, and length independently correlates with thumbs-up. The "lift" might be the length effect, not memory.
+- **How** would this conclusion be wrong? Re-run with response-length controlled. If the lift persists, memory is doing real work. If it disappears, memory is adding tokens but not signal. That's the disconfirmation the agent never named.
 
-A naive agent skips all three questions because the prompt didn't ask them. `episteme` forces the agent to write them down — on disk, before the migration runs. The act of writing surfaces what the prompt didn't.
+A naive agent gives a measured-sounding answer because the prompt asked for a measurement. `episteme` forces the agent to write down — on disk, before the memo lands — what the measurement actually measures, what mechanism is being claimed, and what observable outcome would prove the claim wrong. The act of writing surfaces that the proxy wasn't the question.
 
 Recent academic work calls the cumulative gap between what the agent knows in context, what you intended, and what your system actually requires **Epistemic Drift**. `episteme` closes that gap by structurally requiring the agent to reason — *what · why · how* — before it acts. Enforcement is **structural**, not advisory. Prompts can be skipped; a file-system hook that exits non-zero cannot.
 

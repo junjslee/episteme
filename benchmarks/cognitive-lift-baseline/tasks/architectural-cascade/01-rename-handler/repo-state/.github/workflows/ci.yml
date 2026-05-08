@@ -1,0 +1,11 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run handler validation
+        run: python -m validation.check --handler=auth_handler
+      - name: Run tests
+        run: python -m pytest tests/

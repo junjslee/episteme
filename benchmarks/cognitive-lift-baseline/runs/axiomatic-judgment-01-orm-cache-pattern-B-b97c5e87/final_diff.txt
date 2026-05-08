@@ -1,0 +1,251 @@
+diff --git a/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/axiomatic-judgment-01-orm-cache-pattern-B-b97c5e87/work/.claude/settings.json b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/axiomatic-judgment-01-orm-cache-pattern-B-b97c5e87/work/.claude/settings.json
+new file mode 100644
+index 0000000..749aa27
+--- /dev/null
++++ b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/axiomatic-judgment-01-orm-cache-pattern-B-b97c5e87/work/.claude/settings.json
+@@ -0,0 +1,244 @@
++{
++  "permissions": {
++    "deny": [
++      "Read(./.env)",
++      "Read(./.env.*)",
++      "Read(./secrets/**)",
++      "Read(./**/*.pem)",
++      "Read(./**/*.key)",
++      "Read(./**/.npmrc)"
++    ]
++  },
++  "hooks": {
++    "SessionStart": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/session_context.py"
++          }
++        ]
++      }
++    ],
++    "PreToolUse": [
++      {
++        "matcher": "Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/block_dangerous.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/workflow_guard.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/prompt_guard.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash|Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 /Users/junlee/episteme/core/hooks/reasoning_surface_guard.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Users/junlee/miniconda3/bin/python /Users/junlee/episteme/core/hooks/_arm_a_pre.py"
++          }
++        ]
++      }
++    ],
++    "PostToolUse": [
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/format.py",
++            "async": true
++          }
++        ]
++      },
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/test_runner.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash|Edit|Write|MultiEdit|Agent|Task",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/context_guard.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 /Users/junlee/episteme/core/hooks/state_tracker.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 /Users/junlee/episteme/core/hooks/calibration_telemetry.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 /Users/junlee/episteme/core/hooks/episodic_writer.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Bash",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 /Users/junlee/episteme/core/hooks/fence_synthesis.py"
++          }
++        ]
++      },
++      {
++        "matcher": "Write|Edit|MultiEdit",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "/Users/junlee/miniconda3/bin/python /Users/junlee/episteme/core/hooks/_arm_a_post.py"
++          }
++        ]
++      }
++    ],
++    "PermissionRequest": [
++      {
++        "matcher": "Read|Glob|Grep",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "echo '{\"decision\":\"allow\"}'"
++          }
++        ]
++      }
++    ],
++    "PreCompact": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/precompact_backup.py",
++            "async": true
++          }
++        ]
++      }
++    ],
++    "Notification": [
++      {
++        "matcher": "",
++        "hooks": [
++          {
++            "type": "command",
++            "command": "afplay /System/Library/Sounds/Ping.aiff"
++          }
++        ]
++      }
++    ],
++    "Stop": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/quality_gate.py"
++          }
++        ]
++      },
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/checkpoint.py"
++          }
++        ]
++      }
++    ],
++    "SubagentStop": [
++      {
++        "hooks": [
++          {
++            "type": "command",
++            "command": "python3 /Users/junlee/episteme/core/hooks/checkpoint.py"
++          }
++        ]
++      }
++    ]
++  },
++  "enabledPlugins": {
++    "pyright-lsp@claude-plugins-official": true,
++    "frontend-design@claude-plugins-official": true,
++    "typescript-lsp@claude-plugins-official": true,
++    "figma@claude-plugins-official": true,
++    "superpowers@claude-plugins-official": true,
++    "vercel@claude-plugins-official": true,
++    "vercel-plugin@vercel": true,
++    "context7@claude-plugins-official": true,
++    "playwright@claude-plugins-official": true,
++    "ralph-loop@claude-plugins-official": true,
++    "slack@claude-plugins-official": true,
++    "episteme@episteme": true
++  },
++  "extraKnownMarketplaces": {
++    "chrome-devtools-plugins": {
++      "source": {
++        "source": "github",
++        "repo": "ChromeDevTools/chrome-devtools-mcp"
++      }
++    },
++    "claude-plugins-official": {
++      "source": {
++        "source": "github",
++        "repo": "anthropics/claude-plugins-official"
++      }
++    },
++    "episteme": {
++      "source": {
++        "source": "github",
++        "repo": "junjslee/episteme"
++      }
++    }
++  },
++  "effortLevel": "xhigh",
++  "autoDreamEnabled": true,
++  "skipDangerousModePermissionPrompt": true
++}
+\ No newline at end of file

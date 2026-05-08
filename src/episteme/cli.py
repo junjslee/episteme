@@ -5867,6 +5867,58 @@ def build_parser() -> argparse.ArgumentParser:
         help="Suppress per-tick log output",
     )
 
+    # Empirical-lift benchmark — `episteme bench <action>` (Event 116).
+    # Spec: benchmarks/cognitive-lift-baseline/README.md.
+    bench_cmd = sub.add_parser(
+        "bench",
+        help="Empirical-lift benchmark suite — task scaffolder + paired-comparison runner + blind LLM grader + reporter (per benchmarks/cognitive-lift-baseline/README.md)",
+    )
+    bench_sub = bench_cmd.add_subparsers(dest="bench_action", required=True)
+
+    bn_new = bench_sub.add_parser(
+        "new-task", help="Scaffold a new benchmark task directory",
+    )
+    bn_new.add_argument(
+        "combined_id",
+        help="<category>/<task-id>; categories: axiomatic-judgment, fence-reconstruction, consequence-chain, architectural-cascade",
+    )
+    bn_new.add_argument(
+        "--force", action="store_true",
+        help="Overwrite the task directory if it already exists",
+    )
+
+    bn_run = bench_sub.add_parser(
+        "run", help="Run one paired-comparison session (A=control or B=treatment)",
+    )
+    bn_run.add_argument("combined_id", help="<category>/<task-id>")
+    bn_run.add_argument(
+        "--session", choices=("A", "B"), required=True,
+        help="A=control (no kernel hooks) | B=treatment (kernel strict mode per Event 116)",
+    )
+    bn_run.add_argument(
+        "--timeout", type=int, default=1800,
+        help="Per-session wall-clock timeout in seconds (default: 1800)",
+    )
+
+    bn_grade = bench_sub.add_parser(
+        "grade", help="Run blind LLM grader on a completed run",
+    )
+    bn_grade.add_argument(
+        "run_id", help="Run id (directory name under runs/)",
+    )
+    bn_grade.add_argument(
+        "--timeout", type=int, default=300,
+        help="Grader subprocess timeout in seconds (default: 300)",
+    )
+
+    bn_report = bench_sub.add_parser(
+        "report", help="Aggregate runs + render H1/H2/H3 outcome report",
+    )
+    bn_report.add_argument(
+        "--out", default=None,
+        help="Path to write report.md (default: stdout)",
+    )
+
     return parser
 
 
@@ -6162,6 +6214,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _status_dispatch(args)
     if args.command == "dev":
         return _dev_dispatch(args)
+    if args.command == "bench":
+        return _bench_dispatch(args)
     parser.error(f"unsupported command: {args.command}")
     return 2
 
@@ -6234,6 +6288,64 @@ def _dev_dispatch(args) -> int:
         once=args.once,
         quiet=args.quiet,
     )
+
+
+def _bench_dispatch(args) -> int:
+    """Dispatch `episteme bench <action>` empirical-lift benchmark commands."""
+    import json as _json
+    from pathlib import Path as _Path
+    from . import _bench_task, _bench_run, _bench_grade, _bench_report
+
+    if args.bench_action == "new-task":
+        try:
+            path = _bench_task.new_task(args.combined_id, force=args.force)
+        except _bench_task.BenchTaskError as exc:
+            sys.stderr.write(f"episteme bench new-task: {exc}\n")
+            return 2
+        sys.stdout.write(
+            f"Created {path}\n"
+            f"\n"
+            f"Next: hand-fill the README.md prompt + grader.json rubric "
+            f"+ populate repo-state/.\n"
+        )
+        return 0
+
+    if args.bench_action == "run":
+        try:
+            run_dir = _bench_run.run_session(
+                args.combined_id, args.session, timeout=args.timeout,
+            )
+        except _bench_run.BenchRunError as exc:
+            sys.stderr.write(f"episteme bench run: {exc}\n")
+            return 2
+        sys.stdout.write(f"Run complete: {run_dir}\n")
+        return 0
+
+    if args.bench_action == "grade":
+        try:
+            verdict = _bench_grade.grade_run(args.run_id, timeout=args.timeout)
+        except _bench_grade.BenchGradeError as exc:
+            sys.stderr.write(f"episteme bench grade: {exc}\n")
+            return 2
+        sys.stdout.write(_json.dumps(verdict, indent=2) + "\n")
+        return 0
+
+    if args.bench_action == "report":
+        runs_root = _Path("benchmarks/cognitive-lift-baseline/runs")
+        records, outcomes, report_md = _bench_report.aggregate_and_report(runs_root)
+        if args.out:
+            _Path(args.out).write_text(report_md)
+            passing = sum(1 for o in outcomes if o.passes)
+            sys.stdout.write(
+                f"Wrote {args.out} ({len(records)} runs across "
+                f"{passing}/{len(outcomes)} hypotheses passing)\n"
+            )
+        else:
+            sys.stdout.write(report_md + "\n")
+        return 0
+
+    sys.stderr.write(f"unknown bench action: {args.bench_action}\n")
+    return 2
 
 
 if __name__ == "__main__":
