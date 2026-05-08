@@ -20,7 +20,7 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **A thinking framework for the AI coding agent you already ship.** Before any high-impact move — the task, not just the shell command — the agent has to state its reasoning on disk: core question, knowns, unknowns, what would prove the plan wrong. A file-system hook refuses to proceed if that surface is missing or vapor, even when the operator is the one who asked for the move. Every resolved conflict becomes a reusable protocol, chained tamper-evidently and surfaced back at the next matching decision. Built as a **Sovereign Cognitive Kernel** — **생각의 틀**, posture over prompt.
+> **There are many agent harnesses. `episteme` is the cognition layer that runs above them all** — a thinking framework for the AI coding agent you already ship. Before any high-impact move — the task, not just the shell command — the agent has to state its reasoning on disk: core question, knowns, unknowns, what would prove the plan wrong. A file-system hook refuses to proceed if that surface is missing or vapor, even when the operator is the one who asked for the move. Every resolved conflict becomes a reusable protocol, chained tamper-evidently and surfaced back at the next matching decision. Built as a **Sovereign Cognitive Kernel** — **생각의 틀**, posture over prompt.
 
 **[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)**
 

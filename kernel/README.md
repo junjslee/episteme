@@ -89,6 +89,54 @@ ecosystem provides the skills; the kernel provides the episteme.
 
 ---
 
+## Corpus inventory — runtime-control vs research vs attribution
+
+The kernel/ directory contains 18 markdown files at v1.1.0-rc1 (4,831 lines total). They split structurally into three classes by their effect on per-turn agent behavior. This classification is the spec for an eventual `kernel/core/` + `kernel/research/` directory split. The split is held back to its own gated Event because the rename has repo-wide link-breakage blast radius (every `docs/`, `web/`, `adapters/`, and external referrer carries hardcoded `kernel/<file>.md` paths).
+
+### Runtime-control — load-bearing for per-turn agent behavior
+
+These files directly shape what the gate fires on, what the blueprints require, and how the agent reasons before action. Editing one of these changes observable behavior in the next session.
+
+- `CONSTITUTION.md` — the four principles. Every other kernel artifact derives from this.
+- `REASONING_SURFACE.md` — the operational protocol for Principle I. The fallback four-field shape and the v1.0 RC blueprint-polymorphic surface.
+- `FAILURE_MODES.md` — the named failure modes the gate is built against. Each maps to the artifact that counters it.
+- `HOOKS_MAP.md` — the mapping from kernel invariants to runtime hooks that enforce them. The actual enforcement spec.
+- `KERNEL_LIMITS.md` — the declared boundary of kernel applicability. When the kernel should be suspended, relaxed, or replaced.
+- `FALSIFIABILITY_CONDITIONS.md` — the disconfirmation conditions for kernel claims themselves. Used by `episteme check verify`.
+- `OPERATOR_PROFILE_SCHEMA.md` — the schema for encoding operator cognitive preferences. Hooks read profile axes and tune posture before firing.
+- `MEMORY_ARCHITECTURE.md` — the memory contract (five tiers, gated promotion, situation-match retrieval). Defines what counts as authoritative.
+- `DESIGN_BEHAVIOR_INVARIANTS.md` — the invariants the kernel preserves across edits. Self-maintenance contract.
+
+### Research — high-signal but not on the per-turn enforcement path
+
+These files are dense and load-bearing for design decisions, but they do not directly fire the gate. Reading them informs how kernel changes should be made; not reading them does not silently weaken any specific check.
+
+- `ACTIVE_GUIDANCE_RANKING.md` — protocol surfacing logic. Spec for how synthesized protocols rank at future decisions.
+- `CHAIN_RECOVERY_PROTOCOL.md` — recovery procedure when the hash chain detects tampering or corruption.
+- `CONTINUITY_PLAN.md` — what guarantees continuity across kernel upgrades.
+- `MODEL_PROGRESS_RISK_MODEL.md` — the model of risk classes the kernel mitigates.
+- `PHASE_12_LEXICON.md` — kernel terminology, formalized for cross-session consistency.
+- `CHANGELOG.md` — historical record of kernel-version changes.
+
+### Attribution / index — read-on-demand only
+
+- `REFERENCES.md` — external sources informing each principle. The kernel body uses its own vocabulary; this file is the trail.
+- `SUMMARY.md` — operational summary index.
+- `README.md` — this file.
+- `MANIFEST.sha256` — drift-detection digest (binary-shaped, not a markdown spec; included in the count for completeness).
+
+### Why the split is held back
+
+The eventual `kernel/core/` (runtime-control) + `kernel/research/` (research) + `kernel/` (attribution + index) directory rename is gated to its own Event because:
+
+1. The rename breaks every inbound link from `docs/`, `web/`, `adapters/`, and external referrers.
+2. The rename also requires updating `MANIFEST.sha256`, every cross-reference inside kernel files, and the `episteme kernel verify` path-mapping.
+3. Doing the rename in the same Event as the inventory loses the correction opportunity Principle IV ("the loop is the unit of progress") requires.
+
+The inventory above settles the spec. The rename Event executes it once the inventory is reviewed and stable.
+
+---
+
 ## How the kernel is delivered
 
 An adapter is a thin shim that injects kernel files into a runtime's

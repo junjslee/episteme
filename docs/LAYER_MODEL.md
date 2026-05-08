@@ -35,6 +35,40 @@ episteme is the governance and identity layer that sits above agent platforms. T
 - Sync flows one direction: from episteme outward to platforms. Platforms do not write back into episteme automatically; durable lessons are explicitly promoted via `episteme evolve` (v0.10+) or synthesized into the hash-chained framework by v1.0 RC Pillar-3-capable blueprints at PreToolUse.
 - This architecture makes episteme portable across the current toolchain and any future tools — a new adapter can be added without changing the identity layer, and a new tool (MCP server / skill library / agent framework) integrates transparently because the kernel intercepts at the mutation boundary.
 
+## Enforcement primitive matrix
+
+The Positioning claim above — that "the kernel intercepts at the mutation boundary" — fuses two structurally separable claims. This section separates them, names where each one fully holds today, and names where each one currently degrades. Without this separation a reader infers from the Positioning bullets that cross-tool *enforcement* is settled; in practice only cross-tool *cognition portability* is settled today. The honest claim is below.
+
+| Capability | Claude Code | Pi.dev | Codex | opencode | Hermes |
+| --- | --- | --- | --- | --- | --- |
+| **(α) Cognition portability** — the markdown corpus (`kernel/*.md`, `AGENTS.md`, operator profile) injects into the runtime's context-loading mechanism and shapes orientation before any turn. | ✅ full | ✅ full | ✅ full | ✅ full | ✅ full |
+| **(β) Enforcement portability** — the Reasoning Surface gate fires at the *pre-tool* boundary, can *block* a specific tool call before it executes, and runs in feedforward (not feedback) mode. | ✅ full (via PreToolUse) | ⚠️ partial — message-injection only, no pre-tool block primitive | ❌ none today | ⚠️ partial — subagent-invoke pattern | ⚠️ partial |
+
+### What each cell means in practice
+
+- **✅ full on (α) + ✅ full on (β)** — Claude Code today. The kernel orients the agent and the gate refuses high-impact ops on a stale or absent Reasoning Surface. Feedforward control end-to-end.
+- **✅ full on (α) + ⚠️ partial on (β)** — Pi.dev and opencode (and Hermes). Orientation injects fine; the gate degrades from feedforward to **advisory**. The agent still produces the Surface artifact, but the runtime cannot mechanically block the action — the operator (or a runtime-side wrapper) is responsible for honoring the advisory. This is a substrate gap, not an architecture flaw.
+- **✅ full on (α) + ❌ none on (β)** — Codex today. Cognition layer rides AGENTS.md cleanly; no gate primitive currently exists. Closing this is gated behind Codex shipping a pre-tool hook surface (or episteme writing a tool-wrapper extension that adds one).
+
+### Why this distinction matters
+
+The constitution's central control claim ([`kernel/CONSTITUTION.md`](../kernel/CONSTITUTION.md) § Principle IV) is **feedforward, not feedback**: failure modes named *before* execution begins, structured so they cannot be silently violated. That mechanism requires a pre-tool primitive on the runtime side. Where that primitive is absent, episteme runs in **advisory mode** — orientation is preserved and the Surface artifact is produced, but the gate degrades to feedback (the operator observes the advisory after the fact, rather than the runtime blocking the action before it).
+
+The cross-tool claim, stated honestly: **the cognition layer travels everywhere; the enforcement layer travels everywhere a pre-tool hook primitive exists.** Today that means full enforcement in Claude Code, partial enforcement in Pi.dev / opencode / Hermes, advisory-only in Codex.
+
+### Roadmap implication
+
+Each runtime's path to full enforcement is named separately, not bundled:
+
+- **Claude Code** — already full. Maintain feature parity as CC's hook surface evolves.
+- **Pi.dev** — partial via message injection. Full enforcement requires either (a) Pi shipping a pre-tool hook primitive, or (b) episteme implementing a tool-wrapper extension that intercepts tool calls at the harness layer.
+- **opencode** — partial via the subagent-invoke pattern. Full enforcement requires either a pre-tool hook in the host runtime or a wrapper similar to (b) above.
+- **Codex** — advisory-only today. Full enforcement requires Codex's runtime to expose a pre-tool primitive; the cognition layer is already cross-portable.
+
+This separation closes the largest honesty gap in the prior cross-tool claim. The matrix is the artifact; readers comparing episteme to harness-layer products (Pi.dev, opencode) should look at this section first.
+
+---
+
 ## 🧬 Layer Model: The Soul and the Vessel
 
 The system separates **Cognition** from **Execution** deliberately. They reinforce each other — cognition without execution is theory; execution without cognition is a brittle machine.

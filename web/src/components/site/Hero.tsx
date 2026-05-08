@@ -4,15 +4,19 @@ import { CornerMarkers } from "@/components/ui/CornerMarkers";
 import { FrameworkLoopDiagram } from "@/components/site/diagrams/FrameworkLoopDiagram";
 
 const HERO_WORDS = [
-  "A",
-  "thinking",
-  "framework",
-  "for",
+  "There",
+  "are",
+  "many",
+  "agent",
+  "harnesses.",
+  "Episteme",
+  "is",
   "the",
-  "agents",
-  "you",
-  "already",
-  "ship.",
+  "cognition",
+  "layer",
+  "above",
+  "them",
+  "all.",
 ];
 
 export function Hero() {
