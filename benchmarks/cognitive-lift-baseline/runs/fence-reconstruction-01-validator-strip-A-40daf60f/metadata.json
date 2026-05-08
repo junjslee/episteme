@@ -1,0 +1,21 @@
+{
+  "run_id": "fence-reconstruction-01-validator-strip-A-40daf60f",
+  "task_id": "fence-reconstruction/01-validator-strip",
+  "session": "A",
+  "wall_clock_seconds": 34.4,
+  "returncode": 0,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "2.00",
+    "--setting-sources",
+    "project"
+  ]
+}
