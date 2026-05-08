@@ -28,9 +28,125 @@ DEFAULT_RUNS_ROOT = Path("benchmarks/cognitive-lift-baseline/runs")
 DEFAULT_TASKS_ROOT = Path("benchmarks/cognitive-lift-baseline/tasks")
 DEFAULT_TIMEOUT = 1800  # 30 minutes wall-clock
 
+# Cap for inlined tool-call args / tool-result content in extracted transcript.
+# The grader's prompt template has a budget; we keep extracted segments short.
+_EXTRACT_TOOL_INPUT_MAX = 200
+_EXTRACT_TOOL_RESULT_MAX = 500
+
 
 class BenchRunError(Exception):
     """Raised on runner-side failures."""
+
+
+def _is_jsonl_stream(text: str) -> bool:
+    """Heuristic: first non-empty line parses as a JSON dict with a 'type' field.
+    True iff the captured stdout is in stream-json format (Event 117 v2+).
+    False for v1-style text output."""
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            return False
+        return isinstance(obj, dict) and "type" in obj
+    return False
+
+
+def _render_assistant_event(obj: dict) -> str | None:
+    """Render an `assistant`-type stream-json event as human-readable text.
+    Includes plain text content + a one-line marker per tool_use block."""
+    message = obj.get("message", {})
+    content = message.get("content", []) if isinstance(message, dict) else []
+    rendered: list[str] = []
+    for block in content if isinstance(content, list) else []:
+        if not isinstance(block, dict):
+            continue
+        btype = block.get("type")
+        if btype == "text":
+            text = block.get("text", "")
+            if text:
+                rendered.append(text)
+        elif btype == "tool_use":
+            tool_name = block.get("name", "?")
+            try:
+                tool_input = json.dumps(block.get("input", {}), ensure_ascii=False)
+            except (TypeError, ValueError):
+                tool_input = str(block.get("input", ""))
+            if len(tool_input) > _EXTRACT_TOOL_INPUT_MAX:
+                tool_input = tool_input[:_EXTRACT_TOOL_INPUT_MAX] + "...[truncated]"
+            rendered.append(f"[Tool call: {tool_name}({tool_input})]")
+    return "\n".join(rendered) if rendered else None
+
+
+def _render_user_event(obj: dict) -> str | None:
+    """Render a `user`-type stream-json event — typically tool_result blocks."""
+    message = obj.get("message", {})
+    content = message.get("content", []) if isinstance(message, dict) else []
+    rendered: list[str] = []
+    for block in content if isinstance(content, list) else []:
+        if not isinstance(block, dict):
+            continue
+        if block.get("type") != "tool_result":
+            continue
+        result_content = block.get("content", "")
+        if isinstance(result_content, list):
+            text_parts = [
+                b.get("text", "") for b in result_content
+                if isinstance(b, dict) and b.get("type") == "text"
+            ]
+            result_content = "\n".join(text_parts)
+        result_text = str(result_content)
+        if len(result_text) > _EXTRACT_TOOL_RESULT_MAX:
+            result_text = result_text[:_EXTRACT_TOOL_RESULT_MAX] + "...[truncated]"
+        rendered.append(f"[Tool result]\n{result_text}")
+    return "\n".join(rendered) if rendered else None
+
+
+def _render_event(obj: dict) -> str | None:
+    """Render one stream-json event as a human-readable transcript segment.
+    Returns None when the event is not transcript-relevant."""
+    event_type = obj.get("type")
+    if event_type == "assistant":
+        return _render_assistant_event(obj)
+    if event_type == "user":
+        return _render_user_event(obj)
+    if event_type == "system":
+        subtype = obj.get("subtype", "")
+        if subtype == "init":
+            cwd = obj.get("cwd", "")
+            return f"[session init] cwd={cwd}"
+        if subtype.startswith("hook"):
+            hook_name = obj.get("hook_name", "")
+            hook_event = obj.get("hook_event", "")
+            return f"[hook {subtype}] {hook_event}:{hook_name}"
+        return None
+    if event_type == "result":
+        result_text = str(obj.get("result", ""))
+        return f"[Final result]\n{result_text}"
+    return None
+
+
+def extract_human_transcript_from_jsonl(jsonl_text: str) -> str:
+    """Extract a human-readable transcript from stream-json JSONL output.
+
+    Each event becomes a transcript segment per ``_render_event``. Blank-line
+    separators between segments. Lines that don't parse as JSON pass through
+    verbatim (preserves any non-JSON noise in the captured stream)."""
+    segments: list[str] = []
+    for line in jsonl_text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            segments.append(line)
+            continue
+        rendered = _render_event(obj)
+        if rendered:
+            segments.append(rendered)
+    return "\n\n".join(segments)
 
 
 def _default_claude_command_for_session(session: str) -> list[str]:
@@ -232,7 +348,15 @@ def run_session(
     }
 
     (run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2) + "\n")
-    (run_dir / "transcript.txt").write_text(stdout)
+    # v3: if stdout is stream-json (JSONL), preserve raw + write extracted
+    # human-readable transcript. Else (text mode) write stdout as transcript.txt.
+    if _is_jsonl_stream(stdout):
+        (run_dir / "transcript.jsonl").write_text(stdout)
+        (run_dir / "transcript.txt").write_text(
+            extract_human_transcript_from_jsonl(stdout)
+        )
+    else:
+        (run_dir / "transcript.txt").write_text(stdout)
     (run_dir / "stderr.txt").write_text(stderr)
     (run_dir / "final_diff.txt").write_text(final_diff)
 
