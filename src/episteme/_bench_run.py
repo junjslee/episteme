@@ -34,35 +34,41 @@ class BenchRunError(Exception):
 
 
 def _default_claude_command_for_session(session: str) -> list[str]:
-    """Per-session claude invocation defaults.
+    """Per-session claude invocation defaults — runner v2 (Event 117 calibration).
 
-    Session A (control / no-kernel) uses ``--bare`` which per ``claude --help``
-    'skips hooks, LSP, plugin sync, attribution, auto-memory, background
-    prefetches, keychain reads, and CLAUDE.md auto-discovery'. This is the
-    cleanest kernel-disable mechanism — much stronger than per-cwd settings
-    overrides.
+    v2 changes from v1:
 
-    Session B (treatment / kernel-strict-mode) uses default invocation so
-    plugin hooks load + ``--debug hooks`` to surface hook events in stderr
-    for calibration visibility.
-
-    Both sessions:
-    - ``--print`` for non-interactive mode (single-shot)
-    - ``--allow-dangerously-skip-permissions`` for headless reliability —
-      tasks may require shell ops the agent would otherwise prompt on
-    - ``--max-budget-usd 0.50`` to bound per-session cost during Phase 2
+    - Session A drops ``--bare`` (which strips OAuth — Calibration Finding C-1)
+      and uses ``--setting-sources project`` instead. Per ``claude --help``,
+      this loads only per-cwd ``.claude/settings.json`` — the runner writes
+      that file with ``{"hooks": {}}`` so user-global hooks don't propagate.
+      Calibration v2 must verify whether plugins respect setting-sources
+      OR load regardless (in which case Session A needs another mechanism).
+    - Both sessions switch from ``--print`` text output to
+      ``--print --output-format stream-json --include-hook-events``. The
+      stream-json format produces one JSON record per event (model chunk,
+      tool call, hook fire, etc.) — survives abnormal termination and
+      directly answers the load-bearing question 'did kernel hooks fire?'
+      via discrete hook-event records.
+    - Budget cap raised from $0.50 → $2.00 per session — v1 hit the cap
+      at 40s before productive output (Finding C-2).
+    - Session B drops ``--debug hooks`` since ``--include-hook-events`` is
+      the structured replacement.
 
     The prompt is appended by the caller; this returns the prefix only.
     """
     common = [
         "--print",
+        "--verbose",  # claude requires --verbose to pair with stream-json
+        "--output-format", "stream-json",
+        "--include-hook-events",
         "--allow-dangerously-skip-permissions",
-        "--max-budget-usd", "0.50",
+        "--max-budget-usd", "2.00",
     ]
     if session == "A":
-        return ["claude", "--bare", *common]
+        return ["claude", *common, "--setting-sources", "project"]
     if session == "B":
-        return ["claude", *common, "--debug", "hooks"]
+        return ["claude", *common]
     raise BenchRunError(f"unknown session: {session!r}")
 
 
