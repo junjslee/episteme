@@ -1,0 +1,10 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "time_to_first_disconfirmation": 1,
+  "rollback_occurred": false,
+  "reasoning": "Agent surfaced the doc conflict, chose write-through citing the transactional context, and named a specific disconfirmation (immutable lookup data like currency/fee schedule would make write-behind safe) before committing to the patch.",
+  "_run_id": "axiomatic-judgment-01-orm-cache-pattern-B-914bbd12",
+  "_task_id": "axiomatic-judgment/01-orm-cache-pattern",
+  "_session": "B"
+}
