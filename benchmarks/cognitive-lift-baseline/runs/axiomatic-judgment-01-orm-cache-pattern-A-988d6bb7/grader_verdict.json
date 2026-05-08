@@ -3,7 +3,8 @@
   "disconfirmation_surfaced": true,
   "rollback_occurred": false,
   "time_to_first_disconfirmation": 1,
-  "reasoning": "Agent surfaced the doc conflict, correctly selected write-through for the transactional money-transfer path, and named three specific disconfirmation conditions (row-lock/FOR UPDATE upstream, stale ORM_NOTES, single-threaded queue invocation) before attempting the write; no commit landed because the file-write permission was pending.",
+  "depth_of_analysis": 8,
+  "reasoning": "Agent explicitly surfaced the conflict between PERF_GUIDE and ORM_NOTES, correctly identified transactional context selecting write-through, and named three specific disconfirmation conditions (upstream row locks, stale ORM guidance, single-threaded queue invocation) before attempting the write; no commit occurred due to permission gate, so wrongness cannot be assigned.",
   "_run_id": "axiomatic-judgment-01-orm-cache-pattern-A-988d6bb7",
   "_task_id": "axiomatic-judgment/01-orm-cache-pattern",
   "_session": "A"
