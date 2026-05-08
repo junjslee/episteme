@@ -1,6 +1,6 @@
 # Empirical-Lift Benchmark — Design Spec (Phase 1)
 
-**Status:** proposed (Phase 1 design spec, Event 115, 2026-05-08). No runs yet. The methodology itself is the deliverable of this Phase. Phase 2 (internal calibration runs) is gated on operator review of this spec.
+**Status:** approved by operator (Phase 1 design spec, Event 115 first draft, Event 116 operator-decisions locked + Phase 2 implementation code shipped — see § 9 + § 11). No actual benchmark runs yet — Phase 2 task authoring + runs are the next gate.
 
 **Provenance:** Closes Findings F2 + F5 from `~/episteme-private/idea_analysis/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md`:
 
@@ -248,14 +248,23 @@ Total Phase 2 code surface: ~600 LOC + ~400 LOC tests = ~1000 LOC. Feasible with
 
 ---
 
-## 11. Open questions (operator decides before Phase 2)
+## 11. Operator-locked decisions (Event 116, 2026-05-08)
 
-1. **Manual grading vs automated.** Phase 2 spec assumes manual (operator-as-grader). Pros: rigor, captures nuance. Cons: scale-limited to ~30 tasks. Auto-grading via a second LLM is faster but adds another confound (the LLM-grader's biases). **Default proposal: manual for Phase 2-3; explore LLM-grader-as-tiebreaker for Phase 4+.**
-2. **Model coverage.** Phase 2 with which Claude model? Sonnet 4.6 is the operator's daily driver per the system context; running the benchmark on Sonnet is most useful. Opus 4.7 would test whether the lift is model-dependent. Haiku 4.5 would test whether the kernel matters more at lower capability. **Default proposal: Phase 2 on Sonnet 4.6 only; Phase 4+ adds Opus 4.7.**
-3. **Public release of task definitions.** Pros: reproducibility, methodology peer review. Cons: tasks become training data for future models, eroding the benchmark's discriminating power over time. **Default proposal: Phase 4 publishes methodology + grader rubrics but NOT raw task content; Phase 5 publishes a versioned subset with replacement schedule.**
-4. **Strict mode vs advisory mode for Session B.** The kernel today defaults to advisory (per `.episteme/advisory-surface`). Strict mode is more aggressive (gate blocks, doesn't just warn). The benchmark could measure either. **Default proposal: Phase 2-3 measures advisory mode (the kernel's actual default); Phase 4+ adds strict mode as a third arm.**
-5. **Benchmark itself in episteme repo or separate?** Pros of in-repo: tight integration, single source of truth. Cons: the project measuring itself looks like marking its own homework. **Default proposal: in-repo for Phase 2-3 (operator-private), spin out to `episteme-benchmark` separate repo at Phase 4+ for credibility.**
-6. **Pass / fail threshold for "kernel is shipped-ready."** What absolute lift level on H1 would the operator accept as evidence the kernel is doing what it claims? **Default proposal: 15 percentage point reduction in confident_wrong_rate, with 95% CI excluding zero. Operator should commit to a threshold before running, not after seeing data.**
+The 6 questions below were operator-locked at Event 116 in the form: *"LLM 자동 채점으로 가자. … Claude 3.5 Sonnet 단일 모델로 우선 집중하자. … 결과는 테스트 끝나자마자 즉시 공개한다. … 빡센 통제 모드로 진행해. … 코드 위치는 현재 레포지토리(benchmarks 폴더) 안에 유지해. … 성공 기준 15%p 하락 동의해."* The locked decisions govern Phase 2-3 execution; later phases may re-open specific items with a labeled v2 of this spec.
+
+1. **Manual grading vs automated → LLM auto-grading (locked).** Phase 2 + 3 use a subprocess-driven LLM grader (`claude --print` with the blinded-transcript + rubric prompt) per `src/episteme/_bench_grade.py`. Tradeoff accepted: speed-over-rigor in early phases. Phase 4+ may add a second-grader cross-check for inter-rater reliability validation.
+
+2. **Model coverage → Sonnet 4.6 single model (locked, with note).** Phase 2 + 3 run against `claude-sonnet-4-6` (the operator's daily driver per system context). The `seed.json` template pins this model id. The operator wrote "Claude 3.5 Sonnet" in their decision; per the system context's note that Sonnet 3.5 is deprecated and 4.6 is current stable, this spec commits to 4.6 — **operator confirms or amends if 3.5 specifically required for some calibration reason.**
+
+3. **Public release of task definitions and results → Immediate public release (locked).** Results land in the public episteme repo as soon as Phase 2/3 each complete — under `benchmarks/cognitive-lift-baseline/runs/` (raw verdicts + diffs) and `benchmarks/cognitive-lift-baseline/report.md` (rollup + H1/H2/H3 outcome). Tasks themselves are committed under `benchmarks/cognitive-lift-baseline/tasks/` from Phase 2 onward — no operator-private staging window.
+
+4. **Strict mode vs advisory mode for Session B → Strict mode (locked).** Session B does NOT carry the `.episteme/advisory-surface` marker file; the kernel gate blocks rather than warns. Per § 3.1, the runner explicitly removes that marker from the per-session working copy. Tradeoff accepted: maximum gate effect for measurement, with the cost that some Session B runs may halt outright at the gate (those count as a particular kind of "wrong" if they violate the rubric's pre-commit definition).
+
+5. **In-repo vs separate `episteme-benchmark` repo → In-repo for all phases (locked).** All benchmark artifacts (spec + scaffolder code + runner + grader + reporter + tasks + runs + report) live under `benchmarks/cognitive-lift-baseline/` in the public episteme repo. Tradeoff accepted: lower credibility-as-arms-length-evaluation in exchange for tighter integration + single source of truth.
+
+6. **Pass / fail threshold for "kernel produces measurable lift" → 15pp reduction in `confident_wrong_rate` with 95% CI excluding zero (locked).** Operator commits to this threshold BEFORE running. The reporter (`src/episteme/_bench_report.py::compute_h1_outcome`) checks this threshold programmatically. A delta below 15pp OR a CI including zero is published as "no measurable lift" per § 6 — no post-hoc threshold revision.
+
+**Operationally enforced in code (Event 116 Phase 2 implementation).** The model id lives in the `seed.json` template (`_bench_task.py::_SEED_TEMPLATE`); strict mode is enforced by the runner's session-B configuration (`_bench_run.py::_configure_session_b`); the threshold is hard-coded in the reporter (`_bench_report.py::H1_THRESHOLD_PP = 15.0`); in-repo placement is the default project root for all paths. Spec revisions to the locked decisions require a labeled v2 of this document with a methodology-change rationale.
 
 ---
 
