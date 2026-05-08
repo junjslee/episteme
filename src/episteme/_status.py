@@ -136,9 +136,10 @@ def _surface_status(cwd: Path) -> dict[str, Any]:
     }
 
 
-def _framework_counts(cwd: Path) -> dict[str, int | None]:
+def _framework_counts() -> dict[str, int | None]:
     """Read framework streams (~/.episteme/framework/*.jsonl). Returns
-    None per stream when absent or unreadable."""
+    None per stream when absent or unreadable. Reads from operator-home,
+    not cwd-relative — framework streams are operator-scoped, not project-scoped."""
     home = Path.home() / ".episteme" / "framework"
     counts: dict[str, int | None] = {}
     for stream in ("protocols", "deferred_discoveries"):
@@ -154,9 +155,10 @@ def _framework_counts(cwd: Path) -> dict[str, int | None]:
     return counts
 
 
-def _profile_drift(cwd: Path) -> dict[str, Any]:
-    """Best-effort profile-drift snapshot. Returns dict with 'available'
-    flag + drift_axes (list or None) + last_audit (str or None)."""
+def _profile_drift() -> dict[str, Any]:
+    """Best-effort profile-drift snapshot. Reads from ~/.episteme/state/
+    (operator-scoped). Returns dict with 'available' flag + drift_axes
+    (list or None) + last_audit (str or None)."""
     audit_path = Path.home() / ".episteme" / "state" / "last_profile_audit.json"
     audit = _safe_read_json(audit_path)
     if not audit:
@@ -178,8 +180,8 @@ def gather_status(cwd: Path | None = None) -> dict[str, Any]:
         "surface": _surface_status(cwd),
         "branch": _active_branch(cwd),
         "rigor": {"level": rigor_level, "scope": rigor_scope},
-        "framework": _framework_counts(cwd),
-        "profile_drift": _profile_drift(cwd),
+        "framework": _framework_counts(),
+        "profile_drift": _profile_drift(),
     }
 
 

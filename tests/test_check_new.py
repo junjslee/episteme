@@ -11,12 +11,9 @@ Covers:
 """
 from __future__ import annotations
 
-import compileall
-import io
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
 from pathlib import Path
 
 # Make src/episteme importable from the test (mirrors other tests/ files).

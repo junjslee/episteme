@@ -5830,6 +5830,43 @@ def build_parser() -> argparse.ArgumentParser:
         help="Watch-mode refresh interval in seconds (default: 2.0)",
     )
 
+    # Tier 3 — `episteme dev watch` source-to-plugin-cache file watcher (Event 112).
+    dev_cmd = sub.add_parser(
+        "dev",
+        help="Developer-loop helpers (currently: source-to-plugin-cache file watcher)",
+    )
+    dev_sub = dev_cmd.add_subparsers(dest="dev_action", required=True)
+    dev_watch = dev_sub.add_parser(
+        "watch",
+        help="Poll source paths (kernel/, core/hooks/, hooks/, core/blueprints/) and propagate edits to the plugin cache",
+    )
+    dev_watch.add_argument(
+        "--paths",
+        default=None,
+        help="Comma-separated list of source paths (default: kernel,core/hooks,core/blueprints,hooks)",
+    )
+    dev_watch.add_argument(
+        "--target",
+        default=None,
+        help="Plugin-cache target path (default: most recent ~/.claude/plugins/cache/episteme/episteme/<version>)",
+    )
+    dev_watch.add_argument(
+        "--interval",
+        type=float,
+        default=2.0,
+        help="Polling interval in seconds (default: 2.0)",
+    )
+    dev_watch.add_argument(
+        "--once",
+        action="store_true",
+        help="One-shot full sync (copy every file unconditionally) and exit",
+    )
+    dev_watch.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress per-tick log output",
+    )
+
     return parser
 
 
@@ -6123,6 +6160,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _check_dispatch(args)
     if args.command == "status":
         return _status_dispatch(args)
+    if args.command == "dev":
+        return _dev_dispatch(args)
     parser.error(f"unsupported command: {args.command}")
     return 2
 
@@ -6172,6 +6211,28 @@ def _status_dispatch(args) -> int:
         watch=args.watch,
         json_out=args.json_out,
         interval=args.interval,
+    )
+
+
+def _dev_dispatch(args) -> int:
+    """Dispatch `episteme dev <action>` developer-loop helpers."""
+    from . import _dev_watch
+
+    if args.dev_action != "watch":
+        sys.stderr.write(f"unknown dev action: {args.dev_action}\n")
+        return 2
+    paths = (
+        tuple(p.strip() for p in args.paths.split(",") if p.strip())
+        if args.paths
+        else _dev_watch.DEFAULT_SOURCE_PATHS
+    )
+    target = Path(args.target) if args.target else None
+    return _dev_watch.run_dev_watch(
+        target=target,
+        paths=paths,
+        interval=args.interval,
+        once=args.once,
+        quiet=args.quiet,
     )
 
 
