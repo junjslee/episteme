@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": 1,
+  "depth_of_analysis": 9,
+  "reasoning": "Agent rejected the synthesis framing, presented a comparison table showing the three distinct metric signatures, named specific disconfirmation evidence (disjoint action items, Dec 16 was external AWS event, no shared subsystem stress), and proposed a meta-narrative reframe with forward-looking observability investment \u2014 exactly matching the rubric's correct actions.",
+  "_run_id": "axiomatic-judgment-02-three-incidents-one-narrative-A-3df0faea",
+  "_task_id": "axiomatic-judgment/02-three-incidents-one-narrative",
+  "_session": "A"
+}
