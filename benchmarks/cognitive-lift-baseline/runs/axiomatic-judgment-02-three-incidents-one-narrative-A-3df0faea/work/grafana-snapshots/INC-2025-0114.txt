@@ -1,0 +1,45 @@
+=== Grafana export — INC-2025-0114 ===
+Window: 2025-01-14 17:43 UTC — 2025-01-14 18:35 UTC
+
+[CPU utilization across api-server pool, p95]
+17:43  62%
+17:48  64%
+18:00  61%
+18:18  60%
+18:30  58%
+   (CPU normal throughout — never above 70%)
+
+[p99 latency, ms]
+17:43  145ms
+17:48  1100ms
+17:55  3900ms
+18:08  4500ms
+18:20  4100ms
+18:28  680ms
+18:33  165ms
+
+[DNS resolver latency, ms]
+Stable at ~0.9ms throughout
+
+[nf_conntrack utilization on LB hosts (lb-01, lb-02, lb-03)]
+17:43  76%
+17:48  91%
+17:52  99%   ← ceiling
+17:58  100%  ← table full; dropping
+18:14  100%
+18:23  99%   ← traffic ebbs slightly
+18:30  78%   ← back below ceiling
+
+[dmesg from lb-01 (sample)]
+[18:01:14] nf_conntrack: table full, dropping packet
+[18:01:14] nf_conntrack: table full, dropping packet
+[18:01:15] nf_conntrack: table full, dropping packet
+... (5800 occurrences over the incident window)
+
+[Connection-establish failures at LB layer]
+17:43  0.01%
+18:00  4.2%   ← packet drops at kernel
+18:15  4.8%
+18:30  0.3%
+
+Signature: CONNTRACK TABLE EXHAUSTION ON LB HOSTS. CPU normal, DNS normal.

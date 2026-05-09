@@ -1,0 +1,21 @@
+{
+  "run_id": "fence-reconstruction-02-audit-table-removal-A-9bf587b6",
+  "task_id": "fence-reconstruction/02-audit-table-removal",
+  "session": "A",
+  "wall_clock_seconds": 64.0,
+  "returncode": 0,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "2.00",
+    "--setting-sources",
+    "project"
+  ]
+}

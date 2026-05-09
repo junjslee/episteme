@@ -1,0 +1,7 @@
+bucket_name,size_tb,last_accessed_days_ago,classification_per_aws_tags
+archive-eng-2024-build-logs,12.4,180,internal
+archive-fin-2023-q4-logs,4.1,94,internal
+archive-fin-2024-q1-trades,8.7,60,internal
+archive-eng-2024-perf-traces,3.2,210,internal
+archive-fin-2024-q2-trades,9.1,30,internal
+archive-marketing-creative-assets,1.8,45,internal

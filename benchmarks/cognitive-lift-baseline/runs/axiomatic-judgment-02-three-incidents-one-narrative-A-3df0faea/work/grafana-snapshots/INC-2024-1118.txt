@@ -1,0 +1,35 @@
+=== Grafana export — INC-2024-1118 ===
+Window: 2024-11-18 14:30 UTC — 2024-11-18 15:20 UTC
+
+[CPU utilization across api-server pool, p95]
+14:30  68%
+14:32  74%   ← traffic surge begins
+14:34  82%
+14:36  91%
+14:40  98%   ← saturation
+14:42  100%  ← sustained
+14:50  100%
+15:00  99%
+15:08  78%   ← new pods come online; relief begins
+15:18  62%
+
+[p99 latency, ms]
+14:30  120ms
+14:34  340ms
+14:42  3800ms ← saturation symptom
+15:08  580ms
+15:18  140ms
+
+[DNS resolver latency, ms]
+Stable at ~0.8ms throughout
+
+[nf_conntrack utilization]
+Stable at ~12% throughout
+
+[Pod count]
+14:30  24 pods
+14:32  scale-up signal sent
+14:55  24 pods (still — image-pull throttle)
+15:08  31 pods (new pods online)
+
+Signature: SUSTAINED CPU SATURATION + SLOW SCALE-UP. DNS healthy, conntrack healthy.

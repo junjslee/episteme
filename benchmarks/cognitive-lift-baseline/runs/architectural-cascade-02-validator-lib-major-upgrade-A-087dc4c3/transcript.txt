@@ -1,0 +1,435 @@
+[session init] cwd=/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work
+
+[Tool call: Bash({"command": "ls -la /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work", "description": "List working directory content...[truncated])]
+
+[Tool result]
+total 8
+drwxr-xr-x@ 8 junlee  staff  256 May  8 21:08 .
+drwxr-xr-x@ 3 junlee  staff   96 May  8 21:08 ..
+drwxr-xr-x@ 3 junlee  staff   96 May  8 21:08 .claude
+-rw-r--r--@ 1 junlee  staff    0 May  8 16:56 .gitkeep
+drwxr-xr-x@ 3 junlee  staff   96 May  8 20:37 docs
+-rw-r--r--@ 1 junlee  staff  588 May  8 20:36 README.md
+drwxr-xr-x@ 5 junlee  staff  160 May  8 20:37 services
+drwxr-xr-x@ 3 junlee  staff   96 May  8 20:37 vendor
+
+[Tool call: Bash({"command": "ls -la /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/{docs,services,vendor}", "description": "List su...[truncated])]
+
+[Tool result]
+Brace expansion
+
+[Tool call: Glob({"pattern": "**/*", "path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work"})]
+
+[Tool result]
+.gitkeep
+README.md
+services/service-a/main.py
+services/service-a/validators/custom_validator.py
+services/service-b/main.py
+services/service-c/main.py
+vendor/corp-validator-lib/v2.1.0/registry.py
+vendor/corp-validator-lib/v3.0.0/registry.py
+vendor/corp-validator-lib/v3.0.0/CHANGELOG.md
+docs/migration-template.md
+.claude/settings.json
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/README.md"})]
+
+[Tool result]
+1	# Platform Services
+2	
+3	This is the platform services monorepo for FinCo. Three services + their shared validator library.
+4	
+5	Services:
+6	- `services/service-a/` — payment-processing API (uses custom validator override)
+7	- `services/service-b/` — user-management API (standard validators)
+8	- `services/service-c/` — reporting API (standard validators)
+9	
+10	Shared:
+11	- `vendor/corp-validator-lib/v2.1.0/` — current validator library (in production)
+12	- `vendor/corp-validator-lib/v3.0.0/` —...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/services/service-a/main.py"})]
+
+[Tool result]
+1	"""Service A — payment-processing API.
+2	
+3	Uses corp-validator-lib for payload validation, with a custom validator
+4	override that handles payment-specific edge cases (negative amounts,
+5	fractional cents, etc.).
+6	"""
+7	from corp_validator_lib import Registry
+8	from services.service_a.validators.custom_validator import customValidator
+9	
+10	
+11	def setup_validation():
+12	    """Register the custom validator with the library's registry."""
+13	    Registry.register(customValidator)
+14	
+15	
+16	...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/services/service-a/validators/custom_validator.py"})]
+
+[Tool result]
+1	"""Custom payment validator for Service A.
+2	
+3	Registered with corp-validator-lib's Registry by class name. The library's
+4	registry uses the class name string to look up the right validator for a
+5	given payload type.
+6	
+7	Note: class name is `customValidator` (lowercase 'c') — this matches the
+8	naming in the original v1.x registration system. The library has historically
+9	been case-insensitive on class-name lookup.
+10	"""
+11	from corp_validator_lib import BaseValidator
+12	
+13	
+14	class cu...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/services/service-b/main.py"})]
+
+[Tool result]
+1	"""Service B — user-management API. Uses corp-validator-lib's defaults."""
+2	from corp_validator_lib import Registry
+3	
+4	
+5	def handle_user_request(payload: dict) -> dict:
+6	    validator = Registry.get_validator_for("user")
+7	    if not validator.validate(payload):
+8	        return {"error": "invalid_payload"}
+9	    return create_or_update_user(payload)
+10	
+11	
+12	def create_or_update_user(payload: dict) -> dict:
+13	    return {"ok": True}
+14	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/services/service-c/main.py"})]
+
+[Tool result]
+1	"""Service C — reporting API. Uses corp-validator-lib's defaults."""
+2	from corp_validator_lib import Registry
+3	
+4	
+5	def handle_report_request(payload: dict) -> dict:
+6	    validator = Registry.get_validator_for("report")
+7	    if not validator.validate(payload):
+8	        return {"error": "invalid_payload"}
+9	    return generate_report(payload)
+10	
+11	
+12	def generate_report(payload: dict) -> dict:
+13	    return {"ok": True, "report_id": "rep_xxx"}
+14	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/vendor/corp-validator-lib/v2.1.0/registry.py"})]
+
+[Tool result]
+1	"""corp-validator-lib v2.1.0 — Validator registry.
+2	
+3	The registry maps class names to validator instances. Case-insensitive
+4	class-name matching for backward compatibility with v1.x naming conventions
+5	where some validators use camelCase (lowercase first letter) and others use
+6	PascalCase.
+7	"""
+8	
+9	
+10	class Registry:
+11	    _validators = {}
+12	
+13	    @classmethod
+14	    def register(cls, validator_class):
+15	        """Register a validator. Class-name matching is CASE-INSENSITIVE.
+16...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/vendor/corp-validator-lib/v3.0.0/registry.py"})]
+
+[Tool result]
+1	"""corp-validator-lib v3.0.0 — Validator registry.
+2	
+3	Modernized registry implementation. Class-name matching is now strict
+4	PascalCase.
+5	"""
+6	
+7	
+8	class Registry:
+9	    _validators = {}
+10	
+11	    @classmethod
+12	    def register(cls, validator_class):
+13	        """Register a validator. Class-name matching is CASE-SENSITIVE
+14	        and follows PascalCase convention.
+15	
+16	        Validators with non-PascalCase names (e.g., starting with lowercase)
+17	        will register but looku...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/vendor/corp-validator-lib/v3.0.0/CHANGELOG.md"})]
+
+[Tool result]
+1	# corp-validator-lib v3.0.0 — Release Notes
+2	
+3	Released 2025-04-01.
+4	
+5	## What's new
+6	
+7	- Modernized the registry implementation for better discoverability of validators
+8	- Added new built-in validators: EmailValidator, PhoneValidator, AddressValidator
+9	- Improved error messages on validation failure (now includes path-to-field)
+10	- Performance improvements on bulk validation (~20% faster on large payload arrays)
+11	
+12	## Breaking changes (declared)
+13	
+14	- `BaseValidator.validate()...[truncated]
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/docs/migration-template.md"})]
+
+[Tool result]
+1	# Standard Migration Template — Library Upgrades
+2	
+3	For upgrading any shared library (corp-validator-lib, corp-auth-lib, etc.) across multiple services.
+4	
+5	## Required sections in your migration plan
+6	
+7	1. **Scope** — list every service that uses the library
+8	2. **Breaking changes** — enumerate from the library's release notes
+9	3. **Per-service changes** — what code each service needs to change
+10	4. **Rollout plan** — order of services + canary plan
+11	5. **Rollback** — how to revert ...[truncated]
+
+I have full context. The CHANGELOG declares two breaking changes (`validate()` return type, Python 3.10) but **omits** the registry's switch from case-insensitive to case-sensitive class-name matching — discoverable only by diffing `v2.1.0/registry.py` against `v3.0.0/registry.py`. That silent change breaks Service A's `customValidator` (lowercase 'c') registration: it'll register but lookup will skip it, fall through to the permissive `DefaultValidator`, and accept malformed payment payloads. Writing the migration plan now.
+
+[Tool call: Write({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/docs/migration-corp-validator-lib-v3.md", "content": ...[truncated])]
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/docs/migration-corp-validator-lib-v3.md, but you haven't granted it yet.
+
+[Tool call: Write({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/docs/migration-corp-validator-lib-v3.md", "content": ...[truncated])]
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3/work/docs/migration-corp-validator-lib-v3.md, but you haven't granted it yet.
+
+The write tool is being declined. I'll deliver the migration plan inline instead.
+
+---
+
+# Migration Plan — corp-validator-lib v2.1.0 → v3.0.0
+
+**Status:** draft for review · **Target:** end of Q+1 (v2.x EOL is end of Q+2)
+
+## 1. Scope
+
+Three services consume `corp-validator-lib`:
+
+| Service | Role | Validator usage |
+|---|---|---|
+| service-a | payment-processing API | Registers a custom validator (`customValidator`) for `"payment"` payloads; defaults otherwise. |
+| service-b | user-management API | Default validators only (`"user"` payload type). |
+| service-c | reporting API | Default validators only (`"report"` payload type). |
+
+**Custom extension points (highest-risk surface):**
+- `services/service-a/validators/custom_validator.py` → `customValidator` registered via `Registry.register(...)`. **Only custom registration in the monorepo.**
+- service-b, service-c: no custom registrations, no `BaseValidator` subclasses.
+
+## 2. Breaking changes
+
+### 2a. Declared in CHANGELOG
+
+1. **`BaseValidator.validate()` return type** — now returns `ValidationResult`, not `bool`. Affected sites: `service-a/main.py:20`, `service-b/main.py:7`, `service-c/main.py:7`. Under v3 with no code change, `if not validator.validate(payload):` becomes "is the returned object falsy?" — a `ValidationResult` is always truthy, so **every payload would silently pass**. Fix: use `.is_valid` (or the `validate_legacy()` shim).
+2. **Min Python 3.10** (was 3.9). Confirm runtime images.
+
+### 2b. UNDECLARED — discovered by source-diffing `v2.1.0/registry.py` vs `v3.0.0/registry.py`
+
+> The CHANGELOG does not mention this. **This is the riskiest change in the upgrade and the reason I am not treating v3 as a routine bump.**
+
+- **v2:** `register()` lowercases class names → case-INSENSITIVE matching. `customValidator` and `CustomValidator` collide on the same key.
+- **v3:** `register()` stores the exact class name. `get_validator_for()` *silently skips* entries whose key doesn't start uppercase (`if not key[0].isupper(): continue`). **No exception, no warning at registration, no warning at lookup.**
+
+**Direct consequence for service-a:**
+- `customValidator` (lowercase 'c') registers without error.
+- `Registry.get_validator_for("payment")` skips it → returns `DefaultValidator()`.
+- `DefaultValidator.validate()` returns `True` for everything (`v3.0.0/registry.py:46`).
+- Service A's payment-specific guards (negative amounts, fractional cents, currency allowlist) **are no longer enforced**.
+- Downstream consumers of payment events will receive payloads they were never built to handle. **Expect panics in downstream services as malformed events accumulate over weeks** — locally fine at upgrade time, no errors in service-a's logs.
+
+### 2c. Ruled out
+
+- No use of `corp_validator_lib.utils.legacy_format` (deprecated).
+- No subclasses of `Registry`. No callers depend on v2's lowercase-key internals.
+
+## 3. Per-service changes
+
+### service-a (highest risk — two changes required)
+
+1. **Rename `customValidator` → `CustomValidator`** in `services/service-a/validators/custom_validator.py` and update the import in `main.py`. Without this rename, the validator silently disappears under v3.
+2. Update the call site at `main.py:20` to use `.is_valid` on the `ValidationResult` (recommended over `validate_legacy()` — that shim is a runway, not a destination).
+3. **Add a startup assertion**: after `setup_validation()`, assert `isinstance(Registry.get_validator_for("payment"), CustomValidator)`. This is the durable guard against future regressions — startup fails loudly if anyone re-introduces a lowercase name or a future major version changes registration semantics again.
+
+### service-b
+1. Update `main.py:7` to use `.is_valid`.
+2. No registry changes.
+
+### service-c
+1. Update `main.py:7` to use `.is_valid`.
+2. No registry changes.
+
+### Auto-migration tool
+The `corp-validator-lib-migrate` CLI rewrites `.validate()` call sites. **It will NOT rename `customValidator`** — the CHANGELOG never mentions case-sensitivity, so the tool has no reason to look for it. Do not rely on the CLI to surface §2b.
+
+## 4. Rollout plan
+
+**Order:** service-c → service-b → service-a. Rationale: c and b de-risk the v3 dependency itself before we touch the service that has the semantic break.
+
+Per service:
+1. Branch, pin `corp-validator-lib==3.0.0`, apply §3 changes.
+2. Run unit + integration tests. **For service-a, the integration suite must include malformed-payload cases the custom validator is supposed to reject** (negative amount, fractional cents, unsupported currency). If any return `{"ok": True}` under v3, the rename was missed.
+3. Staging for 24h with synthetic traffic.
+4. Canary 5% prod for 48h. Compare validation-rejection rate vs v2 baseline. **A sudden drop in rejections from service-a is the smoking gun for §2b sneaking through.**
+5. Full rollout.
+
+Do not batch the three services in a single deploy.
+
+## 5. Rollback
+
+Per-service, in reverse rollout order:
+1. Re-pin to `v2.1.0`.
+2. Revert call-site changes (`.is_valid` → direct boolean check).
+3. **Do not revert the `customValidator` → `CustomValidator` rename.** v2's case-insensitive lookup accepts both. Leaving it PascalCase makes rollback a one-line dependency change.
+4. Keep the startup assertion in place under v2 — cheap insurance.
+
+Keep v2.1.0 in the lockfile for 30 days after full v3 rollout.
+
+## 6. Validation
+
+**Pre-merge:**
+- `grep -rn "Registry.register" services/` — confirm one registration site, PascalCase name.
+- `grep -rn "\.validate(" services/` — confirm every call site uses `.is_valid` or `validate_legacy`.
+- Unit test in service-a asserting `Registry.get_validator_for("payment")` returns `CustomValidator`, not `DefaultValidator`. This test would have caught §2b at PR time.
+
+**Post-deploy:**
+- Validation-rejection rate per payload type vs the 30-day v2 baseline. Alarm on >25% relative drop.
+- service-a: count of `VAL_001` errors/hour. **Zeroing-out post-deploy = custom validator not being invoked.**
+- Downstream consumers of service-a payment events: error/panic rate for 14 days post-rollout. Page if rate exceeds 30-day baseline +2σ.
+
+## 7. Open questions
+
+1. Any v3.0.1+ patch that promotes the silent case-sensitivity skip to a startup warning? Worth checking before locking on 3.0.0.
+2. Other repos outside this monorepo using `corp-validator-lib` may have the same lowercase registration trap. The CHANGELOG won't tell them either — consider an internal advisory.
+3. Promote the §3.service-a startup assertion to a shared helper (`assert_validator_registered(payload_type, expected_class)`) for any future custom registrations?
+
+---
+
+**Headline finding for review:** the CHANGELOG declares v3 as a near drop-in (only the `validate()` return-type change is flagged). The actual highest-risk change — registry switching from case-insensitive to case-sensitive with **silent lookup-skipping** for non-PascalCase names — is undocumented and only visible by diffing `registry.py` between versions. Service A's `customValidator` (lowercase 'c') would silently fall through to the permissive default validator under v3, and the failure would not surface in service-a itself but in downstream consumers receiving malformed payment payloads. The plan above renames to `CustomValidator`, adds a startup assertion, and bakes a rejection-rate canary signal into the rollout to catch any recurrence.
+
+[Final result]
+The write tool is being declined. I'll deliver the migration plan inline instead.
+
+---
+
+# Migration Plan — corp-validator-lib v2.1.0 → v3.0.0
+
+**Status:** draft for review · **Target:** end of Q+1 (v2.x EOL is end of Q+2)
+
+## 1. Scope
+
+Three services consume `corp-validator-lib`:
+
+| Service | Role | Validator usage |
+|---|---|---|
+| service-a | payment-processing API | Registers a custom validator (`customValidator`) for `"payment"` payloads; defaults otherwise. |
+| service-b | user-management API | Default validators only (`"user"` payload type). |
+| service-c | reporting API | Default validators only (`"report"` payload type). |
+
+**Custom extension points (highest-risk surface):**
+- `services/service-a/validators/custom_validator.py` → `customValidator` registered via `Registry.register(...)`. **Only custom registration in the monorepo.**
+- service-b, service-c: no custom registrations, no `BaseValidator` subclasses.
+
+## 2. Breaking changes
+
+### 2a. Declared in CHANGELOG
+
+1. **`BaseValidator.validate()` return type** — now returns `ValidationResult`, not `bool`. Affected sites: `service-a/main.py:20`, `service-b/main.py:7`, `service-c/main.py:7`. Under v3 with no code change, `if not validator.validate(payload):` becomes "is the returned object falsy?" — a `ValidationResult` is always truthy, so **every payload would silently pass**. Fix: use `.is_valid` (or the `validate_legacy()` shim).
+2. **Min Python 3.10** (was 3.9). Confirm runtime images.
+
+### 2b. UNDECLARED — discovered by source-diffing `v2.1.0/registry.py` vs `v3.0.0/registry.py`
+
+> The CHANGELOG does not mention this. **This is the riskiest change in the upgrade and the reason I am not treating v3 as a routine bump.**
+
+- **v2:** `register()` lowercases class names → case-INSENSITIVE matching. `customValidator` and `CustomValidator` collide on the same key.
+- **v3:** `register()` stores the exact class name. `get_validator_for()` *silently skips* entries whose key doesn't start uppercase (`if not key[0].isupper(): continue`). **No exception, no warning at registration, no warning at lookup.**
+
+**Direct consequence for service-a:**
+- `customValidator` (lowercase 'c') registers without error.
+- `Registry.get_validator_for("payment")` skips it → returns `DefaultValidator()`.
+- `DefaultValidator.validate()` returns `True` for everything (`v3.0.0/registry.py:46`).
+- Service A's payment-specific guards (negative amounts, fractional cents, currency allowlist) **are no longer enforced**.
+- Downstream consumers of payment events will receive payloads they were never built to handle. **Expect panics in downstream services as malformed events accumulate over weeks** — locally fine at upgrade time, no errors in service-a's logs.
+
+### 2c. Ruled out
+
+- No use of `corp_validator_lib.utils.legacy_format` (deprecated).
+- No subclasses of `Registry`. No callers depend on v2's lowercase-key internals.
+
+## 3. Per-service changes
+
+### service-a (highest risk — two changes required)
+
+1. **Rename `customValidator` → `CustomValidator`** in `services/service-a/validators/custom_validator.py` and update the import in `main.py`. Without this rename, the validator silently disappears under v3.
+2. Update the call site at `main.py:20` to use `.is_valid` on the `ValidationResult` (recommended over `validate_legacy()` — that shim is a runway, not a destination).
+3. **Add a startup assertion**: after `setup_validation()`, assert `isinstance(Registry.get_validator_for("payment"), CustomValidator)`. This is the durable guard against future regressions — startup fails loudly if anyone re-introduces a lowercase name or a future major version changes registration semantics again.
+
+### service-b
+1. Update `main.py:7` to use `.is_valid`.
+2. No registry changes.
+
+### service-c
+1. Update `main.py:7` to use `.is_valid`.
+2. No registry changes.
+
+### Auto-migration tool
+The `corp-validator-lib-migrate` CLI rewrites `.validate()` call sites. **It will NOT rename `customValidator`** — the CHANGELOG never mentions case-sensitivity, so the tool has no reason to look for it. Do not rely on the CLI to surface §2b.
+
+## 4. Rollout plan
+
+**Order:** service-c → service-b → service-a. Rationale: c and b de-risk the v3 dependency itself before we touch the service that has the semantic break.
+
+Per service:
+1. Branch, pin `corp-validator-lib==3.0.0`, apply §3 changes.
+2. Run unit + integration tests. **For service-a, the integration suite must include malformed-payload cases the custom validator is supposed to reject** (negative amount, fractional cents, unsupported currency). If any return `{"ok": True}` under v3, the rename was missed.
+3. Staging for 24h with synthetic traffic.
+4. Canary 5% prod for 48h. Compare validation-rejection rate vs v2 baseline. **A sudden drop in rejections from service-a is the smoking gun for §2b sneaking through.**
+5. Full rollout.
+
+Do not batch the three services in a single deploy.
+
+## 5. Rollback
+
+Per-service, in reverse rollout order:
+1. Re-pin to `v2.1.0`.
+2. Revert call-site changes (`.is_valid` → direct boolean check).
+3. **Do not revert the `customValidator` → `CustomValidator` rename.** v2's case-insensitive lookup accepts both. Leaving it PascalCase makes rollback a one-line dependency change.
+4. Keep the startup assertion in place under v2 — cheap insurance.
+
+Keep v2.1.0 in the lockfile for 30 days after full v3 rollout.
+
+## 6. Validation
+
+**Pre-merge:**
+- `grep -rn "Registry.register" services/` — confirm one registration site, PascalCase name.
+- `grep -rn "\.validate(" services/` — confirm every call site uses `.is_valid` or `validate_legacy`.
+- Unit test in service-a asserting `Registry.get_validator_for("payment")` returns `CustomValidator`, not `DefaultValidator`. This test would have caught §2b at PR time.
+
+**Post-deploy:**
+- Validation-rejection rate per payload type vs the 30-day v2 baseline. Alarm on >25% relative drop.
+- service-a: count of `VAL_001` errors/hour. **Zeroing-out post-deploy = custom validator not being invoked.**
+- Downstream consumers of service-a payment events: error/panic rate for 14 days post-rollout. Page if rate exceeds 30-day baseline +2σ.
+
+## 7. Open questions
+
+1. Any v3.0.1+ patch that promotes the silent case-sensitivity skip to a startup warning? Worth checking before locking on 3.0.0.
+2. Other repos outside this monorepo using `corp-validator-lib` may have the same lowercase registration trap. The CHANGELOG won't tell them either — consider an internal advisory.
+3. Promote the §3.service-a startup assertion to a shared helper (`assert_validator_registered(payload_type, expected_class)`) for any future custom registrations?
+
+---
+
+**Headline finding for review:** the CHANGELOG declares v3 as a near drop-in (only the `validate()` return-type change is flagged). The actual highest-risk change — registry switching from case-insensitive to case-sensitive with **silent lookup-skipping** for non-PascalCase names — is undocumented and only visible by diffing `registry.py` between versions. Service A's `customValidator` (lowercase 'c') would silently fall through to the permissive default validator under v3, and the failure would not surface in service-a itself but in downstream consumers receiving malformed payment payloads. The plan above renames to `CustomValidator`, adds a startup assertion, and bakes a rejection-rate canary signal into the rollout to catch any recurrence.

@@ -1,0 +1,21 @@
+{
+  "run_id": "architectural-cascade-02-validator-lib-major-upgrade-A-80e0b620",
+  "task_id": "architectural-cascade/02-validator-lib-major-upgrade",
+  "session": "A",
+  "wall_clock_seconds": 201.33,
+  "returncode": 0,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "2.00",
+    "--setting-sources",
+    "project"
+  ]
+}

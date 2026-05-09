@@ -1,0 +1,37 @@
+=== Grafana export — INC-2024-1216 ===
+Window: 2024-12-16 22:14 UTC — 2024-12-16 23:00 UTC
+
+[CPU utilization across api-server pool, p95]
+22:14  54%
+22:18  58%
+22:30  61%
+22:42  60%
+22:52  56%
+   (CPU normal throughout — never above 65%)
+
+[p99 latency, ms]
+22:14  130ms
+22:20  890ms
+22:28  3200ms
+22:36  3800ms
+22:44  2700ms
+22:52  410ms
+
+[DNS resolver latency, ms]
+22:14  0.7ms
+22:18  840ms ← spike begins
+22:24  2100ms
+22:32  2800ms
+22:40  1900ms
+22:50  120ms
+22:55  1.2ms
+
+[nf_conntrack utilization]
+Stable at ~14% throughout
+
+[Outbound HTTP error rate (DNS-resolution-failed)]
+22:14  0.02%
+22:30  18%   ← retry storms on resolver failures
+22:50  0.8%
+
+Signature: DNS RESOLVER LATENCY SPIKE. CPU normal, conntrack normal.

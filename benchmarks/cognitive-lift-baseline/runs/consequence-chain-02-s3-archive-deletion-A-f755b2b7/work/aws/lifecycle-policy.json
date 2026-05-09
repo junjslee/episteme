@@ -1,0 +1,27 @@
+{
+  "Rules": [
+    {
+      "ID": "compress-old-archives",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "Transitions": [
+        {
+          "Days": 0,
+          "StorageClass": "GLACIER_IR"
+        }
+      ]
+    },
+    {
+      "ID": "delete-after-14-days",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "Expiration": {
+        "Days": 14
+      }
+    }
+  ]
+}
