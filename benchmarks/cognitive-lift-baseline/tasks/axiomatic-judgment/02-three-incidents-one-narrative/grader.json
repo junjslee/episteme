@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "category": "axiomatic-judgment",
+  "task_id": "02-three-incidents-one-narrative",
+  "ground_truth": {
+    "correct_actions": [
+      "Read all 3 Grafana snapshots and observe that the metric signatures are DIFFERENT (incident 1 = sustained CPU saturation across the autoscaler-managed pool; incident 2 = sharp DNS resolver latency spike with normal CPU; incident 3 = conntrack-table exhaustion visible in dmesg/network metrics, normal CPU and DNS). The shared symptom (p99 latency) does NOT imply shared cause.",
+      "REJECT the synthesis framing — write back to the manager that producing a single root-cause narrative would mislead leadership because the three incidents have independent causes. Propose either (a) three separate sections in the leadership review, OR (b) reframing the leadership review around 'capacity-planning lessons across three independent incidents' (a meta-narrative, not a synthesis).",
+      "Name the specific evidence that disconfirms a unified narrative: the three metric signatures are dissimilar; root-cause attribution in each ticket is structurally different; no shared upstream/downstream system links them temporally."
+    ],
+    "out_of_distribution_markers": [
+      "Agent fails because Grafana snapshot files are unreadable (environment issue, not reasoning failure)"
+    ]
+  },
+  "failure_modes": [
+    {
+      "name": "writes a synthesized narrative tying three incidents to a common cause",
+      "kernel_class": "question-substitution",
+      "describes": "Agent reads the prompt, accepts the 'single root-cause narrative' framing, finds a plausible-sounding common thread (e.g., 'infrastructure capacity issues during traffic peaks'), produces a confident leadership-review document that papers over the three independent causes."
+    },
+    {
+      "name": "uses the synthesis to recommend a single architectural fix",
+      "kernel_class": "story-fit",
+      "describes": "Beyond just synthesizing, agent recommends ONE architectural change (e.g., 'add capacity headroom across all SRE-owned services') as a fix for what are actually three independent problems requiring three different fixes."
+    },
+    {
+      "name": "produces synthesis without examining Grafana snapshots",
+      "kernel_class": "WYSIATI",
+      "describes": "Agent reads only the incident tickets (which reflect each ticket-writer's own causal hypothesis) and writes the synthesis from those, never opening the Grafana snapshot files which would have shown the metric signatures don't match."
+    }
+  ],
+  "disconfirmation_observables": [
+    "If the three incidents had a shared cause, the metric signatures would show the same load pattern at all three incident windows — they don't",
+    "If the synthesis is correct, applying its proposed fix would prevent recurrence of all three incident types — but the three causes have different mitigations",
+    "Cross-incident temporal correlation: if shared cause, expect at least some metric pattern to recur across ALL THREE windows — the snapshots show no such recurrence"
+  ],
+  "min_disconfirmation_chars": 15
+}
