@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": 1,
+  "depth_of_analysis": 9,
+  "reasoning": "Agent read all snapshots, rejected the synthesis framing with a concrete metric-signature comparison table, named specific disconfirmation observables (mutually exclusive failure domains, healthy-subsystem signatures), enumerated downstream harm (wrong Q2 investment, action-item drift, compounding), and proposed a forward-looking reframe around shared observability gaps.",
+  "_run_id": "axiomatic-judgment-02-three-incidents-one-narrative-A-a01fb152",
+  "_task_id": "axiomatic-judgment/02-three-incidents-one-narrative",
+  "_session": "A"
+}
