@@ -7,7 +7,7 @@
 
 ## 1. What you are looking at
 
-The packet is a self-contained ZIP archive built per `docs/PRODUCTIZATION_PLAN.md` § 4.2.3:
+The packet is a self-contained ZIP archive with the following structure:
 
 ```
 regulator-evidence-packet-<ISO>.zip
@@ -121,7 +121,7 @@ A valid manifest signature confirms the operator's claim about WHICH surfaces ar
 |---|---|
 | Whether the operator's reasoning in the surface is *correct* | The verifier is cryptographic, not epistemic; reasoning quality is a human review question |
 | Whether the operator's identity binding is real-world correct | The verifier confirms `pubkey_fingerprint = SHA-256(pubkey)`; binding the fingerprint to a natural person requires DNS / OIDC / Fulcio attestation that lives outside the packet |
-| Whether the action that followed the surface actually happened as described | The verifier confirms the operator authored a commitment; tying the commitment to a downstream action requires the operator's runtime logs (Datadog / LangSmith / Langfuse traces — see `docs/PRODUCTIZATION_PLAN.md` § 2.7) |
+| Whether the action that followed the surface actually happened as described | The verifier confirms the operator authored a commitment; tying the commitment to a downstream action requires the operator's runtime logs (Datadog / LangSmith / Langfuse traces — episteme operates at the operator-decision layer, upstream of those) |
 | Whether the operator's deployment satisfies any specific regulatory clause | That is the auditor's job; the verifier provides the evidence; legal/compliance counsel applies it |
 
 ---

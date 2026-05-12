@@ -194,7 +194,7 @@ When the practice is taken seriously and mechanically enforced, useful side effe
 
 | Not | Because |
 |---|---|
-| **Agent memory** (Mem0, Letta, Memento, Karpathy LLM Wiki) | Those make agents remember on behalf of humans. episteme makes humans think at the gate. Different layer (see `docs/PRODUCTIZATION_PLAN.md` § 2.7 layer diagram). |
+| **Agent memory** (Mem0, Letta, Memento, Karpathy LLM Wiki) | Those make agents remember on behalf of humans. episteme makes humans think at the gate. Different layer in the operator-decision-vs-agent-runtime stack. |
 | **LLM observability** (Datadog APM, LangSmith, Langfuse) | Those record what the agent did. episteme records what the operator *believed* before the agent acted. Different artifact. |
 | **Guardrails** (GuardrailsAI, NeMo Guardrails) | Those filter model I/O at execution. episteme constrains operator authorization *upstream* of execution. Different point in the loop. |
 | **Compliance vendor** (single-jurisdiction tool) | Compliance is a downstream consequence, not the product. The practice came first; the regulator-shape happened to fit. |
@@ -224,7 +224,7 @@ The practice this document operationalizes is **already authored** in operator-c
 | [`core/memory/global/operator_profile.md`](/Users/junlee/episteme/core/memory/global/operator_profile.md) | Per-axis profile values (failure-first lens, loss-averse posture, fence_discipline, etc.) the practice tunes against |
 | [`core/memory/global/agent_feedback.md`](/Users/junlee/episteme/core/memory/global/agent_feedback.md) | Universal + universal-principled rules the practice respects (positive vs negative system framing, kernel-tone-discipline, no AI co-author trailers) |
 | [`docs/COMPLIANCE_CROSSWALK.md`](COMPLIANCE_CROSSWALK.md) | The downstream regulatory-mapping artifact — *what falls out* of the practice for AI Act / NIST / financial-services frameworks |
-| [`docs/PRODUCTIZATION_PLAN.md`](PRODUCTIZATION_PLAN.md) | How the practice gets carried to additional audiences via three positioning probes (Compliance / Operator Audit Trail / Pre-Action Reasoning Commitment) |
+| Private operator notes (`~/episteme-private/docs/PRODUCTIZATION_PLAN.md`) | How the practice gets carried to additional audiences via positioning probes — GTM strategy held in operator's private notes, not in the public repo |
 
 ---
 

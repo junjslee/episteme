@@ -127,6 +127,6 @@ The only manipulated variable is the forcing function. Same model, same memory, 
 - [ ] Threshold matrix (§ 8) reviewed and signed
 - [ ] Cohort recruitment plan in place (12 operators identified)
 - [ ] Submit to OSF Registries
-- [ ] Update `docs/PRODUCTIZATION_PLAN.md` § 0a citation from "OSF pre-registration TBD" to the assigned DOI
+- [ ] Update operator's private GTM notes with the assigned OSF DOI
 
 This document is the **draft** of what the operator can submit. It is not itself the pre-registration until submitted.
