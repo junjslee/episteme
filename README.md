@@ -28,9 +28,11 @@
 
 ---
 
-## Why prompts aren't ground truth
+## Why prompts can't enforce a way to think
 
-You ask the agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
+The practice in [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md) names six cognitive moves per high-impact decision — Core Question, distinction map, signal-vs-noise filter, because-chain, hypothesis-as-bet, disconfirmation conditions. Each move counters a specific named System-1 failure (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence — Kahneman). A prompt can *request* these moves, but prompts are advisory: they live for one call, get skipped at deadline, and disappear from context. Frontier models comply on the surface and skip the moves underneath — fluently, confidently, and the operator stops checking. That is exactly the failure mode the practice is for.
+
+Concrete example. You ask the agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
 
 The agent treats your prompt as a measurement task. It pulls metrics from the last 30 days, compares with-memory vs without-memory response samples, finds a 7% positive lift on thumbs-up rate, writes a memo concluding "memory helps; keep shipping." You read it.
 

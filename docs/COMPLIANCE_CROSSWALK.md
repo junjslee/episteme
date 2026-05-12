@@ -1,6 +1,12 @@
 # Compliance Crosswalk — `signed-surface@1.0` → Regulatory Clauses
 
-**Status:** This document is a **downstream structural mapping**, not the primary positioning. It exists to document that episteme's architecture — built to satisfy the operator-side Calibration-Lift mechanism per the MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) — *happens* to map onto multiple regulatory obligation classes as a byproduct of being right about the mechanism. The primary value claim and positioning hypotheses are in `docs/PRODUCTIZATION_PLAN.md` § 0–0c. Whether any specific regulator accepts this mapping is the question Phase 5 Probe 1 is designed to test; this document does not claim regulator validation.
+**What this document is.** A **downstream structural mapping**. Not the primary identity of episteme. Not the primary positioning. Not a sales artifact.
+
+**What episteme actually is.** A way to think — 생각의 틀 — operationalized at the file system level. See [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md). The five-stage cognitive practice (Frame → Decompose → Execute → Verify → Handoff) is the product. The signed Reasoning Surface is what falls out when the practice is taken seriously.
+
+**Why this crosswalk exists.** When the operator practices the cognitive moves named in `THE_WAY_TO_THINK.md`, the residue is an operator-authored, cryptographically signed, time-stamped, hash-chained, third-party-verifiable structured artifact captured *before* an irreversible AI-assisted action. EU AI Act Article 12 (record-keeping), Article 13 (deployer transparency), Article 14 (human oversight) — and the equivalent obligations in NIST AI RMF, Fed SR 11-7, EBA, MAS, OSFI, FINRA, SEC 17a-4(f) — happen to want exactly this artifact. The fit is **structural**, not the goal. The practice came first; the regulator-shape happened to match because the practice is right about the underlying mechanism (MIRROR benchmark, [arXiv 2604.19809](https://arxiv.org/abs/2604.19809) — *"only architectural constraint is effective"*).
+
+This document maps the practice's residue to regulatory clauses cell-by-cell. Whether any specific regulator accepts the mapping is the question Phase 5 Probe 1 is designed to test; **this document does not claim regulator validation.**
 
 **Schema version:** `signed-surface@1.0`
 **Frameworks covered:** EU AI Act, NIST AI RMF + GenAI Profile (NIST AI 600-1), Financial-services framework set (Fed SR 11-7, OCC, EBA, MAS, OSFI, FINRA, SEC).

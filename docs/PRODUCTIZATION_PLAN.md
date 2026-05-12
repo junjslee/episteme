@@ -1,15 +1,28 @@
 # Productization Plan
 
-**Opened:** 2026-05-10 (Event 121). Rewritten 2026-05-12 (Event 122) after operator-flagged category errors.
-**Primary value claim (what we measure):** External architectural constraint reduces operator Confident Failure Rate on irreversible AI-assisted decisions.
-**Positioning (what we are testing in Phase 5):** Three hypotheses under structured probes; none declared validated until data lands.
-**Regulatory tailwind:** EU AI Act Article 12 high-risk obligations apply **2026-08-02**.
+**Opened:** 2026-05-10 (Event 121). Rewritten 2026-05-12 (Event 122) after operator-flagged category errors. Rewritten again 2026-05-12 (Event 123) after operator's deeper correction — *"it should be fucking the way to think."*
+
+**Primary identity (what episteme IS):** A way to think — 생각의 틀 — operationalized at the file system level. See [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md). The practice is the product. Everything in this document — including every claim about positioning, audience, regulatory mapping, and probes — is **downstream of the practice**, not parallel to it.
+
+**Primary value claim (what we measure when we get to Phase 2 trial):** External architectural constraint reduces operator Confident Failure Rate on irreversible AI-assisted decisions. The mechanism is established at LLM-self-evaluation scale by MIRROR ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)); deployment-scale replication is what the trial measures.
+
+**Positioning (what we are testing in Phase 5):** Three audience-facing *surfaces* of the same practice; none declared validated until data lands. See § 0b.
+
+**Regulatory tailwind:** EU AI Act Article 12 high-risk obligations apply **2026-08-02**. The practice happens to produce exactly the per-decision logging artifact Article 12 describes; that is *consequence*, not *purpose*.
 
 ---
 
 ## 0. Rationale — why and how we are building this
 
-### 0.1 The operator's concern, made concrete
+### 0.1 The thing itself, before anything downstream
+
+**episteme is a way to think.** The full operationalization is at [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md). The one-line version:
+
+> *A five-stage cognitive practice (Frame → Decompose → Execute → Verify → Handoff) made mechanical at the file system level, anchored on Kahneman's System-2 forcing function, Dalio's Radical Transparency, Boyd's OODA orientation, and Munger's Latticework of Mental Models. The practice is the product. The signed Reasoning Surface, the typed PTSP ledgers, the pre-tool-use gate, the standalone verifier, the Regulator Evidence Packet — these are scaffolding for the practice and residue from it.*
+
+This Productization Plan exists because the practice has **downstream consequences** that different audiences buy for different reasons. Productization = naming those consequences honestly, testing which audience-facing surface lands, and not confusing any of them with the practice itself.
+
+### 0.2 The operator's concern, made concrete
 
 The thread that opened this productization cycle: an essay (in Korean) the operator surfaced during the Event 120 reframe conversation. Excerpt, translated:
 
@@ -17,7 +30,7 @@ The thread that opened this productization cycle: an essay (in Korean) the opera
 
 The professional concern beneath the essay: when a model is *fluent and confident*, the human stops reading the diff. The audit trail records what the agent did, not what the human believed. The cognitive externalization that used to happen during deliberate effortful writing — stops happening. The model fills the cognitive space that the operator used to fill.
 
-For most knowledge work this trade-off may be acceptable. For **irreversible decisions** — push, merge, deploy, migrate, publish, external-post — it is the failure mode.
+For most knowledge work this trade-off may be acceptable. For **irreversible decisions** — push, merge, deploy, migrate, publish, external-post — it is the failure mode the practice exists to counter.
 
 ### 0.2 The empirical anchor: only architectural constraint is effective
 
@@ -71,10 +84,12 @@ What we have built (Event 121–122) and what each piece is required for:
 
 | Not | Because |
 |---|---|
-| Agent memory (Mem0, Letta, Memento, Karpathy LLM Wiki) | Those make agents remember on behalf of humans; episteme makes humans remember at the gate |
-| LLM observability (Datadog APM, LangSmith, Langfuse) | Those record what happened; episteme records what the operator committed *before* it happened |
+| Agent memory (Mem0, Letta, Memento, Karpathy LLM Wiki) | Those make agents remember on behalf of humans; episteme makes the human *think* at the gate |
+| LLM observability (Datadog APM, LangSmith, Langfuse) | Those record what happened; episteme records what the operator *believed* before it happened |
 | Guardrails (GuardrailsAI, NeMo Guardrails) | Those filter model I/O at execution; episteme constrains operator authorization upstream of execution |
-| Compliance vendor (single-jurisdiction) | Compliance is a *downstream use case* enabled by the architecture; not the architecture's purpose |
+| Compliance vendor (single-jurisdiction) | Compliance is a *downstream consequence* of the practice; not the practice's purpose |
+| A prompt template / system-prompt addendum | Prompts can be skipped. A file-system hook that exits non-zero cannot. The practice has mechanical teeth. |
+| An AI safety system (in the alignment-research sense) | episteme constrains *the human's* relationship to the AI, not the AI itself. Operator-side governance, not model alignment. |
 
 This list is not adversarial — these tools are complements at *different layers*. § 2.7 has the layer diagram.
 

@@ -1,8 +1,12 @@
-# Marketing copy — DRAFT (3 positioning hypotheses, all under test)
+# Marketing copy — DRAFT (3 audience-facing surfaces of the SAME practice)
 
 **Status:** DRAFT — none of these has landed in README.md or any public surface.
-**Why:** `docs/PRODUCTIZATION_PLAN.md` § 0b lists three positioning hypotheses under structured testing in Phase 5. Each hypothesis gets its own candidate copy; whichever positioning returns signal in Phase 5 probes is the one that eventually lands in README. Until then, the README stays on its current "Sovereign Cognitive Kernel" framing.
-**Discipline:** every claim citing the MIRROR benchmark or any CFR-reduction number must link to [arXiv 2604.19809](https://arxiv.org/abs/2604.19809) inline. No bare "70%" without the source.
+
+**What episteme is (across all three positionings).** A way to think — 생각의 틀 — operationalized at the file system level. See [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md). The five-stage cognitive practice (Frame → Decompose → Execute → Verify → Handoff) is the product. The signed Reasoning Surface, the typed PTSP ledgers, the pre-tool-use gate, the standalone verifier, the Regulator Evidence Packet — these are scaffolding for the practice and residue from it.
+
+**Why three drafts then.** The same practice has different consequences valued by different audiences. A CCO values the per-decision audit trail because EU AI Act Article 12 demands it. A developer-operator values it because their own judgment stays present at the gate. A tech lead values it because their team's reasoning becomes durable rather than vanishing into chat scrollback. These are three *audience-facing surfaces* of one practice — not three separate products. The probes in `docs/PRODUCTIZATION_PLAN.md` § 3 test which surface lands first. Whichever wins Day-90 signal is the one that goes in README. Until then, the README stays on its corrected "way to think" framing.
+
+**Discipline (load-bearing):** every claim citing the MIRROR benchmark or any CFR-reduction number must link to [arXiv 2604.19809](https://arxiv.org/abs/2604.19809) inline. No bare "70%" without the source. No "episteme reduces" without "designed to replicate." See `docs/PRODUCTIZATION_PLAN.md` § 0a.
 
 ---
 
@@ -10,13 +14,16 @@
 
 **Target audience:** CCO, Internal Audit, Notified Body assessors.
 **Anchor:** EU AI Act Article 12 (record-keeping) and Article 13 (deployer transparency) obligations live 2026-08-02.
+**What this audience values from the practice:** the per-decision audit trail that falls out when the operator practices the cognitive moves at irreversible-action gates.
 
 ### A.1 README headline
 
 ```markdown
 # episteme
 
-**Cryptographically signed evidence that a real person — not the model — authorized every irreversible AI-assisted decision.**
+**A way to think with mechanical teeth — and the per-decision audit trail your auditor needs.**
+
+Cryptographically signed evidence that a real person — not the model — authorized every irreversible AI-assisted decision.
 
 For high-risk AI deployers under EU AI Act Article 12, episteme produces the per-decision logging artifact the regulation describes: an operator-authored, Ed25519-signed structured commitment captured *before* the irreversible action, with RFC 3161 timestamps and Sigstore-style transparency log inclusion. A third-party auditor verifies the entire chain-of-custody from a standalone CLI, with no dependency on episteme's runtime.
 ```
@@ -42,14 +49,15 @@ You will type more. You will move slower on irreversible operations. Your audito
 ## Positioning B — Operator Decision Audit Trail (Probe 2)
 
 **Target audience:** developer-operators who care about their own judgment quality.
-**Anchor:** the second-brain anxiety. "If I outsource my brain to an LLM wiki, will my brain atrophy?"
+**Anchor:** the second-brain anxiety. *"If I outsource my brain to an LLM wiki, will my brain atrophy?"*
+**What this audience values from the practice:** keeping their own judgment present at the gate — the practice's anti-cognitive-atrophy property.
 
 ### B.1 README headline
 
 ```markdown
 # episteme
 
-**Your own externalized reasoning, signed by you, searchable later.**
+**A way to think when the model can finish your sentences. Your reasoning — externalized, signed, durable.**
 
 For most knowledge work, letting the model remember on your behalf is fine. For irreversible decisions — push, merge, deploy, migrate, publish — it is the failure mode. episteme is a forcing function: before you authorize the irreversible action, you write down what you know, what you don't know, and what would prove you wrong. Six months later when you wonder why you decided what you decided, the surface is there, signed, dated, and unalterable.
 ```
@@ -90,13 +98,14 @@ episteme insists the external is a human, signing with a key the model cannot re
 
 **Target audience:** tech leads / staff engineers managing teams adopting AI-assisted ops.
 **Anchor:** Mitchell Hashimoto's "Harness Engineering" framing — engineer the environment, not the prompt.
+**What this audience values from the practice:** team-level cognitive discipline that survives across engineers, sessions, and post-mortems — the practice as enforceable team norm.
 
 ### C.1 README headline
 
 ```markdown
 # episteme
 
-**The engineering-discipline forcing function for AI-assisted irreversible operations.**
+**A way to think — made into a team norm. Harness engineering for the human in the loop on irreversible AI-assisted operations.**
 
 Frontier models are good enough that engineers stop reading the diff. The team's audit trail records what the agent did, not what the human believed. episteme is the structural counter: every irreversible-class action (push, merge, deploy, migrate, publish) blocks at the pre-tool-use gate until an engineer authors a typed, signed Reasoning Surface. Knowns and Inferences are non-fungible field types. The model cannot author the surface; the agent's signing-key access is structurally absent. Your team's audit trail records what was *believed*, not just what was *done*.
 ```
