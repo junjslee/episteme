@@ -1,0 +1,10 @@
+diff --git a/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/fence-reconstruction-02-audit-table-removal-A-9bf587b6/work/.claude/settings.json b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/fence-reconstruction-02-audit-table-removal-A-9bf587b6/work/.claude/settings.json
+new file mode 100644
+index 0000000..ad64a63
+--- /dev/null
++++ b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/fence-reconstruction-02-audit-table-removal-A-9bf587b6/work/.claude/settings.json
+@@ -0,0 +1,3 @@
++{
++  "hooks": {}
++}
+\ No newline at end of file

@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": 1,
+  "depth_of_analysis": 7,
+  "reasoning": "Agent enumerated all 5 surfaces with line-level precision, produced an explicit blast-radius map and sync plan, named the grep-zero-hits verification observable upfront, and correctly attributed non-execution to environment permission blocks (OOD marker) rather than shipping a partial rename.",
+  "_run_id": "architectural-cascade-01-rename-handler-B-85766e95",
+  "_task_id": "architectural-cascade/01-rename-handler",
+  "_session": "B"
+}

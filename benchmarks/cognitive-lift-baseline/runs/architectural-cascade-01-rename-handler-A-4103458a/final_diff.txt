@@ -1,0 +1,10 @@
+diff --git a/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-A-4103458a/work/.claude/settings.json b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-A-4103458a/work/.claude/settings.json
+new file mode 100644
+index 0000000..ad64a63
+--- /dev/null
++++ b/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-A-4103458a/work/.claude/settings.json
+@@ -0,0 +1,3 @@
++{
++  "hooks": {}
++}
+\ No newline at end of file

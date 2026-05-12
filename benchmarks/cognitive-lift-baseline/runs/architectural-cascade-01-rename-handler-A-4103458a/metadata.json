@@ -1,0 +1,21 @@
+{
+  "run_id": "architectural-cascade-01-rename-handler-A-4103458a",
+  "task_id": "architectural-cascade/01-rename-handler",
+  "session": "A",
+  "wall_clock_seconds": 52.42,
+  "returncode": 0,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "2.00",
+    "--setting-sources",
+    "project"
+  ]
+}

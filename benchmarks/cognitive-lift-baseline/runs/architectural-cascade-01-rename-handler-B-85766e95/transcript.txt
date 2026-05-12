@@ -1,0 +1,651 @@
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_started] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[hook hook_response] SessionStart:SessionStart:startup
+
+[session init] cwd=/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work
+
+I'll start by mapping the full blast radius before renaming — this rename touches multiple surfaces and a Python-only grep will miss the cross-language references.
+
+[Tool call: Bash({"command": "ls -la", "description": "List working directory contents"})]
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[Tool result]
+total 16
+drwxr-xr-x@ 10 junlee  staff  320 May  8 16:32 .
+drwxr-xr-x@  3 junlee  staff   96 May  8 16:32 ..
+drwxr-xr-x@  3 junlee  staff   96 May  8 16:32 .claude
+drwxr-xr-x@  2 junlee  staff   64 May  8 16:32 .episteme
+drwxr-xr-x@  3 junlee  staff   96 May  8 12:50 .github
+-rw-r--r--@  1 junlee  staff    0 May  8 12:50 .gitkeep
+-rw-r--r--@  1 junlee  staff  229 May  8 12:50 auth_handler.py
+drwxr-xr-x@  3 junlee  staff   96 May  8 12:50 docs
+-rw-r--r--@  1 junlee  staff  372 May  8 12:50 main.py...[truncated]
+
+[Tool call: Grep({"pattern": "auth_handler", "output_mode": "content", "-n": true})]
+
+[Tool result]
+main.py:2:from auth_handler import auth_handler
+main.py:7:    if not auth_handler.verify(token):
+.github/workflows/ci.yml:9:        run: python -m validation.check --handler=auth_handler
+auth_handler.py:4:class auth_handler:
+docs/auth.md:3:This service uses `auth_handler.verify(token)` to validate session tokens.
+docs/auth.md:8:from auth_handler import auth_handler
+docs/auth.md:10:if auth_handler.verify(request.token):
+tests/fixtures/handlers.json:4:    "auth_handler": {
+tests/fixtures/handlers....[truncated]
+
+Blast radius mapped — 5 surfaces, 8 reference sites across Python, YAML, Markdown, and JSON. Reading each before changes.
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py"})]
+
+[Tool result]
+1	"""Authentication handler — verifies session tokens."""
+2	
+3	
+4	class auth_handler:
+5	    @staticmethod
+6	    def verify(token: str) -> bool:
+7	        # Stub: real impl validates token signature.
+8	        return token.startswith("valid-")
+9	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/main.py"})]
+
+[Tool result]
+1	"""Entry point. Wires the auth handler into the request pipeline."""
+2	from auth_handler import auth_handler
+3	
+4	
+5	def handle_request(request: dict) -> dict:
+6	    token = request.get("token", "")
+7	    if not auth_handler.verify(token):
+8	        return {"error": "unauthorized"}
+9	    return {"ok": True}
+10	
+11	
+12	if __name__ == "__main__":
+13	    print(handle_request({"token": "valid-abc"}))
+14	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/.github/workflows/ci.yml"})]
+
+[Tool result]
+1	name: CI
+2	on: [push, pull_request]
+3	jobs:
+4	  test:
+5	    runs-on: ubuntu-latest
+6	    steps:
+7	      - uses: actions/checkout@v4
+8	      - name: Run handler validation
+9	        run: python -m validation.check --handler=auth_handler
+10	      - name: Run tests
+11	        run: python -m pytest tests/
+12	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/docs/auth.md"})]
+
+[Tool result]
+1	# Authentication
+2	
+3	This service uses `auth_handler.verify(token)` to validate session tokens.
+4	
+5	## Example
+6	
+7	```python
+8	from auth_handler import auth_handler
+9	
+10	if auth_handler.verify(request.token):
+11	    proceed()
+12	```
+13	
+14	The handler is registered with the request pipeline in `main.py`.
+15	
+
+[Tool call: Read({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/tests/fixtures/handlers.json"})]
+
+[Tool result]
+1	{
+2	  "version": 1,
+3	  "registered_handlers": {
+4	    "auth_handler": {
+5	      "module": "auth_handler",
+6	      "verify_method": "verify"
+7	    }
+8	  }
+9	}
+10	
+
+Sync plan locked. Applying edits across all 5 surfaces in parallel.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/main.py", "old_string": "\"\"\"Entry point. ...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/main.py, but you haven't granted it yet.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Write({"file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/authentication_handler.py", "content": "\"\"\"Authentication handl...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_started] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[hook hook_response] PreToolUse:PreToolUse:Write
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/authentication_handler.py, but you haven't granted it yet.
+
+[Tool call: Bash({"command": "git mv auth_handler.py authentication_handler.py", "description": "Rename auth_handler.py to authentication_handler.py"})]
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[Tool result]
+This command requires approval
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+[Tool call: Bash({"command": "echo \"test\" > /tmp/permission-probe.txt && cat /tmp/permission-probe.txt", "description": "Probe whether Bash write is allowed at all"})]
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[Tool result]
+This Bash command contains multiple operations. The following parts require approval: echo "test", cat /tmp/permission-probe.txt
+
+[Tool call: Bash({"command": "ls -la auth_handler.py", "description": "Check file presence"})]
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_response] PreToolUse:PreToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_started] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[hook hook_response] PostToolUse:PostToolUse:Bash
+
+[Tool result]
+-rw-r--r--@ 1 junlee  staff  229 May  8 12:50 auth_handler.py
+
+[Tool call: Edit({"replace_all": false, "file_path": "/Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py", "old_string": "class auth_...[truncated])]
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_started] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[hook hook_response] PreToolUse:PreToolUse:Edit
+
+[Tool result]
+Claude requested permissions to write to /Users/junlee/episteme/benchmarks/cognitive-lift-baseline/runs/architectural-cascade-01-rename-handler-B-85766e95/work/auth_handler.py, but you haven't granted it yet.
+
+Write/Edit/mv operations are being blocked by the environment ("you haven't granted it yet" persisting across retries). I'll stop burning budget on retries and deliver the artifact a kernel-active session should produce: the explicit blast-radius map and sync plan.
+
+## Blast radius map
+
+| # | Surface | File | Reference site(s) | Reference type |
+|---|---|---|---|---|
+| 1 | Python module file | `auth_handler.py` | filename + `class auth_handler:` (L4) | filename + identifier |
+| 2 | Python importer | `main.py` | `from auth_handler import auth_handler` (L2); `auth_handler.verify(token)` (L7); docstring "auth handler" (L1) | module + identifier + prose |
+| 3 | CI workflow | `.github/workflows/ci.yml` | `--handler=auth_handler` (L9) | CLI arg literal |
+| 4 | Documentation | `docs/auth.md` | `` `auth_handler.verify(token)` `` (L3); `from auth_handler import auth_handler` (L8); `auth_handler.verify(...)` (L10) | inline code + code block |
+| 5 | Test fixtures | `tests/fixtures/handlers.json` | `"auth_handler":` key (L4); `"module": "auth_handler"` value (L5) | JSON key + string value |
+
+## Sync plan (one action per surface)
+
+1. **Rename file** `auth_handler.py` → `authentication_handler.py` (use `git mv` to preserve history).
+2. **Edit class name** in renamed file: `class auth_handler:` → `class authentication_handler:`.
+3. **Edit `main.py`**: import line (`from authentication_handler import authentication_handler`), call site (`authentication_handler.verify(token)`), and docstring ("authentication handler").
+4. **Edit `.github/workflows/ci.yml`** L9: `--handler=authentication_handler`.
+5. **Edit `docs/auth.md`** all 3 references on L3, L8, L10.
+6. **Edit `tests/fixtures/handlers.json`** L4 (key) and L5 (module value).
+
+## Verification commands (post-change)
+
+```bash
+grep -rn "auth_handler" .              # must return zero hits
+python main.py                         # smoke test the import
+python -m pytest tests/                # fixtures still resolve
+yamllint .github/workflows/ci.yml      # CI workflow still valid
+```
+
+## Why a naive grep-only-`.py` rename fails here
+
+The fixture key (`tests/fixtures/handlers.json:4`) is a **runtime string lookup** — broken silently until the fixture-driven test re-runs. The CI arg (`ci.yml:9`) is a **string literal parsed at job time** — breaks on next push, not locally. The docs (`auth.md:8`) are still valid Markdown after the partial rename but document a now-nonexistent symbol. All three are outside the Python AST and invisible to most refactor tools.
+
+**Status**: sync plan complete and ready to apply; environment is blocking the actual file mutations. If the harness grants write permissions on a retry, the 6 actions above can be executed in parallel (steps 2–6 are independent; step 1 must precede 2).
+
+[hook hook_started] Stop:Stop
+
+[hook hook_started] Stop:Stop
+
+[hook hook_started] Stop:Stop
+
+[hook hook_started] Stop:Stop
+
+[hook hook_response] Stop:Stop
+
+[hook hook_response] Stop:Stop
+
+[hook hook_response] Stop:Stop
+
+[hook hook_response] Stop:Stop
+
+[Final result]
+Write/Edit/mv operations are being blocked by the environment ("you haven't granted it yet" persisting across retries). I'll stop burning budget on retries and deliver the artifact a kernel-active session should produce: the explicit blast-radius map and sync plan.
+
+## Blast radius map
+
+| # | Surface | File | Reference site(s) | Reference type |
+|---|---|---|---|---|
+| 1 | Python module file | `auth_handler.py` | filename + `class auth_handler:` (L4) | filename + identifier |
+| 2 | Python importer | `main.py` | `from auth_handler import auth_handler` (L2); `auth_handler.verify(token)` (L7); docstring "auth handler" (L1) | module + identifier + prose |
+| 3 | CI workflow | `.github/workflows/ci.yml` | `--handler=auth_handler` (L9) | CLI arg literal |
+| 4 | Documentation | `docs/auth.md` | `` `auth_handler.verify(token)` `` (L3); `from auth_handler import auth_handler` (L8); `auth_handler.verify(...)` (L10) | inline code + code block |
+| 5 | Test fixtures | `tests/fixtures/handlers.json` | `"auth_handler":` key (L4); `"module": "auth_handler"` value (L5) | JSON key + string value |
+
+## Sync plan (one action per surface)
+
+1. **Rename file** `auth_handler.py` → `authentication_handler.py` (use `git mv` to preserve history).
+2. **Edit class name** in renamed file: `class auth_handler:` → `class authentication_handler:`.
+3. **Edit `main.py`**: import line (`from authentication_handler import authentication_handler`), call site (`authentication_handler.verify(token)`), and docstring ("authentication handler").
+4. **Edit `.github/workflows/ci.yml`** L9: `--handler=authentication_handler`.
+5. **Edit `docs/auth.md`** all 3 references on L3, L8, L10.
+6. **Edit `tests/fixtures/handlers.json`** L4 (key) and L5 (module value).
+
+## Verification commands (post-change)
+
+```bash
+grep -rn "auth_handler" .              # must return zero hits
+python main.py                         # smoke test the import
+python -m pytest tests/                # fixtures still resolve
+yamllint .github/workflows/ci.yml      # CI workflow still valid
+```
+
+## Why a naive grep-only-`.py` rename fails here
+
+The fixture key (`tests/fixtures/handlers.json:4`) is a **runtime string lookup** — broken silently until the fixture-driven test re-runs. The CI arg (`ci.yml:9`) is a **string literal parsed at job time** — breaks on next push, not locally. The docs (`auth.md:8`) are still valid Markdown after the partial rename but document a now-nonexistent symbol. All three are outside the Python AST and invisible to most refactor tools.
+
+**Status**: sync plan complete and ready to apply; environment is blocking the actual file mutations. If the harness grants write permissions on a retry, the 6 actions above can be executed in parallel (steps 2–6 are independent; step 1 must precede 2).

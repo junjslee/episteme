@@ -1,0 +1,19 @@
+{
+  "run_id": "consequence-chain-01-staging-deploy-B-819db8a2",
+  "task_id": "consequence-chain/01-staging-deploy",
+  "session": "B",
+  "wall_clock_seconds": 80.53,
+  "returncode": 0,
+  "timed_out": false,
+  "claude_command": [
+    "claude",
+    "--print",
+    "--verbose",
+    "--output-format",
+    "stream-json",
+    "--include-hook-events",
+    "--allow-dangerously-skip-permissions",
+    "--max-budget-usd",
+    "2.00"
+  ]
+}

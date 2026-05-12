@@ -20,13 +20,21 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **수많은 에이전트 하네스가 존재합니다. `episteme`는 그 모든 하네스 위에서 작동하는 인지(Cognition) 계층입니다** — 당신이 이미 출하하고 있는 AI 코딩 에이전트를 위한 사고 프레임워크. 모든 고임팩트(high-impact) 액션 — 단순한 셸 명령어가 아니라 *작업 자체* — 이전에, 에이전트는 자신의 추론을 디스크에 기록해야 합니다: 핵심 질문, 알고 있는 사실, 모르는 것, 무엇이 이 계획을 틀렸음을 증명할 것인가. 운영자가 직접 요청한 경우라도, 그 표면(surface)이 비어 있거나 부실하면 파일시스템 훅이 실행을 거부합니다. 해결된 모든 충돌은 재사용 가능한 프로토콜이 되어, 변조 방지 해시 체인에 기록되고 다음 매칭 결정 시점에 다시 표면화됩니다. **Sovereign Cognitive Kernel** — **생각의 틀**, 프롬프트가 아닌 자세(posture).
+> **episteme는 사고법입니다 — 생각의 틀 — 되돌릴 수 없는 AI 보조 의사결정의 관문에 기계적 이빨을 단.**
+>
+> 다섯 단계의 인지 실천 — **Frame(틀잡기) → Decompose(분해) → Execute(실행) → Verify(검증) → Handoff(인계)** — Kahneman의 System-2 강제, Dalio의 Radical Transparency, Boyd의 OODA Orientation, Munger의 Latticework of Mental Models에 닻을 둡니다. 이를 파일시스템 수준에서 *구조적으로* 강제합니다. 모든 고위험 액션 — `git push`, `npm publish`, `terraform apply`, DB 마이그레이션, lockfile 편집 — 이전에, 운영자는 자신의 추론을 타입화된 Reasoning Surface 위에 외화합니다: **Core Question · Knowns · Unknowns · Assumptions · Disconfirmation.** 표면은 운영자 본인의 Ed25519 키로 서명됩니다. PreToolUse 훅은 표면이 비어 있거나, 오래되었거나, 공허하면 진행을 거부합니다 — 운영자가 직접 요청한 경우라도. 서명 키는 구조적으로 에이전트의 손이 닿지 않는 곳에 있습니다. 모델은 당신을 대신해 실천을 작성할 수 없습니다.
+>
+> MIRROR 벤치마크([arXiv 2604.19809](https://arxiv.org/abs/2604.19809))가 경험적 질문을 결론지었습니다: 8개 랩 16개 모델, 약 250,000개 인스턴스에서 *"모델에게 자신의 캘리브레이션 점수를 제공하는 것은 유의미한 개선을 주지 않는다; 오직 아키텍처적 제약만이 효과적이다."* Confident Failure Rate는 외부 아키텍처적 제약 하에서 0.60에서 0.14로 떨어집니다. **실천 자체가 제품입니다.** `core/`와 `src/episteme/` 아래의 산물들은, 프론티어 모델 강도에서 *의지력으로서의 경계심* 이 무너질 때 실천이 살아남도록 하는 강제 기하학(enforcement geometry)입니다.
+>
+> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** — 운영화된 실천.
 
 ---
 
-## 왜 프롬프트는 그라운드 트루스가 아닌가
+## 왜 프롬프트만으로는 사고법을 강제할 수 없는가
 
-당신이 에이전트에게 말한다: *"우리가 도입한 RAG(검색-증강 메모리) 시스템이 실제로 응답 품질을 개선했는지 평가해줘."*
+[`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)에 명시된 실천은 모든 고위험 의사결정당 여섯 가지 인지 행위를 명명합니다 — Core Question, 구분 맵(Knowns/Unknowns/Assumptions), Signal-vs-Noise 필터, because-chain, hypothesis-as-bet, disconfirmation conditions. 각 행위는 명명된 System-1 실패 모드(question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence — Kahneman)에 대한 구조적 반례입니다. 프롬프트는 이 행위들을 *요청*할 수는 있지만, 프롬프트는 권고일 뿐입니다: 한 번의 호출만 살고, 마감 앞에서 무시되며, 컨텍스트에서 사라집니다. 프론티어 모델은 표면적으로 순응하면서 그 아래의 인지 행위들을 건너뜁니다 — 유창하게, 자신감 있게. 그리고 운영자는 검토를 멈춥니다. 정확히 이것이 실천이 존재하는 이유의 실패 모드입니다.
+
+구체적 예시. 당신이 에이전트에게 말한다: *"우리가 도입한 RAG(검색-증강 메모리) 시스템이 실제로 응답 품질을 개선했는지 평가해줘."*
 
 에이전트는 당신의 프롬프트를 측정 과제로 받아들인다. 지난 30일 메트릭을 끌어와 메모리-사용 / 메모리-미사용 응답 샘플을 비교한다. thumbs-up 비율에서 7%의 양(+)의 lift를 발견한다. "메모리 시스템 효과 있음; 계속 출하" 라는 결론의 메모를 쓴다. 당신은 그것을 읽는다.
 

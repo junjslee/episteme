@@ -5919,6 +5919,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to write report.md (default: stdout)",
     )
 
+    # ── Phase 3+ Compliance Evidence Layer subcommands (Event 121–122) ──
+    # Each subparser's full argument tree is owned by the module's own
+    # `build_parser` function. Here we only register the top-level command
+    # name and forward argv via REMAINDER so the module-owned parser
+    # handles the rest. This keeps the entry-point edit narrow.
+    sub.add_parser(
+        "surface",
+        help="Author / sign / manage Signed Reasoning Surfaces (operator UX)",
+        add_help=False,
+    ).add_argument("surface_args", nargs=argparse.REMAINDER)
+    sub.add_parser(
+        "evidence",
+        help="Auditor-facing viewer + Regulator Evidence Packet exporter",
+        add_help=False,
+    ).add_argument("evidence_args", nargs=argparse.REMAINDER)
+    sub.add_parser(
+        "verify",
+        help="Standalone signed-surface verifier (independent of episteme runtime)",
+        add_help=False,
+    ).add_argument("verify_args", nargs=argparse.REMAINDER)
+    sub.add_parser(
+        "practice",
+        help="Make the practice tangible — walk / retro / demo (no surface authored)",
+        add_help=False,
+    ).add_argument("practice_args", nargs=argparse.REMAINDER)
+
     return parser
 
 
@@ -5931,6 +5957,26 @@ def main(argv: Iterable[str] | None = None) -> int:
             argv_list = argv_list[1:] + ["--help"]
         else:
             argv_list = ["--help"]
+
+    # Phase 3+ Compliance Evidence Layer subcommands have module-owned
+    # argparse trees (with flags like --keys-dir that argparse REMAINDER
+    # cannot forward cleanly through the parent parser). Dispatch BEFORE
+    # the main argparse runs so the submodule sees its argv unmolested.
+    if argv_list and argv_list[0] in ("surface", "evidence", "verify", "practice"):
+        subcmd, rest = argv_list[0], argv_list[1:]
+        if subcmd == "surface":
+            from episteme.surface import run_surface_cli
+            return run_surface_cli(rest)
+        if subcmd == "evidence":
+            from episteme.evidence import run_evidence_cli
+            return run_evidence_cli(rest)
+        if subcmd == "verify":
+            from episteme.verify import run_verify_cli
+            return run_verify_cli(rest)
+        if subcmd == "practice":
+            from episteme.practice import run_practice_cli
+            return run_practice_cli(rest)
+
     parser = build_parser()
     args = parser.parse_args(argv_list)
 
@@ -6216,6 +6262,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _dev_dispatch(args)
     if args.command == "bench":
         return _bench_dispatch(args)
+    # surface / evidence / verify are dispatched pre-argparse above.
     parser.error(f"unsupported command: {args.command}")
     return 2
 

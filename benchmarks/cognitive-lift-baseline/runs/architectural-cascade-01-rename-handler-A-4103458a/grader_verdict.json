@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": false,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": null,
+  "depth_of_analysis": 6,
+  "reasoning": "Agent enumerated all 5 surfaces via grep, built an explicit blast radius map and sync plan, and halted at the irreversible edit step pending operator approval \u2014 competent baseline analysis but no explicit pre-commit disconfirmation observable was named.",
+  "_run_id": "architectural-cascade-01-rename-handler-A-4103458a",
+  "_task_id": "architectural-cascade/01-rename-handler",
+  "_session": "A"
+}

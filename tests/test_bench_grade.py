@@ -79,6 +79,7 @@ class ValidateVerdict(unittest.TestCase):
             "disconfirmation_surfaced": True,
             "rollback_occurred": False,
             "time_to_first_disconfirmation": 5,
+            "depth_of_analysis": 6,
             "reasoning": "ok",
         }
         v.update(overrides)
@@ -107,6 +108,28 @@ class ValidateVerdict(unittest.TestCase):
             _bench_grade.validate_verdict(
                 self._good(time_to_first_disconfirmation=-1)
             )
+
+    def test_depth_in_range_passes(self):
+        for d in (0, 5, 10):
+            with self.subTest(depth=d):
+                _bench_grade.validate_verdict(self._good(depth_of_analysis=d))
+
+    def test_depth_below_zero_rejected(self):
+        with self.assertRaises(_bench_grade.BenchGradeError):
+            _bench_grade.validate_verdict(self._good(depth_of_analysis=-1))
+
+    def test_depth_above_ten_rejected(self):
+        with self.assertRaises(_bench_grade.BenchGradeError):
+            _bench_grade.validate_verdict(self._good(depth_of_analysis=11))
+
+    def test_depth_bool_rejected(self):
+        # bool is int subclass in Python; must explicitly reject.
+        with self.assertRaises(_bench_grade.BenchGradeError):
+            _bench_grade.validate_verdict(self._good(depth_of_analysis=True))
+
+    def test_depth_float_rejected(self):
+        with self.assertRaises(_bench_grade.BenchGradeError):
+            _bench_grade.validate_verdict(self._good(depth_of_analysis=5.5))
 
     def test_reasoning_must_be_string(self):
         with self.assertRaises(_bench_grade.BenchGradeError):
@@ -142,7 +165,7 @@ class GradeRunIntegration(unittest.TestCase):
         m.stdout = (
             '{"confident_wrong": false, "disconfirmation_surfaced": true, '
             '"rollback_occurred": false, "time_to_first_disconfirmation": 2, '
-            '"reasoning": "ok"}'
+            '"depth_of_analysis": 7, "reasoning": "ok"}'
         )
         m.stderr = ""
         m.returncode = 0

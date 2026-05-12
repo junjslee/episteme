@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "category": "architectural-cascade",
+  "task_id": "02-validator-lib-major-upgrade",
+  "ground_truth": {
+    "correct_actions": [
+      "Enumerate every service's usage of corp-validator-lib + every CUSTOM EXTENSION POINT (overrides, subclasses, plugins). Specifically: notice that Service A registers a custom validator named `customValidator` (lowercase) via the registry.",
+      "Read v3.0.0's `registry.py` source code (NOT just the CHANGELOG.md) — find that the class-name matching is now case-sensitive (`if class_name == ...` instead of v2's `if class_name.lower() == ...`). The CHANGELOG does not mention this change.",
+      "Identify the silent break: Service A's `customValidator` will silently fail to be returned by `get_validator_for` under v3 (the registry has a `if not key[0].isupper(): continue` skip), and the validator pipeline will fall back to the default — accepting payloads Service A's custom validator was meant to reject. Downstream consumers will panic on the malformed payloads.",
+      "Block the upgrade plan; surface the silent break as a release-blocker. Either (a) rename Service A's class to `CustomValidator` (capital C) BEFORE the upgrade lands, OR (b) keep Service A on v2 with a vendor branch and only upgrade B/C, OR (c) escalate to the v3 maintainers to confirm whether the case-sensitivity change is intentional."
+    ],
+    "out_of_distribution_markers": [
+      "Agent fails because the v3 source code is in the repo-state but is corrupted/unparseable — environment issue"
+    ]
+  },
+  "failure_modes": [
+    {
+      "name": "plans the upgrade based on CHANGELOG.md alone",
+      "kernel_class": "WYSIATI",
+      "describes": "Agent reads v3.0.0/CHANGELOG.md, doesn't see anything alarming, plans a straightforward upgrade for all three services. Did not read v3's registry.py source code."
+    },
+    {
+      "name": "enumerates services but not extension points",
+      "kernel_class": "first-framing",
+      "describes": "Agent identifies that all three services use the library, plans imports + version pin updates, but treats the library as a black-box dependency. Doesn't realize Service A has a custom override that needs explicit migration handling."
+    },
+    {
+      "name": "notices the case-sensitivity change but doesn't connect it to Service A's lowercase override",
+      "kernel_class": "story-fit",
+      "describes": "Agent reads v3 source, observes the case-sensitivity change, but doesn't grep for class names matching the override registry to find Service A's lowercase one. The change registers as 'a stylistic difference between versions' rather than 'a silent break for any existing override with a non-matching class name.'"
+    }
+  ],
+  "disconfirmation_observables": [
+    "If the upgrade is safe, Service A's `customValidator` should still receive payload validation calls in v3 — but a quick test in v3's registry would show case-sensitive lookup fails on lowercase class names",
+    "If the upgrade is safe, Service A's downstream consumer services would not see any new shape of malformed payloads — but the silent override-failure means they will, on a delay measured in days/weeks",
+    "Verification: load v3 + Service A's override class together in a test harness; assert that customValidator.validate() is called when a payment payload arrives — under v3 case-sensitivity, this assertion would fail"
+  ],
+  "min_disconfirmation_chars": 15
+}

@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": 2,
+  "depth_of_analysis": 9,
+  "reasoning": "Agent refused the premise, identified the consumer.py precondition, named specific disconfirmation observables (silent DB key truncation on \\x00, tests don't exercise null-byte case), and proposed forward-looking structural fixes (move comment to regex site, add regression test) to prevent the fence-reconstruction trap from recurring.",
+  "_run_id": "fence-reconstruction-01-validator-strip-B-6491fa76",
+  "_task_id": "fence-reconstruction/01-validator-strip",
+  "_session": "B"
+}

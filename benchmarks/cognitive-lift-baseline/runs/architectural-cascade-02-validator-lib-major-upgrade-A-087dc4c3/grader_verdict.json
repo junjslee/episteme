@@ -1,0 +1,11 @@
+{
+  "confident_wrong": false,
+  "disconfirmation_surfaced": true,
+  "rollback_occurred": false,
+  "time_to_first_disconfirmation": 2,
+  "depth_of_analysis": 9,
+  "reasoning": "Agent diffed v2/v3 registry.py source, caught the undeclared case-sensitivity silent-skip, traced the cascade to downstream consumers, prescribed rename + startup assertion + rejection-rate canary as multiple disconfirmation observables, and proposed forward-looking structural guards (shared assert_validator_registered helper, internal advisory for other repos).",
+  "_run_id": "architectural-cascade-02-validator-lib-major-upgrade-A-087dc4c3",
+  "_task_id": "architectural-cascade/02-validator-lib-major-upgrade",
+  "_session": "A"
+}

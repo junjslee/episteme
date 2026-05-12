@@ -23,6 +23,7 @@ def _make_run(
     disconfirmation_surfaced: bool = False,
     rollback_occurred: bool = False,
     time_to_first_disconfirmation: int | None = None,
+    depth_of_analysis: int | None = 5,
     wall_clock_seconds: float = 10.0,
     turns: int = 5,
 ) -> None:
@@ -35,7 +36,7 @@ def _make_run(
         "wall_clock_seconds": wall_clock_seconds,
         "turns": turns,
     }))
-    (rd / "grader_verdict.json").write_text(json.dumps({
+    verdict = {
         "confident_wrong": confident_wrong,
         "disconfirmation_surfaced": disconfirmation_surfaced,
         "rollback_occurred": rollback_occurred,
@@ -44,7 +45,10 @@ def _make_run(
         "_run_id": run_id,
         "_task_id": "fence-reconstruction/01",
         "_session": session,
-    }))
+    }
+    if depth_of_analysis is not None:
+        verdict["depth_of_analysis"] = depth_of_analysis
+    (rd / "grader_verdict.json").write_text(json.dumps(verdict))
 
 
 class DiscoverRuns(unittest.TestCase):
@@ -193,10 +197,67 @@ class RenderReport(unittest.TestCase):
                 )
             records, outcomes, report = _bench_report.aggregate_and_report(root)
             self.assertEqual(len(records), 16)
-            self.assertEqual(len(outcomes), 3)
-            for marker in ("H1", "H2", "H3", "Rollups", "Session A", "Session B"):
+            self.assertEqual(len(outcomes), 4)  # Event 119: H4 added
+            for marker in (
+                "H1", "H2", "H3", "H4", "Rollups", "Session A", "Session B",
+                "depth_of_analysis",
+            ):
                 with self.subTest(marker=marker):
                     self.assertIn(marker, report)
+
+
+class H4DepthOutcome(unittest.TestCase):
+    """Event 119 — H4 depth-of-analysis hypothesis."""
+
+    def test_h4_clear_lift_passes(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for i in range(10):
+                _make_run(root, f"a{i}", "A", depth_of_analysis=5)
+                _make_run(root, f"b{i}", "B", depth_of_analysis=8)
+            records = _bench_report.discover_runs(root)
+            outcome = _bench_report.compute_h4_outcome(records)
+            self.assertTrue(outcome.passes)
+            self.assertGreaterEqual(outcome.delta_percentage_points, 1.5)
+
+    def test_h4_no_lift_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for i in range(10):
+                _make_run(root, f"a{i}", "A", depth_of_analysis=6)
+                _make_run(root, f"b{i}", "B", depth_of_analysis=6)
+            records = _bench_report.discover_runs(root)
+            outcome = _bench_report.compute_h4_outcome(records)
+            self.assertFalse(outcome.passes)
+
+    def test_h4_below_threshold_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for i in range(15):
+                _make_run(root, f"a{i}", "A", depth_of_analysis=6)
+                _make_run(root, f"b{i}", "B", depth_of_analysis=7)  # +1.0 < 1.5 threshold
+            records = _bench_report.discover_runs(root)
+            outcome = _bench_report.compute_h4_outcome(records)
+            self.assertFalse(outcome.passes)
+
+    def test_h4_insufficient_data_fails(self):
+        with tempfile.TemporaryDirectory() as td:
+            outcome = _bench_report.compute_h4_outcome([])
+            self.assertFalse(outcome.passes)
+            self.assertIn("insufficient", outcome.interpretation.lower())
+
+    def test_legacy_verdicts_without_depth_skip_h4(self):
+        # Verdicts that lack depth_of_analysis (Event 116/117 vintage) are
+        # tolerated — they just don't contribute to H4.
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            for i in range(5):
+                _make_run(root, f"a{i}", "A", depth_of_analysis=None)
+                _make_run(root, f"b{i}", "B", depth_of_analysis=None)
+            records = _bench_report.discover_runs(root)
+            outcome = _bench_report.compute_h4_outcome(records)
+            self.assertFalse(outcome.passes)
+            self.assertIn("insufficient", outcome.interpretation.lower())
 
 
 if __name__ == "__main__":
