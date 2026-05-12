@@ -1,5 +1,7 @@
 # Compliance Crosswalk — `signed-surface@1.0` → Regulatory Clauses
 
+**Status:** This document is a **downstream structural mapping**, not the primary positioning. It exists to document that episteme's architecture — built to satisfy the operator-side Calibration-Lift mechanism per the MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) — *happens* to map onto multiple regulatory obligation classes as a byproduct of being right about the mechanism. The primary value claim and positioning hypotheses are in `docs/PRODUCTIZATION_PLAN.md` § 0–0c. Whether any specific regulator accepts this mapping is the question Phase 5 Probe 1 is designed to test; this document does not claim regulator validation.
+
 **Schema version:** `signed-surface@1.0`
 **Frameworks covered:** EU AI Act, NIST AI RMF + GenAI Profile (NIST AI 600-1), Financial-services framework set (Fed SR 11-7, OCC, EBA, MAS, OSFI, FINRA, SEC).
 **Coverage notation:**
@@ -7,7 +9,7 @@
 - **Supporting** — artifact is necessary evidence within a broader compliance program
 - **Conditional** — satisfies only when paired with named operator policy
 
-This is a structural mapping. Whether the artifact materially satisfies any specific obligation in any specific jurisdiction requires legal counsel review for the deployer's specific deployment.
+This is a **structural mapping**. Whether the artifact materially satisfies any specific obligation in any specific jurisdiction requires legal counsel review for the deployer's specific deployment. episteme does not provide legal advice; it provides cryptographically signed structured evidence at the operator decision layer.
 
 ---
 

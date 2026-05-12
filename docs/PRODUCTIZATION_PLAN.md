@@ -1,288 +1,348 @@
-# Productization Plan — Compliance Evidence Layer
+# Productization Plan
 
-**Opened:** 2026-05-10 (Event 121)
-**Status of empirical base:** Phase 2 design pre-registered; trial dataset generation operator-gated.
-**Positioning:** Compliance Evidence Layer for high-risk AI-assisted decisions. Adversarial to comfortable cognitive outsourcing.
-**Regulatory tailwind:** EU AI Act Article 12 high-risk obligations apply **2026-08-02** (84 days from Event 121).
+**Opened:** 2026-05-10 (Event 121). Rewritten 2026-05-12 (Event 122) after operator-flagged category errors.
+**Primary value claim (what we measure):** External architectural constraint reduces operator Confident Failure Rate on irreversible AI-assisted decisions.
+**Positioning (what we are testing in Phase 5):** Three hypotheses under structured probes; none declared validated until data lands.
+**Regulatory tailwind:** EU AI Act Article 12 high-risk obligations apply **2026-08-02**.
 
 ---
 
-## 0. Position pivot — why this document exists
+## 0. Rationale — why and how we are building this
 
-Events 119–120 closed the per-task A/B depth-measurement path: Sonnet 4.6 saturates at 9/10 depth on the hardest authorable tasks, kernel-free; the contamination probe confirmed Session A was genuinely kernel-free. The lift signal episteme was trying to demonstrate is structurally hard to surface at frontier model strength.
+### 0.1 The operator's concern, made concrete
 
-The reframe that survives this finding: **kernel value lives in operator Calibration-Lift on irreversible decisions, not model output depth.** This is anchored on published external-metacognitive-control research (MIRROR benchmark: Confident Failure Rate 0.60 → 0.14, ~70% reduction across 5 frontier models at temp 0) and the Long-Horizon Execution paper (arXiv 2509.09677: self-conditioning effect causes error compounding across multi-step trajectories; provenance-typed context injection is the structural counter).
+The thread that opened this productization cycle: an essay (in Korean) the operator surfaced during the Event 120 reframe conversation. Excerpt, translated:
 
-Positioning shifts accordingly:
+> *"If I outsource my brain to an LLM wiki and get a second brain, will my brain get better, or will it atrophy?"*
 
-| Was | Is |
+The professional concern beneath the essay: when a model is *fluent and confident*, the human stops reading the diff. The audit trail records what the agent did, not what the human believed. The cognitive externalization that used to happen during deliberate effortful writing — stops happening. The model fills the cognitive space that the operator used to fill.
+
+For most knowledge work this trade-off may be acceptable. For **irreversible decisions** — push, merge, deploy, migrate, publish, external-post — it is the failure mode.
+
+### 0.2 The empirical anchor: only architectural constraint is effective
+
+The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) measures whether LLMs translate self-knowledge into appropriate agentic action. Across 16 models from 8 labs and ~250,000 evaluation instances, the headline finding:
+
+| Condition | Confident Failure Rate |
 |---|---|
-| "Cognitive scaffold for better reasoning" | "Compliance Evidence Layer for high-risk AI-assisted decisions" |
-| Differentiation: "depth of analysis" | Differentiation: **pre-action operator-signed structured artifact** vs. post-hoc trace constructs |
-| Audience: ML engineers | Audience: Chief Compliance Officers, Internal Audit, Notified Body assessors |
-| Value claim: "X% lift on task-level scoring" | Value claim: "Cryptographically signed evidence that a real person — not the model — authorized every irreversible decision" |
+| Baseline (model self-evaluates) | **0.600** |
+| External metacognitive control applied | **0.143** |
+
+That is a 76% reduction at temperature 0; mean 70% across 5 frontier models at temperature 0.7. But the load-bearing claim is the paper's own sentence:
+
+> *"Providing models with their own calibration scores produces no significant improvement (p > 0.05); only architectural constraint is effective."*
+
+This is the causal mechanism rationale for episteme. The fix cannot be procedural ("ask the model to be careful"). The fix cannot be self-reflective ("ask the model to evaluate itself"). The fix has to be **structural** — an external constraint imposed by the agent's *environment* rather than by the model's *prompt*.
+
+Two reinforcing findings from [arXiv 2509.09677](https://arxiv.org/abs/2509.09677) ("The Illusion of Diminishing Returns: Measuring Long-Horizon Execution in LLMs"):
+
+1. Models exhibit a **self-conditioning effect**: prior LLM output in context is silently treated as fact in later steps, causing error compounding across multi-step trajectories.
+2. **Scaling alone does not fix this.** Sequential test-time compute with explicit provenance does.
+
+### 0.3 What the mechanism requires
+
+Tracing the requirement chain from finding to artifact:
+
+| Requirement (derived) | Why this and not the obvious alternative |
+|---|---|
+| The constraint comes from **outside the model** | MIRROR: model-internal calibration produces no improvement |
+| The most defensible "outside" is the **operator** | Operator is the natural source of judgment for irreversible decisions on their own systems |
+| The constraint must be **unforgeable by the model** | If the model can author the constraint, the human-in-the-loop claim collapses to a policy promise |
+| The constraint must be **structurally typed** | If Knowns and Inferences are fungible strings, the model paraphrases prior inferences into "facts" and the self-conditioning fix dissolves |
+| The constraint must apply **before** the irreversible action | Post-hoc trace constructs (Datadog, LangSmith, Langfuse) record what happened; they cannot prevent confident failure at the moment of authorization |
+| The constraint must be **third-party verifiable** | The operator cannot be both party and auditor; auditor must verify without trusting episteme's runtime |
+| The constraint must **follow the operator across substrates** | If the gate only exists on one platform, operators reroute to platforms without the gate — the constraint dissolves |
+
+### 0.4 How each artifact realizes the requirement
+
+What we have built (Event 121–122) and what each piece is required for:
+
+| Artifact | Path | Realizes which requirement |
+|---|---|---|
+| **PTSP** typed Fact / Inference / Unknown / Assumption ledgers + Promotion Gate | `core/ptsp/` | Structurally typed constraint; counters self-conditioning |
+| **Signed Reasoning Surface** envelope (Ed25519 + JCS canonicalization + RFC 3161 TSA shape + Sigstore Rekor inclusion shape) | `core/signing/` | Unforgeable cryptographic provenance |
+| **Standalone verifier CLI** with deterministic exit codes | `src/episteme/verify/` | Third-party verifiable without trusting episteme runtime |
+| **Operator authoring CLI** (`episteme surface author / sign / show / list / status / verify`) | `src/episteme/surface/` | Practical UX so the constraint actually gets authored |
+| **Evidence viewer + Regulator Evidence Packet exporter** (`episteme evidence posture / register / show / alerts / packet build`) | `src/episteme/evidence/` | Operator self-audit; on-demand export for regulator request |
+| **Pre-tool-use validator hook** (opt-in via `EPISTEME_SIGNED_SURFACE_REQUIRED=1`) | `src/episteme/hooks/signed_surface_validator.py` | The gate at the moment of irreversible action |
+| **Substrate adapters** — Claude Code (existing reasoning-surface@1 hot path); Hermes (signed-surface bridge in build) | `core/hooks/`, `src/episteme/adapters/`, `.claude/` | Constraint follows the operator wherever they work |
+
+### 0.5 What episteme deliberately is *not*
+
+| Not | Because |
+|---|---|
+| Agent memory (Mem0, Letta, Memento, Karpathy LLM Wiki) | Those make agents remember on behalf of humans; episteme makes humans remember at the gate |
+| LLM observability (Datadog APM, LangSmith, Langfuse) | Those record what happened; episteme records what the operator committed *before* it happened |
+| Guardrails (GuardrailsAI, NeMo Guardrails) | Those filter model I/O at execution; episteme constrains operator authorization upstream of execution |
+| Compliance vendor (single-jurisdiction) | Compliance is a *downstream use case* enabled by the architecture; not the architecture's purpose |
+
+This list is not adversarial — these tools are complements at *different layers*. § 2.7 has the layer diagram.
 
 ---
 
-## 1. Phase 3 — Technical Fortification (this Event)
+## 0a. Primary value claim (what we measure)
 
-### 1.1 Provenance-Tagged Step Pipeline (PTSP)
+**Claim:** Adding an external architectural constraint (the signed Reasoning Surface) at the moment of an operator's irreversible decision reduces operator Confident Failure Rate substantially relative to a no-constraint baseline.
 
-Counter to the self-conditioning effect (arXiv 2509.09677). Each step boundary holds four disjoint ledgers — Fact, Inference, Unknown, Assumption. Promotion of Inference → Fact requires explicit evidence (operator cosign, deterministic test pass, or external oracle attestation). Context injection at step N+1 tags items non-fungibly (`<fact>` vs `<inference>`) so the model cannot silently treat prior outputs as ground truth.
+**Empirical status:**
+- **Established (published literature):** MIRROR shows external architectural constraint reduces LLM-self-evaluation CFR by ~70% across 5 frontier models. The mechanism is established.
+- **Open (deployment-scale):** Whether the same magnitude transfers to a human+kernel deployment (where the constraint is friction-bearing) is empirically open. Friction may suppress participation; structure may amplify benefit. The deployment-scale effect is what episteme's Phase 2 trial is designed to measure.
 
-**Implementation surface:** `core/ptsp/`
+**Honesty discipline.** No marketing copy may cite "70.3%" or "~70% CFR reduction" as an episteme-measured number until our own dataset exists. Permitted forms:
+- ✅ *"The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) shows external architectural constraint reduces LLM Confident Failure Rate from 0.60 to 0.14. episteme is designed to replicate this effect at human-in-the-loop deployment scale."*
+- ❌ *"episteme reduces Confident Failure Rate by 70%."* (assumes measurement we haven't done)
+- ❌ *"70.3% reduction (MIRROR-aligned target; OSF pre-registration TBD)."* (cites a pre-registration that doesn't exist)
 
-**Invariants enforced:**
+---
 
-| ID | Invariant | Mechanism |
+## 0b. Positioning hypotheses (what we are testing — not yet validated)
+
+Three positioning candidates. Each addresses a different buyer. None is declared the primary positioning until Phase 5 probe data lands.
+
+| ID | Positioning | Primary audience | Probe |
+|---|---|---|---|
+| A | **Compliance Evidence Layer** — pre-action operator-signed structured artifact, AI Act Article 12 native | Chief Compliance Officer, Internal Audit, Notified Body assessor | Probe 1 (regulator outreach) |
+| B | **Operator Decision Audit Trail** — your own externalized reasoning, signed by you, searchable later | Developer-operator who cares about their own judgment quality | Probe 2 (developer surfaces: HN, Lobsters, dev.to) |
+| C | **Pre-Action Reasoning Commitment** — engineering-discipline forcing function for teams managing AI-assisted infra | Tech lead / staff engineer at growing teams adopting AI-assisted ops | Probe 3 (engineering-leadership channels) |
+
+The original Event 121 framing prematurely declared A the primary positioning. The corrected framing tests A, B, and C in parallel with weighted probes and lets data choose.
+
+---
+
+## 0c. Audience clarity (primary vs derivative)
+
+| Audience | Priority | Signal we measure |
 |---|---|---|
-| I1 | No item appears in two ledgers simultaneously | Type discriminant `kind` non-nullable |
-| I2 | Fact promotion is irreversible within session | `promoted_from` is set-once |
-| I3 | No Fact may depend on an Inference | Topological check on `depends_on` |
-| I4 | Step N+1 KNOWNS ⊇ Step N KNOWNS minus rejected facts | Set-equality at seal time |
-| I5 | Hash chain unbroken | `parent_hash` = SHA-256(canonical(prev)) |
+| **Operator-as-user** (the person typing `episteme surface author`) | **Primary** | Surfaces authored / day; kernel hot-path firings; framework synthesis events; daily-user retention |
+| Developer-operator considering adoption | Secondary | GitHub stars, substantive issues, external PRs, podcast/blog citations |
+| CCO / Internal Audit / Notified Body | Tertiary | Direct outbound responses, paid pilot inquiries, regulator citation |
 
-### 1.2 Signed Reasoning Surface (`signed-surface@1.0`)
+The Day-90 decision matrix (§ 3.5) weights operator-as-user signals **highest** — operators tell you the tool *works*; CCOs tell you it *sells*. Those are different questions and conflating them is the original Event 121 framing error.
 
-Parallel-track to the live `reasoning-surface@1`. Adds cryptographic chain-of-custody to the existing structured artifact.
+---
 
-**Implementation surface:** `core/signing/`
+## 1. Phase 3 — Technical Fortification (shipped Event 121–122)
 
-**Trust model:**
+### 1.1 Provenance-Tagged Step Pipeline (PTSP) — `core/ptsp/`
+
+Counters the self-conditioning effect (arXiv 2509.09677). Each step boundary holds four disjoint ledgers — Fact / Inference / Unknown / Assumption. Inference → Fact promotion requires explicit evidence (operator cosign / deterministic test pass / external oracle attestation). Step N+1 context tags items non-fungibly so the model cannot silently treat a prior `<inference>` as a `<fact>`.
+
+Invariants I1 (ledger disjointness) / I2 (irreversible promotion within session) / I3 (no Fact may depend on an unresolved Inference) / I4 (parent KNOWNS monotonic) / I5 (hash chain unbroken).
+
+### 1.2 Signed Reasoning Surface `signed-surface@1.0` — `core/signing/`
+
+Parallel-track to the live `reasoning-surface@1` schema. Adds cryptographic chain-of-custody.
 
 | Threat | Counter |
 |---|---|
-| Non-repudiation of authorship | Ed25519 signature over JCS-canonical payload |
-| Adversary alters past surface | Hash-chained Merkle log + Sigstore Rekor inclusion proof (shape only in v1; live integration deferred) |
-| Backdated rationalization | RFC 3161 third-party TSA timestamp (mock TSA acceptable in v1; production swap is a config change) |
-| Auditor cannot verify without trusting episteme | Standalone `episteme verify` binary with no runtime dependency on episteme |
-| Key compromise | Ed25519 key rotation via signed key-rotation event; CRL endpoint; old surfaces remain verifiable up to revocation timestamp |
+| Non-repudiation of authorship | Ed25519 signature over RFC 8785 JCS canonical payload |
+| Adversary alters past surface | Hash chain + Sigstore Rekor inclusion proof (shape in v1; live integration deferred) |
+| Backdated rationalization | RFC 3161 third-party TSA timestamp (mock TSA in v1) |
+| Auditor cannot verify without trusting episteme | Standalone verifier CLI; no episteme runtime dependency |
+| Key compromise | Ed25519 key rotation via signed key-rotation event; CRL; historical surfaces remain verifiable up to revocation |
 
-### 1.3 Standalone Auditor Verifier (`episteme verify`)
+Zero-hard-dep posture: PyNaCl is optional (`pip install episteme[signing]`); when absent, the signing layer falls back to a structurally-distinguishable HMAC-SHA256 test mode (`test-hmac:` prefix). The verifier rejects test-mode signatures by default; `--allow-test-signatures` is required.
 
-Implementation surface: `src/episteme/verify/`
+### 1.3 Standalone Auditor Verifier — `src/episteme/verify/`
 
-**Exit code contract:**
+Deterministic exit codes: 0 / 10 (signature) / 11 (timestamp) / 12 (transparency log) / 13 (chain break) / 14 (self-hash mismatch) / 20 (malformed) / 21 (key resolution) / 30 (batch mixed) / 64 (usage).
 
-| Code | Meaning |
-|---|---|
-| 0 | All surfaces verified |
-| 10 | Signature invalid on ≥1 surface |
-| 11 | Timestamp invalid (TSA token / asserted_timestamp drift > tolerance) |
-| 12 | Transparency log inclusion failed (when live mode enabled) |
-| 13 | Hash chain break |
-| 14 | Self-hash mismatch |
-| 20 | Surface file malformed / schema-invalid |
-| 21 | Required key resolution failed (DNS/OIDC/Fulcio) |
-| 30 | Mixed result in batch mode; see report for per-file status |
-| 64 | Usage error |
+Invoked as `python -m episteme.verify` in v1. Single-file static binary via PyOxidizer / Nuitka explicitly deferred — the Python module form is already the load-bearing artifact; a static binary is feature creep for v1.
 
-The binary is built with `python -m episteme.verify` as v1; future iterations may produce a reproducible single-file static binary via PyOxidizer or Nuitka.
+### 1.4 Substrate hooks
 
-### 1.4 Ecosystem integration (designed, not all implemented this Event)
-
-| Target | Integration shape | Status |
+| Substrate | Adapter status | Signed-surface integration |
 |---|---|---|
-| Claude Code `.claude/settings.json` PreToolUse hook | Existing `reasoning_surface_guard.py` continues to govern; signed-surface@1.0 guard is **parallel and opt-in** until promoted in a separate Event | designed |
-| Anthropic Skills Marketplace | `SKILL.md` + bundled CLI shipped via plugin manifest | designed |
-| LangSmith / Langfuse | OpenTelemetry span `episteme.decision` with surface metadata; non-competing (episteme produces evidence, they consume traces) | designed |
+| **Claude Code** | Full (existing `core/hooks/reasoning_surface_guard.py` hot path; `.claude/settings.json` integration; plugin manifest) | Opt-in via `EPISTEME_SIGNED_SURFACE_REQUIRED=1`; new validator at `src/episteme/hooks/signed_surface_validator.py` runs ADDITIVELY in parallel with the existing guard |
+| **Hermes** | Partial (existing `OPERATOR.md` sync via `src/episteme/adapters/hermes.py`) | In build — extends adapter to sync signed-surface schema + verifier reference + governance-block update to `~/.hermes/` |
+| **Codex** | Name only (listed in pyproject keywords; no adapter code yet) | Future work; honest gap |
+| **Cursor** | Name only (listed in pyproject keywords; no adapter code yet) | Future work; honest gap |
+| **opencode** | Name only (mentioned in overview.md; no adapter code yet) | Future work; honest gap |
 
 ---
 
-## 2. Phase 4 — Compliance Mapping & Productization (mostly DESIGNED, partial LANDED)
+## 2. Phase 4 — Operator UX + Substrate Parity (shipped + in build)
 
-### 2.1 Regulatory crosswalk
+### 2.1 Operator authoring CLI — `src/episteme/surface/` (shipped Event 122)
 
-Cell-by-cell field-to-clause mapping landed at `docs/COMPLIANCE_CROSSWALK.md`. Covers:
-- **EU AI Act** — Articles 12(1)–(3), 13(1), 13(3)(b)(iv), 14(4)(a)/(c)/(e), 19(1), 26(6), 72(1), Annex IV § 6
-- **NIST AI RMF + GenAI Profile (NIST AI 600-1)** — GV-1.4, GV-6.1, MP-4.1, MP-5.1, MS-2.5, MS-3.3, MG-2.1, MG-4.1; GenAI MP-2.3, MS-3.3, MG-4.1
-- **Financial-services framework set** — Fed SR 11-7, OCC Bulletin 2011-12, EBA Guidelines on ML for IRB Models, MAS FEAT + Veritas, OSFI E-23, FINRA Reg Notice 24-09 + Rule 4511, SEC Rule 17a-4(f)
+`episteme surface author` with interactive prompts + non-interactive `--core-question / --decision-choice / ...` args. Other subcommands: sign, show, list, status, verify (round-trip self-test against active surface). Persists to `.episteme/surfaces/<date>/<id>.json`; key under `.episteme/keys/operator_signing.{key,pub}` (mode 0600 on Unix).
 
-### 2.2 CCO-facing dashboard
+### 2.2 Evidence viewer + packet exporter — `src/episteme/evidence/` (shipped Event 122)
 
-**DEFERRED — operator-gated on Probe 1 outcome.**
+Read-only terminal-first viewer. Subcommands:
+- `posture` — Tier 1 KPI panel (decisions logged, signed%, chain breaks, test-mode sig count, high-tier count, by-tier / by-blast / by-operator breakdowns)
+- `register` — Tier 2 filterable list (by since/until, operator fingerprint prefix, tier, reversibility, choice)
+- `show <surface_id>` — Tier 3 detail drill-down (full schema fields, TSA + Rekor refs, file path)
+- `alerts` — Tier 4 anomalies (test-mode signatures present, chain breaks, low-confidence high-risk proceeds, missing Article 79(1) triggers)
+- `packet build --framework=<...> --output <.zip>` — Regulator Evidence Packet ZIP with MANIFEST.json + signature + surfaces + chains + public keys + transparency log + README
 
-Functional requirements drafted:
-- Tier 1 Posture Panel: decisions logged, signed-surfaces %, chain breaks, high-risk tier decisions, CFR current + delta vs prior period
-- Tier 2 Decision Register: filtered, searchable, sortable, exportable
-- Tier 3 Decision Detail: drill-down + hash-chain graph + signature verifier output + Rekor inclusion proof
-- Tier 4 Alerts: signature failures, chain breaks, lazy-placeholder flags, paraphrase-classifier flags
+The full web dashboard (SvelteKit / Next.js) is deliberately **deferred** — terminal-first viewer covers operator self-audit; web dashboard is post-Probe-1 work if compliance positioning lands.
 
-**Read-only by design.** No edit, no delete. Amendment → new signed surface with `parent_surface_hash`.
+### 2.3 Pre-tool-use validator hook (shipped Event 122)
 
-**One-Click Regulator Evidence Packet** ZIP structure designed in `docs/PRODUCTIZATION_PLAN.md` § 4.2.3 (TBD if dashboard MVP is greenlit):
+`src/episteme/hooks/signed_surface_validator.py` runs additively alongside the existing `core/hooks/reasoning_surface_guard.py` hot path. Opt-in via `EPISTEME_SIGNED_SURFACE_REQUIRED=1`. Matches irreversible-class Bash patterns (git push / git reset --hard / rm -rf / kubectl apply / terraform apply / *publish / aws s3 rm / drop|truncate table). Verifies the active signed surface; blocks via exit 2 with structured JSON remediation on stderr if invalid.
+
+### 2.4 Hermes substrate parity (in build, Event 122 task #15)
+
+Extends `src/episteme/adapters/hermes.py` to bridge signed-surface@1.0 into the Hermes substrate. What lands:
+- `~/.hermes/SIGNED_SURFACE_PROTOCOL.md` — operator-facing workflow doc for Hermes sessions
+- `~/.hermes/schemas/signed-surface-v1.0.json` — schema reference
+- Governance-block addition to `~/.hermes/OPERATOR.md` mentioning the signed-surface workflow expectations
+- Verifier reference path documented in OPERATOR.md so Hermes-running models know how to point operators at it
+
+### 2.5 Codex / Cursor / opencode (honest gap)
+
+Listed in pyproject keywords; no adapter code. These are *substrate-parity work* in the same lane as Hermes, not "ecosystem integrations" (which is a different category). Honest framing: episteme's substrate coverage today is "Claude Code (full) + Hermes (partial)" not "Claude Code, Codex, Cursor, Hermes."
+
+### 2.6 Regulatory crosswalk as downstream artifact — `docs/COMPLIANCE_CROSSWALK.md`
+
+Cell-by-cell mapping of `signed-surface@1.0` fields to EU AI Act Article 12/13/14/19/72, NIST AI RMF + GenAI Profile (NIST AI 600-1), and a financial-services framework set (Fed SR 11-7, OCC, EBA, MAS, OSFI, FINRA, SEC 17a-4(f)). This document is a **structural mapping** — evidence that the architecture happens to satisfy multiple regulatory obligation classes as a byproduct of being right. It is not the primary positioning, and we explicitly do not claim regulator validation until Probe 1 returns signal.
+
+### 2.7 Layer diagram (not a competition matrix)
+
+The Event 121 doc framed a "differentiation matrix" placing episteme on the same axis as Datadog, LangSmith, Langfuse, GuardrailsAI, Mem0, Letta. That framing is wrong — these tools operate at different layers and are complementary, not alternatives. Corrected diagram:
 
 ```
-regulator-evidence-packet-<ISO>.zip
-├── MANIFEST.json (+ .sig)
-├── README.md
-├── surfaces/<date>/*.signed.json
-├── chains/session-<id>.json
-├── public_keys/<fp>.pem + KEY_PROVENANCE.json
-├── transparency_log/rekor_entries.jsonl + rekor_tree_root_signed.json
-└── verifier/episteme-verify (standalone binary)
+┌────────────────────────────────────────────────────────────────────┐
+│ Layer 6 — OPERATOR DECISION COMMITMENT                             │
+│    episteme (pre-action operator-signed Reasoning Surface)         │
+├────────────────────────────────────────────────────────────────────┤
+│ Layer 5 — GUARDRAILS (mid-execution I/O filters)                   │
+│    GuardrailsAI, NeMo Guardrails                                   │
+├────────────────────────────────────────────────────────────────────┤
+│ Layer 4 — AGENT MEMORY (cross-session continuity)                  │
+│    Mem0, Letta, Memento, Karpathy LLM Wiki                         │
+├────────────────────────────────────────────────────────────────────┤
+│ Layer 3 — LLM OBSERVABILITY (post-execution traces of LLM calls)   │
+│    LangSmith, Langfuse                                             │
+├────────────────────────────────────────────────────────────────────┤
+│ Layer 2 — APPLICATION OBSERVABILITY (post-execution traces of app) │
+│    Datadog APM, New Relic, Honeycomb                               │
+├────────────────────────────────────────────────────────────────────┤
+│ Layer 1 — INFRASTRUCTURE OBSERVABILITY                             │
+│    Prometheus, OpenTelemetry collector                             │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 Differentiation matrix (designed; landing in marketing surface deferred)
-
-| Tool | Artifact | Created when | Created by | Tamper-evident | Captures *why* operator decided |
-|---|---|---|---|---|---|
-| Datadog APM | Trace span | Post-execution | Auto-instrumented | No | No |
-| LangSmith / Langfuse | LLM call trace | Post-execution | Auto-instrumented | No | No |
-| GuardrailsAI / NeMo Guardrails | Input/output filter rule | Mid-execution | Auto-filter | No | No |
-| Mem0 / Letta | Agent memory record | Post-interaction | LLM (or hybrid) | No | No |
-| **episteme** | **Signed pre-action Reasoning Surface** | **Pre-action** | **Operator (cryptographically proven)** | **Yes (Ed25519 + Merkle + TSA + Rekor)** | **Yes** |
-
-The defensive moat in one sentence: every other tool produces a *trace* of what happened; episteme produces a *commitment* the operator made before it happened, signed by a key the agent cannot access.
+episteme is at Layer 6, alone. Tools at Layers 1–5 *consume* episteme attestations (via OTel metadata) or operate independently. A CCO does not pick episteme *instead of* Datadog — they pick episteme *as well as* Datadog. The defensive moat is the layer itself, not feature-by-feature competition.
 
 ---
 
-## 3. Phase 5 — Go-To-Market & Reversible Probes (DEFERRED — operator-gated)
+## 3. Phase 5 — Reversible Probes (deferred — operator-gated)
 
-### 3.1 Marketing copy (drafted; landing in `README.md` deferred to a separate Event)
+### 3.1 Marketing copy (drafted; landing in README deferred)
 
-#### 3.1.1 README headline candidate
+Three candidate manifestos to test the three positioning hypotheses (§ 0b). All draft, all in `docs/MARKETING_COPY_DRAFT.md` (deferred to its own Event); none landed in `README.md` until probe signal arrives.
+
+#### 3.1.1 Positioning A — Compliance Evidence Layer
 
 ```markdown
 # episteme
 
-**Harness Engineering for the human in the loop.**
+**Cryptographically signed evidence that a real person — not the model — authorized every irreversible decision.**
 
-Cryptographically signed evidence that a real person — not the model —
-authorized every irreversible decision. EU AI Act Article 12 native.
-
-Other agent memory tools (Mem0, Letta, Memento) help the agent remember.
-episteme helps the regulator believe you.
+The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809))
+showed that LLMs left to self-evaluate commit confident failures at a 0.60
+rate; external architectural constraint drops that to 0.14. The "external"
+in that sentence is what episteme provides — and we provide it as
+auditable, signed evidence that satisfies EU AI Act Article 12 logging
+obligations as a byproduct of being right about the mechanism.
 ```
 
-#### 3.1.2 Manifesto (≤ 250 words)
+#### 3.1.2 Positioning B — Operator Decision Audit Trail
 
 ```markdown
-## What episteme is, and what it refuses to be
+# episteme
 
-Every other agent tool in 2026 makes the model more capable, the agent
-more autonomous, or the trace more searchable. episteme does none of
-those things. It does one thing: it stops the operator from authorizing
-an irreversible action until the operator has written down — in their
-own hand, signed with their own key — what they know, what they don't
-know, and what would prove them wrong.
+**Your own externalized reasoning, signed by you, searchable later.**
 
-We built episteme because frontier models are now good enough that
-operators stop reading the diff. The same fluency that makes models
-useful makes them dangerous: confident outputs replace deliberate
-judgment, and the audit trail records only what the agent did, not
-what the human believed.
-
-episteme is adversarial to comfortable cognitive outsourcing. The
-Reasoning Surface cannot be auto-filled. The signing key is not in the
-agent's reach. The hash chain is public.
-
-You will type more. You will move slower on irreversible operations.
-Your auditor will sleep through the night.
+For most knowledge work, letting the model remember on your behalf is
+fine. For irreversible decisions — push, merge, deploy, migrate — it is
+the failure mode. episteme is a forcing function: before you authorize
+the irreversible action, you write down what you know, what you don't
+know, and what would prove you wrong. Then you sign it with a key the
+model cannot reach. Six months later, when you wonder why you decided
+what you decided, the surface is there, signed, dated, and unalterable.
 ```
 
-#### 3.1.3 "Skeptical view on second-brain tools" copy block
+#### 3.1.3 Positioning C — Pre-Action Reasoning Commitment
 
 ```markdown
-## Why we are skeptical of "second-brain" tools
+# episteme
 
-Karpathy's LLM Wiki, Mem0, Memento, and the broader "AI-maintained
-knowledge base" pattern share an assumption: it is good for the model
-to remember on your behalf. For most knowledge work, that may be true.
+**The engineering-discipline forcing function for AI-assisted irreversible operations.**
 
-For irreversible decisions, it is the failure mode.
-
-When the model holds your context, your reasoning chain, and your prior
-inferences, you do not audit them — you accept them. The MIRROR
-benchmark showed that frontier models, left to self-evaluate, commit
-confident failures at 0.60 rate. External metacognitive control drops
-it to 0.14. The "external" in that sentence is doing all the work.
-
-episteme insists the external is a human, signing with a key the model
-cannot reach. We do not make outsourcing your reasoning easier. We
-make it costlier — on purpose, only on the operations that cannot be
-taken back.
+Frontier models are good enough that engineers stop reading the diff.
+The team's audit trail records what the agent did, not what the human
+believed. episteme is the structural counter — every irreversible
+action (push, deploy, migrate, publish) blocks at the gate until an
+engineer authors a typed, signed Reasoning Surface. Knowns and
+Inferences are non-fungible field types. The model cannot author the
+surface; the agent's signing key access is structurally absent. The
+team's audit trail records what was *believed*, not just what was *done*.
 ```
 
-#### 3.1.4 Hedging discipline on the 70.3% number
+#### 3.1.4 "Skeptical view on second-brain tools" block (positioning-agnostic)
 
-Until the Phase 2 productive-run dataset is published on OSF, marketing copy citing the CFR-reduction figure MUST include:
+Same as previous draft, lightly edited. Lives in `docs/MARKETING_COPY_DRAFT.md`.
 
-> "MIRROR-aligned design target (cf. external-metacognitive-control literature). Pre-registration OSF/REGISTRY-ID/<TBD>. Trial dataset publication pending."
+### 3.2 Probe 1 — Compliance positioning test (8 contacts)
 
-No bare-number citation. No "we measured." Honesty discipline is brand discipline; the kernel's whole thesis falls apart if its marketing surface is buzzword-compliant rather than measurably correct.
-
-### 3.2 Probe 1 — EU regulator outreach script
-
-**Audience (10 high-leverage contacts, loss-averse posture):**
-
-| Title pattern | Why |
-|---|---|
-| Head of AI Governance, EU-domiciled bank ≥ EUR 100B AUM | High-risk AI deployer under Art. 6; Art. 12 obligations live 2026-08-02 |
-| AI Compliance Officer, EU insurer | Insurance is Annex III high-risk category |
-| Data Protection Officer with AI mandate, EU healthcare provider | Annex III medical devices + AI Act overlap |
-| Notified Body assessor — TÜV, DEKRA, BSI AI conformity practice | Direct line into Art. 19 conformity assessment criteria |
-| EU AI Office liaison personnel | Authoritative interpretive guidance |
-
-**Outreach template** (irreversible action — operator-gated, must not be sent automatically):
-
-```
-Subject: Article 12 evidence model — would 5 minutes of your read be useful?
-
-Hi [Name],
-
-I'm Jun Lee, building episteme — a small open-source tool that produces
-cryptographically signed, operator-authored Reasoning Surfaces before
-high-risk AI-assisted decisions. Ed25519 signatures, RFC 3161
-timestamps, Sigstore-style transparency log.
-
-The artifact is designed to satisfy:
-  • Article 12(2)(a)–(f): event recording, period-of-use, identification
-    of verifying persons, input data references
-  • Article 13(1): deployer-facing interpretability of system output
-  • Article 14(4)(a) and (c): operator awareness of limitations and
-    counter to over-reliance on automated output
-
-We have a Phase 2 trial pre-registered on OSF [link]; the design target
-is a ≥50% relative reduction in confident-failure rate on irreversible-
-class operations, aligned with published external-metacognitive-control
-literature (MIRROR benchmark).
-
-One definitive question: assuming the cryptographic chain-of-custody
-holds, does a per-decision signed Reasoning Surface satisfy Article 13
-deployer-transparency obligations as you currently interpret them — or
-is there a gap I haven't surfaced?
-
-I'm not selling — I'm trying to find the gap before I publish. Happy
-to share the spec, the trial pre-registration, and the verifier CLI.
-15 minutes if you're open; written reply equally fine.
-
-— Jun
-[github.com/junjslee/episteme] [signed contact pubkey fingerprint]
-```
-
-### 3.3 Day-90 OSS pull-velocity exit gate
-
-**Pre-registered metrics — asymmetric thresholds per loss-averse posture.**
-
-| Metric | 30-day | 90-day | Weight |
-|---|---|---|---|
-| GitHub stars | 800+ / 200–800 / <200 | 2,500+ / 500–2,500 / <500 | Low (vanity) |
-| Substantive issues (non-bot, ≥100 chars, technical) | 30+ / 10–30 / <10 | 80+ / 25–80 / <25 | Medium |
-| External PRs merged | 8+ / 2–8 / <2 | 25+ / 5–25 / <5 | Medium |
-| Cited usage (blog / podcast / talk by non-author) | 5+ / 1–5 / 0 | 15+ / 3–15 / <3 | High |
-| **CCO / Head of AI Governance inbound** | **5+ / 1–5 / 0** | **15+ / 3–15 / <3** | **Highest** |
-| Paid pilot inquiries (LOI or signed engagement) | 1+ / 0 / 0 | 3+ / 1–3 / 0 | High |
-| Notified body / regulator citation | 0–1 acceptable | 1+ triggers Probe 1 escalation | Inflection |
-
-**Day-90 decision matrix (pre-registered, signed at Probe-launch time):**
-
-| Outcome region | Definition | Decision |
+| Contact | Why | Pathway |
 |---|---|---|
-| Commercial spin-off | CCO inbound ≥3 **AND** paid pilot inquiries ≥1 **AND** ≥1 notified-body engagement | Form entity, take pilot revenue, hire 1 compliance lead, keep kernel MIT, license enterprise dashboard + framework exports |
-| OSS sustain | CCO inbound 1–2 **OR** stars 500–2,500 **AND** no paid pilot inquiries | Continue OSS; pursue grant funding (EU Horizon, NLnet, OpenSSF); no commercial entity yet |
-| Personal-tool sunset | All metrics in "Null" column **AND** Probe 1 produced no engaged notified-body conversation | Public post-mortem. Keep using episteme personally. Reframe README as "personal compliance harness, not productized." No commercial pivot. No marketing spin. |
-| Adverse | Critique invalidates a load-bearing claim (cryptographic or regulatory) | Immediate written response. If critique holds, rewrite the load-bearing claim. If not, publish rebuttal. Do not paper over with marketing. |
+| Head of AI Governance, EU-domiciled bank ≥ EUR 100B AUM (×3) | High-risk AI deployer under Art. 6; Art. 12 obligations live 2026-08-02 | LinkedIn outbound |
+| AI Compliance Officer, EU insurer (×2) | Insurance is Annex III high-risk category | LinkedIn outbound |
+| Notified Body AI conformity practice (TÜV, DEKRA, BSI) — assessor or partner (×2) | Direct line into Art. 19 conformity assessment | LinkedIn + cold email |
+| DPO with AI mandate, EU healthcare provider (×1) | Annex III medical device overlap | LinkedIn outbound |
+
+**Dropped from original list:** EU AI Office liaison personnel — no realistic outbound pathway from a solo-OSS project; listing implied backchannel access I don't have.
+
+Outreach template content unchanged from current draft. Sending remains operator-gated — irreversible reputational action.
+
+**Base-rate honesty:** cold outbound from a solo OSS project to compliance practitioners has a low response rate. Realistic expectation: 1–2 substantive responses out of 8. The Day-90 matrix in § 3.5 accounts for this base rate.
+
+### 3.3 Probe 2 — Developer-operator positioning test
+
+Lighter-touch than Probe 1. Surfaces episteme to the developer-operator audience via:
+
+- Show-HN-equivalent post (Hacker News) with positioning B copy as the framing
+- Lobsters submission
+- dev.to / Substack technical writeup ("We pivoted episteme to test Calibration-Lift; here's why")
+- Twitter/X thread tagging known commentators (Karpathy on LLM Wiki, Hashimoto on harness engineering)
+
+Probe 2 is structurally cheaper than Probe 1 — single post, broad audience, low per-contact cost. The relevant signal: stars + substantive issues + external PRs + cited usage.
+
+### 3.4 Probe 3 — Operator-as-user retention test
+
+The lowest-overhead, highest-information probe. The operator + 2–3 willing colleagues use episteme on actual irreversible operations for 30 days, instrumented:
+
+| Metric | Source |
+|---|---|
+| Surfaces authored | `.episteme/surfaces/` count |
+| Validator hook firings (blocks vs allows) | hook telemetry log |
+| Re-authoring rate after rejection | hook telemetry diff |
+| Daily-active operators | session telemetry |
+| Subjective: "did this surface a decision you would have otherwise made wrongly?" | weekly self-report (1 line) |
+
+This is the cheapest test of the load-bearing claim. If the operator + colleagues themselves abandon episteme during the 30 days, no Probe 1 or Probe 2 signal can save the project.
+
+### 3.5 Day-90 decision matrix (four outcomes, not three)
+
+Operator-as-user signal is weighted highest. CCO inbound and developer-adoption signal are secondary.
+
+| Outcome | Definition (all three sub-conditions required) | Decision |
+|---|---|---|
+| **Commercial spin-off** | Probe 3 retention ≥ 80% AND Probe 1 CCO inbound ≥ 2 AND paid pilot inquiry ≥ 1 | Form entity; take pilot revenue; hire 1 compliance lead; keep kernel MIT; license enterprise dashboard + framework exports |
+| **OSS scale** | Probe 3 retention ≥ 80% AND Probe 2 (stars 500+ AND non-author contributors ≥ 5 AND cited usage ≥ 3) AND no commercial signal | Continue OSS at scale; pursue grant funding (EU Horizon, NLnet, OpenSSF); position publicly as developer-tool not commercial product |
+| **Operator-first OSS sustain** (NEW vs Event 121) | Probe 3 retention ≥ 80% AND Probes 1+2 produce no broader-adoption signal | Keep kernel MIT; document honestly as "personal-and-small-circle compliance harness"; no commercial pivot, no marketing spin. The operator's continued use IS the validation. |
+| **Sunset** | Probe 3 retention < 50% (operator + colleagues abandon during 30-day instrumentation) | Public post-mortem. The load-bearing claim failed at deployment scale even for the operator who designed it. Honest write-up of why. |
+| **Adverse** (any time) | Critique invalidates a load-bearing claim (cryptographic, regulatory, or empirical) | Immediate written response; if critique holds, rewrite the claim |
+
+**Why this matrix is asymmetric and operator-first:**
+
+- The "operator-first OSS sustain" outcome (third row) is the corrected gap from Event 121. The operator's own continued use IS empirical validation of the load-bearing claim. Commercial absence is not failure.
+- Probe 3 retention (operator + colleagues) is the gate condition on every positive outcome. If episteme fails the people who designed it, no external signal can prove it works.
+- Probe 1 (CCO) and Probe 2 (developer) are *positioning tests*, not value-claim tests. Their function is to tell us *who buys* if there is a buyer — not whether the kernel does anything.
 
 ---
 
@@ -290,35 +350,36 @@ to share the spec, the trial pre-registration, and the verifier CLI.
 
 | Action | Reversibility | Rollback path |
 |---|---|---|
-| This Event's file additions (Phase 3 modules + 2 docs) | Reversible (local git, no push) | `git reset --hard HEAD~1` before push |
-| Local commit | Reversible until pushed | Amend or reset |
-| Push to remote `master` | Irreversible (public claim) | Operator-gated; not in this Event |
-| README/manifesto landing | Irreversible (positioning claim) | Operator-gated; deferred Event |
-| OSF pre-registration | Irreversible (timestamped public) | Amendments only via OSF amendment protocol; design feature |
+| Event 121–122 file additions (Phase 3 modules + 2 docs) | Reversible (local git, no push) | `git reset --hard` before push |
+| Local commit | Reversible until pushed | `git reset` or amend |
+| Push to remote `master` | Irreversible (public claim) | Operator-gated; not in current Event |
+| README positioning swap | Irreversible (positioning claim) | Operator-gated; deferred to its own Event after probe signal |
+| OSF pre-registration | Irreversible (timestamped public) | Amendment only via OSF amendment protocol — design feature |
 | HN / Lobsters / LinkedIn / X posts | Effectively irreversible (caches) | Honest follow-up post if claims need correction |
-| Probe 1 sent emails | Reversible per-conversation; cumulative reputational effect not | Operator-gated; maintain Probe 1 signed-surface log so every contact is auditable |
-| Commercial entity formation | Irreversible without significant cost | Gate behind Day-90 matrix outcome; do not trigger on Phase 5 Probe 1 enthusiasm alone |
+| Probe 1 sent emails | Per-conversation reversible; cumulative reputational effect not | Operator-gated; maintain Probe 1 signed-surface log |
+| Commercial entity formation | Irreversible at significant cost | Gate behind Day-90 commercial-spin-off matrix outcome ONLY |
 
 ---
 
-## 5. Anti-self-deception protocol during Probes 1 + 2
-
-Failure modes to actively screen for (per noise-watch: status-pressure, false-urgency):
+## 5. Anti-self-deception protocol (noise-watch: status-pressure, false-urgency)
 
 | Failure mode | Counter |
 |---|---|
-| Counting stars as proof of fit | Weight CCO inbound 10× higher than stars in the matrix |
-| Mistaking engineer enthusiasm for compliance-buyer fit | Only Probe 1 contacts count toward the commercial-spin-off threshold |
+| Counting stars as proof of fit | Probe 3 retention is the gate condition; Probe 2 signal alone never crosses the matrix threshold |
+| Mistaking engineer enthusiasm for compliance-buyer fit | Probe 1 contacts are the only CCO-inbound source counted toward commercial-spin-off |
 | Allowing day-30 numbers to drive a permanent pivot | Pre-registered day-90 decision; no commercial action before then |
-| Re-interpreting Null outcome as "needs more marketing" | The matrix is signed and timestamped; post-hoc reinterpretation is a logged amendment |
-| Confusing "regulator interested in the artifact" with "regulator will require the artifact" | Single notified-body conversation is a signal, not a market |
+| Re-interpreting Null outcome as "needs more marketing" | The matrix is signed and timestamped; post-hoc reinterpretation requires a logged amendment |
+| Confusing "regulator interested" with "regulator will require" | Single notified-body conversation is a signal, not a market |
+| Treating the Compliance Evidence Layer positioning as already validated | The positioning is a *hypothesis under test* (Probe 1); no copy may claim "regulator-approved" or "AI Act compliant" until Probe 1 returns substantive engagement |
 
 ---
 
 ## 6. What this document does NOT claim
 
-- The 70.3% CFR reduction is **not** an episteme-measured number until a real 12-operator × 50-task crossover trial runs. It is a MIRROR-aligned design target derived from published literature on external metacognitive control.
-- The Compliance Evidence Layer positioning is **not** validated by external regulator confirmation. Probe 1 is exactly the test of whether that positioning lands.
-- The dashboard MVP, the marketing surface, the commercial entity — none exist as of this Event. All operator-gated, all reversible until executed.
+- The 70.3% / ~70% Confident Failure Rate reduction is **not** an episteme-measured number until a real human-in-the-loop trial runs. It is the MIRROR benchmark's published finding for the LLM-self-evaluation case; whether deployment-scale episteme replicates the magnitude is empirically open.
+- "Compliance Evidence Layer" is **not** the declared positioning — it is one of three positioning hypotheses under structured testing in Phase 5. The primary value claim is operator Calibration-Lift; the positioning that fits buyers best is the question Probe 1 + Probe 2 + Probe 3 jointly answer.
+- The substrate coverage is **not** "Claude Code, Codex, Cursor, Hermes." Honest current state is Claude Code (full) + Hermes (partial, in-build). Codex / Cursor / opencode are listed in pyproject keywords but have no adapter code.
+- No regulator has reviewed or accepted `signed-surface@1.0` as satisfying any specific clause. Probe 1 is exactly the test of that.
+- The CCO dashboard MVP, marketing copy in README, and commercial entity are not yet built and remain operator-gated.
 
-This document is the **plan**, not the **proof**. The kernel-tone-discipline rule applies: governance surface stays precise about what the data does and doesn't show.
+This document is the **plan**, not the **proof**. The kernel-tone-discipline rule applies — governance surface stays precise about what the data does and doesn't show.
