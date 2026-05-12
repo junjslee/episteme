@@ -157,62 +157,166 @@ def cmd_author(args: argparse.Namespace) -> int:
 
 
 def _author_interactive() -> Dict[str, Any]:
-    """Stdin-prompt loop. Fills required fields; everything else defaults."""
-    body = new_surface_skeleton()
-    print("Reasoning Surface author — interactive mode")
-    print("Required minimums shown; press Ctrl-C to abort.")
+    """Stdin-prompt loop with cognitive-move-name preambles.
 
-    body["core_question"] = input("Core question (≥20 chars): ").strip()
-    rev = input("Reversibility [reversible|irreversible] (default: irreversible): ").strip()
+    Each prompt is preceded by:
+      - the cognitive move it represents (name + description)
+      - the named System-1 failure mode it counters
+    The visual rendering falls back to plain ASCII on non-TTY / NO_COLOR
+    via the _ui module's auto-detection. Empty input falls back to defaults
+    where they exist; required fields are validated downstream.
+    """
+    from episteme import _ui
+    from core.practice.cognitive_moves import get_move, ordered_stages
+
+    body = new_surface_skeleton()
+
+    print()
+    print(_ui.header("episteme · Reasoning Surface · interactive author", level=1, color="cyan"))
+    print()
+    print("Each prompt below corresponds to a cognitive move in the practice.")
+    print(_ui.colored("See `episteme practice walk` for the full 5-stage walkthrough.", "grey"))
+    print(_ui.colored("Press Ctrl-C to abort at any time.", "grey"))
+    print()
+
+    def _prompt_for_move(move_id: str, prompt_text: str, *, multiline_hint: str = "") -> str:
+        """Render move-name preamble, then prompt and return stripped input."""
+        try:
+            move = get_move(move_id)
+            print(_ui.colored(f"  Move: {move.name}", "bold"))
+            print(_ui.colored(f"  Counters: {move.system_1_failure_counter}", "grey"))
+        except KeyError:
+            pass
+        if multiline_hint:
+            print(_ui.colored(f"  {multiline_hint}", "grey"))
+        try:
+            value = input(f"  → {prompt_text}").strip()
+        except EOFError:
+            value = ""
+        print()
+        return value
+
+    # ── Stage 1: Frame ──
+    stages = {s.id: s for s in ordered_stages()}
+    print(_ui.header("Stage 1/5 · Frame", level=2, color="cyan"))
+    print(_ui.colored(stages["frame"].purpose, "grey"))
+    print()
+
+    body["core_question"] = _prompt_for_move(
+        "frame.core_question",
+        "Core question (≥20 chars): ",
+    )
+    rev = _prompt_for_move(
+        "frame.reversibility",
+        "Reversibility [reversible|irreversible] (default: irreversible): ",
+    )
     if rev:
         body["risk_classification"]["reversibility"] = rev
-    blast = input("Blast radius [local|repo|external_service|user_visible|regulated_artifact] (default: repo): ").strip()
+    blast = _prompt_for_move(
+        "frame.constraint_regime",
+        "Blast radius [local|repo|external_service|user_visible|regulated_artifact] (default: repo): ",
+    )
     if blast:
         body["risk_classification"]["blast_radius"] = blast
-    tier = input("AI Act tier [minimal|limited|high|unacceptable] (default: limited): ").strip()
+    tier = _prompt_for_move(
+        "frame.constraint_regime",
+        "AI Act tier [minimal|limited|high|unacceptable] (default: limited): ",
+    )
     if tier:
         body["risk_classification"]["ai_act_tier"] = tier
 
-    print("\nUnknown #1 (≥30 char cost_of_ignorance required):")
-    u_q = input("  unknown: ").strip()
-    u_w = input("  why_not_resolvable_now: ").strip()
-    u_c = input("  cost_of_ignorance: ").strip()
+    # ── Unknowns ──
+    print(_ui.header("Unknowns (Frame · WYSIATI counter)", level=2, color="cyan"))
+    print(_ui.colored("Each unknown needs a real cost_of_ignorance (≥30 chars).", "grey"))
+    print()
+    u_q = _prompt_for_move("frame.unknowns", "unknown: ")
     if u_q:
+        u_w = input("  → why_not_resolvable_now: ").strip()
+        u_c = input("  → cost_of_ignorance (≥30 chars): ").strip()
         body["unknowns"].append({
             "unknown": u_q,
             "why_not_resolvable_now": u_w,
             "cost_of_ignorance": u_c,
         })
+    print()
 
-    print("\nAssumption #1:")
-    a = input("  assumption: ").strip()
-    aw = input("  if_wrong_then: ").strip()
-    det = input("  detectability [pre_execution|post_execution_soft|post_execution_irreversible]: ").strip()
+    # ── Assumptions ──
+    print(_ui.header("Assumptions (Frame · overconfidence counter)", level=2, color="cyan"))
+    print()
+    a = _prompt_for_move("frame.assumptions", "assumption: ")
     if a:
+        aw = input("  → if_wrong_then: ").strip()
+        det = input("  → detectability [pre_execution|post_execution_soft|post_execution_irreversible]: ").strip()
         body["assumptions"].append({
             "assumption": a, "if_wrong_then": aw, "detectability": det or "post_execution_soft",
         })
+    print()
 
-    print("\nDisconfirmation condition #1:")
-    obs = input("  observable: ").strip()
-    meth = input("  measurement_method: ").strip()
+    # ── Disconfirmation ──
+    print(_ui.header("Disconfirmation (Verify · robust falsifiability)", level=2, color="cyan"))
+    print(_ui.colored("Pre-committed observable that would invalidate the plan.", "grey"))
+    print()
+    obs = _prompt_for_move("verify.disconfirmation_conditions", "observable: ")
     if obs:
+        meth = input("  → measurement_method: ").strip()
         body["disconfirmation_conditions"].append({
             "observable": obs, "measurement_method": meth, "would_invalidate_plan": True,
         })
+    print()
 
-    print("\nDecision:")
-    body["decision"]["choice"] = input("  choice [proceed|stop|audit]: ").strip() or "proceed"
-    conf_str = input("  confidence [0.0-1.0]: ").strip()
+    # ── Decision (Decompose hypothesis-as-bet + Handoff rollback) ──
+    print(_ui.header("Decision (Decompose · hypothesis-as-bet + Handoff · rollback)", level=2, color="cyan"))
+    print()
+    body["decision"]["choice"] = _prompt_for_move(
+        "decompose.hypothesis_as_bet",
+        "choice [proceed|stop|audit]: ",
+    ) or "proceed"
+    conf_str = _prompt_for_move(
+        "decompose.hypothesis_as_bet",
+        "confidence [0.0-1.0]: ",
+    )
     try:
         body["decision"]["confidence"] = float(conf_str) if conf_str else 0.0
     except ValueError:
         body["decision"]["confidence"] = 0.0
-    body["decision"]["stop_rollback_path"] = input("  stop_rollback_path: ").strip()
+    body["decision"]["stop_rollback_path"] = _prompt_for_move(
+        "handoff.stop_rollback_path",
+        "stop_rollback_path (≥10 chars, concrete steps to undo): ",
+    )
 
-    bp = input("\nBlueprint invoked [consequence_chain|axiomatic_judgment|fence_reconstruction|architectural_cascade]: ").strip()
+    bp = _prompt_for_move(
+        "frame.core_question",
+        "blueprint_invoked [consequence_chain|axiomatic_judgment|fence_reconstruction|architectural_cascade] (default: consequence_chain): ",
+    )
     if bp:
         body["audit"]["blueprint_invoked"] = bp
+
+    # Brief practice-quality preview before signing
+    try:
+        from core.practice.quality import observe_surface
+        # Wrap in minimal envelope so observe_surface can read it
+        observation_input = {"envelope": {}, "surface": body}
+        obs_list = observe_surface(observation_input)
+        if obs_list:
+            print(_ui.divider())
+            print()
+            print(_ui.header("Practice-quality preview", level=2, color="yellow"))
+            print(_ui.colored("These observations will surface in `episteme practice retro`.", "grey"))
+            print(_ui.colored("They do not block signing — but they name where the practice was shallow.", "grey"))
+            print()
+            from episteme._ui import Color as _UiColor
+            from typing import cast as _cast
+            _sev_colors: Dict[str, _UiColor] = {
+                "critical": "red", "warn": "yellow", "advisory": "grey", "info": "grey",
+            }
+            for o in obs_list[:8]:
+                severity_color = _sev_colors.get(o.severity, _cast(_UiColor, "grey"))
+                tag = _ui.colored(f"[{o.severity.upper()}]", severity_color)
+                print(f"  {tag} {o.summary}")
+            print()
+    except Exception:
+        # Practice-quality preview is best-effort; don't break the author flow.
+        pass
 
     return body
 

@@ -1,55 +1,86 @@
 """Terminal-first rendering for evidence viewer subcommands.
 
-Pure ANSI / plain text. No external dependency on Rich, Textual, or any
-TUI library — episteme kernel install must remain zero-dep. If the
-operator wants color, they can pipe through `ccze` or a Rich-based
-wrapper of their own; this module sticks to ASCII.
+Uses `episteme._ui` zero-dep ANSI primitives (boxes, colored headers,
+health indicators). Falls back to plain ASCII when stdout is not a TTY
+or when NO_COLOR / EPISTEME_NO_RICH is set in env.
 
-Functions emit strings; the CLI module prints them. This separation keeps
-the rendering pure (no side effects) and unit-testable.
+Functions emit strings; the CLI module prints them. This separation
+keeps the rendering pure (no side effects) and unit-testable.
 """
 from __future__ import annotations
 
 # pyright: reportMissingImports=false
 from typing import Any, Dict, Iterable, List
 
+from episteme import _ui
 from episteme.evidence._index import IndexEntry, PostureSummary
 
 
 def render_posture_panel(summary: PostureSummary, *, ansi: bool = False) -> str:
-    """Tier 1 KPI panel — single screen, fixed width."""
-    lines = []
+    """Tier 1 KPI panel — boxed sections with health indicators."""
+    lines: List[str] = []
+
+    # ── Title block ──
     title = "POSTURE PANEL"
-    lines.append("=" * 64)
-    lines.append(f"{title:^64}")
-    lines.append("=" * 64)
     period_str = f"{summary.period_from} → {summary.period_to}" if summary.period_from else "(no surfaces)"
-    lines.append(f"Period: {period_str}")
+    lines.append(_ui.header(title, level=1, color="cyan"))
+    lines.append(_ui.colored(f"Period: {period_str}", "grey"))
     lines.append("")
-    lines.append(f"  decisions logged             {summary.total_decisions:>8}")
-    lines.append(f"  signed surfaces %            {summary.signed_pct:>8.1f}")
-    lines.append(f"  chain breaks                 {summary.chain_breaks:>8}")
-    lines.append(f"  test-mode signatures         {summary.test_signature_count:>8}")
-    lines.append(f"  high-tier decisions          {summary.high_risk_decisions:>8}")
-    lines.append(f"  confident failures (period)  {summary.confident_failures:>8}")
+
+    # ── Health indicators ──
+    # Convention: lower-is-better for chain_breaks + test_signature_count
+    signed_pct_health = _ui.health_indicator(
+        summary.signed_pct, good_threshold=95.0, warn_threshold=80.0,
+    )
+    chain_health = _ui.health_indicator_inverse(
+        summary.chain_breaks, good_threshold=0, warn_threshold=2,
+    )
+    test_sig_health = _ui.health_indicator_inverse(
+        summary.test_signature_count, good_threshold=0, warn_threshold=5,
+    )
+
+    lines.append(_ui.header("Headline KPIs", level=2, color="grey"))
+    rows = [
+        (f"{signed_pct_health}  decisions logged", f"{summary.total_decisions}"),
+        (f"{signed_pct_health}  signed surfaces %", f"{summary.signed_pct:.1f}%"),
+        (f"{chain_health}  chain breaks", f"{summary.chain_breaks}"),
+        (f"{test_sig_health}  test-mode signatures", f"{summary.test_signature_count}"),
+        ("    high-tier decisions", f"{summary.high_risk_decisions}"),
+        ("    confident failures (period)", f"{summary.confident_failures}"),
+    ]
+    lines.append(_ui.kv_table(rows, key_width=42))
+    lines.append("")
+
     cfr_str = f"{summary.cfr_current:.3f}" if summary.cfr_current is not None else "(no oracle data yet)"
-    lines.append(f"  CFR current                  {cfr_str:>8}")
     baseline = f"{summary.cfr_baseline_pre_episteme:.3f}" if summary.cfr_baseline_pre_episteme else "(none)"
-    lines.append(f"  CFR baseline (pre-episteme)  {baseline:>8}")
+    lines.append(_ui.kv_table([
+        ("CFR current", cfr_str),
+        ("CFR baseline (pre-episteme)", baseline),
+    ], key_width=42))
     lines.append("")
+
+    # ── Breakdowns ──
     if summary.tier_breakdown:
-        lines.append("  by tier:")
+        lines.append(_ui.header("by AI Act tier", level=3, color="grey"))
         for k in sorted(summary.tier_breakdown):
-            lines.append(f"    {k:<14} {summary.tier_breakdown[k]:>5}")
+            color = "red" if k in ("high", "unacceptable") else "grey"
+            lines.append(f"    {_ui.colored(k.ljust(14), color)} {summary.tier_breakdown[k]:>5}")
+        lines.append("")
+
     if summary.blast_breakdown:
-        lines.append("  by blast radius:")
+        lines.append(_ui.header("by blast radius", level=3, color="grey"))
         for k in sorted(summary.blast_breakdown):
-            lines.append(f"    {k:<24} {summary.blast_breakdown[k]:>5}")
+            color = "red" if k in ("regulated_artifact", "external_service") else "grey"
+            lines.append(f"    {_ui.colored(k.ljust(24), color)} {summary.blast_breakdown[k]:>5}")
+        lines.append("")
+
     if summary.by_operator:
-        lines.append("  by operator (fingerprint prefix):")
+        lines.append(_ui.header("by operator (fingerprint prefix)", level=3, color="grey"))
         for k in sorted(summary.by_operator, key=lambda x: -summary.by_operator[x])[:8]:
             lines.append(f"    {k:<24} {summary.by_operator[k]:>5}")
-    lines.append("=" * 64)
+        lines.append("")
+
+    lines.append(_ui.divider())
     return "\n".join(lines)
 
 

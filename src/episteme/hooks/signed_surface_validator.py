@@ -48,8 +48,6 @@ import os
 import re
 import sys
 import time
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 
@@ -111,12 +109,44 @@ def _is_irreversible(tool_name: str, tool_input: Dict[str, Any]) -> Optional[str
     return None
 
 
+_CODE_TO_COGNITIVE_MOVE = {
+    "no_active_signed_surface": "frame.core_question",
+    "surface_stale": "handoff.persist_to_disk",
+    "malformed_surface": "handoff.persist_to_disk",
+    "test_signature_rejected": "handoff.operator_signature",
+    "signature_invalid": "handoff.operator_signature",
+    "self_hash_mismatch": "handoff.hash_chain",
+    "key_resolution_failed": "handoff.operator_signature",
+    "timestamp_invalid": "handoff.persist_to_disk",
+    "log_inclusion_invalid": "handoff.hash_chain",
+    "action_class_mismatch": "frame.reversibility",
+}
+
+
 def _emit_block(code: str, exit_code: int, **ctx: Any) -> int:
+    move_id = _CODE_TO_COGNITIVE_MOVE.get(code)
+    move_meta: Dict[str, Any] = {}
+    if move_id:
+        # Lazy import to avoid coupling at module load time
+        try:
+            from core.practice.cognitive_moves import get_move  # type: ignore[import-not-found]
+            move = get_move(move_id)
+            move_meta = {
+                "id": move.id,
+                "name": move.name,
+                "stage": move.stage,
+                "counters": move.system_1_failure_counter,
+                "doc_anchor": move.doc_anchor,
+            }
+        except (KeyError, ImportError):
+            move_meta = {"id": move_id}
+
     payload = {
         "block": True,
         "code": code,
         "exit_code": exit_code,
         "remediation": ctx.get("remediation", ""),
+        "cognitive_move": move_meta,
         "context": {k: v for k, v in ctx.items() if k != "remediation"},
     }
     print(json.dumps(payload), file=sys.stderr)

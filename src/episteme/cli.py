@@ -5939,6 +5939,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Standalone signed-surface verifier (independent of episteme runtime)",
         add_help=False,
     ).add_argument("verify_args", nargs=argparse.REMAINDER)
+    sub.add_parser(
+        "practice",
+        help="Make the practice tangible — walk / retro / demo (no surface authored)",
+        add_help=False,
+    ).add_argument("practice_args", nargs=argparse.REMAINDER)
 
     return parser
 
@@ -5957,7 +5962,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     # argparse trees (with flags like --keys-dir that argparse REMAINDER
     # cannot forward cleanly through the parent parser). Dispatch BEFORE
     # the main argparse runs so the submodule sees its argv unmolested.
-    if argv_list and argv_list[0] in ("surface", "evidence", "verify"):
+    if argv_list and argv_list[0] in ("surface", "evidence", "verify", "practice"):
         subcmd, rest = argv_list[0], argv_list[1:]
         if subcmd == "surface":
             from episteme.surface import run_surface_cli
@@ -5968,6 +5973,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         if subcmd == "verify":
             from episteme.verify import run_verify_cli
             return run_verify_cli(rest)
+        if subcmd == "practice":
+            from episteme.practice import run_practice_cli
+            return run_practice_cli(rest)
 
     parser = build_parser()
     args = parser.parse_args(argv_list)
