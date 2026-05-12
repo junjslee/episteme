@@ -26,6 +26,15 @@ classifiers = [
   "Topic :: Utilities",
 ]
 
+[project.optional-dependencies]
+# Production-grade Ed25519 signing for the Compliance Evidence Layer (Phase 3+).
+# Default kernel install stays zero-dependency; operators opt into real Ed25519
+# with `pip install episteme[signing]`. Without this extra, `core.signing`
+# falls back to a structurally-distinguishable HMAC-SHA256 test mode that the
+# `episteme verify` CLI rejects by default unless `--allow-test-signatures` is
+# passed. See `core/signing/ed25519_compat.py` for the dual-mode design.
+signing = ["pynacl>=1.5"]
+
 [project.urls]
 Homepage = "https://github.com/junjslee/episteme"
 Repository = "https://github.com/junjslee/episteme"
