@@ -20,7 +20,13 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **Hay muchos *harnesses* de agentes. `episteme` es la capa de cognición que corre por encima de todos ellos** — un framework de pensamiento para el agente de codificación con IA que ya envías. Antes de cualquier movimiento de alto impacto — la tarea, no solo el comando shell — el agente debe declarar su razonamiento en disco: pregunta central, hechos conocidos, incógnitas, qué probaría que el plan está equivocado. Un hook a nivel del sistema de archivos rechaza proceder si esa superficie (surface) está ausente o vacía, incluso cuando el operador es quien pidió el movimiento. Cada conflicto resuelto se convierte en un protocolo reutilizable, encadenado de forma a prueba de manipulación y resurgido en la siguiente decisión coincidente. Construido como **Sovereign Cognitive Kernel** — **생각의 틀** ("marco del pensamiento"), postura sobre prompt.
+> **episteme es una forma de pensar — 생각의 틀 — que le pone dientes mecánicos a la puerta de las decisiones irreversibles asistidas por IA.**
+>
+> Una práctica cognitiva de cinco etapas — **Frame (encuadrar) → Decompose (descomponer) → Execute (ejecutar) → Verify (verificar) → Handoff (entregar)** — anclada en el forzado del System-2 de Kahneman, la Radical Transparency de Dalio, la OODA Orientation de Boyd y el Latticework of Mental Models de Munger. episteme la impone *estructuralmente* a nivel del sistema de archivos. Antes de cualquier acción de alto riesgo — `git push`, `npm publish`, `terraform apply`, migración de base de datos, edición de lockfile — el operador externaliza su razonamiento sobre una Reasoning Surface tipada: **Core Question · Knowns · Unknowns · Assumptions · Disconfirmation.** La superficie se firma con la propia clave Ed25519 del operador. El hook PreToolUse rechaza proceder si la superficie está ausente, obsoleta o vacía — incluso cuando es el propio operador quien pidió el movimiento. La clave de firma está estructuralmente fuera del alcance del agente. El modelo no puede redactar la práctica por ti.
+>
+> El benchmark MIRROR ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) zanjó la cuestión empírica: en 16 modelos de 8 laboratorios y ~250.000 instancias, *"proporcionar a los modelos sus propias puntuaciones de calibración no produce ninguna mejora significativa; solo la restricción arquitectónica es efectiva."* La Confident Failure Rate cae de 0,60 a 0,14 bajo restricción arquitectónica externa. **La práctica misma es el producto.** Los artefactos bajo `core/` y `src/episteme/` son geometría de imposición (enforcement geometry) que permite que la práctica sobreviva cuando la *vigilancia como fuerza de voluntad* se derrumba a la potencia de los modelos de frontera.
+>
+> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** — la práctica operacionalizada.
 
 ---
 

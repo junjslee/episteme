@@ -11,6 +11,12 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## Unreleased — 2026-05-18 — Event 129 — kernel cross-reference to THE_WAY_TO_THINK.md (patch)
+
+`kernel/README.md` + `kernel/SUMMARY.md` now point to [`docs/THE_WAY_TO_THINK.md`](../docs/THE_WAY_TO_THINK.md) as the **primary identity doc** — the practice the kernel *enforces* — alongside the operator-side `core/memory/global/cognitive_profile.md` + `workflow_policy.md`. Clarification/attribution only: no principle added, removed, or reframed; no new artifact or schema field; the kernel contract is unchanged (hence **patch**). Closes the Event 123/124 backlog item — the kernel docs lagged the way-to-think reframe that had already shipped to the website, `README.ko.md`, and the primary identity doc itself. `kernel/MANIFEST.sha256` regenerated in the same change (`kernel/README.md` is a manifest-managed file; `kernel/SUMMARY.md` is not).
+
+---
+
 ## Unreleased — 2026-05-08 — Event 110 — Blueprint D schema extension (minor)
 
 Three additive extensions to the cascade-architectural Reasoning Surface schema in `core/hooks/_blueprint_d.py`. All backward-compatible: existing valid surfaces remain valid; only the set of newly-accepted surfaces is enlarged.

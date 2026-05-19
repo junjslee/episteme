@@ -20,7 +20,13 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **代理 harness 有很多。`episteme` 是运行在它们之上的认知层** — 为你已经在出货的 AI 编码代理而设的思考框架。在任何高影响动作（不仅是 shell 命令，而是*任务本身*）之前，代理必须把自己的推理写到磁盘上：核心问题、已知事实、未知项、什么会证明这个计划是错的。即使是操作者自己请求的动作，只要那个表面（surface）缺失或空泛，文件系统 hook 就会拒绝继续。每一次解决的冲突都成为可复用协议，以防篡改的方式链接起来，并在下一次匹配的决策点重新浮现。构建为 **Sovereign Cognitive Kernel** — **생각의 틀**（"思想之框"），姿态而非 prompt。
+> **episteme 是一种思考方式 —— 생각의 틀 —— 为不可逆的 AI 辅助决策之门装上机械牙齿。**
+>
+> 一套五阶段的认知实践 —— **Frame（立框）→ Decompose（分解）→ Execute（执行）→ Verify（验证）→ Handoff（交接）** —— 锚定于 Kahneman 的 System-2 强制、Dalio 的 Radical Transparency、Boyd 的 OODA Orientation、Munger 的 Latticework of Mental Models。episteme 在文件系统层面*结构性地*强制它。在任何高风险动作 —— `git push`、`npm publish`、`terraform apply`、数据库迁移、lockfile 编辑 —— 之前，操作者把自己的推理外化到一个带类型的 Reasoning Surface 上：**Core Question · Knowns · Unknowns · Assumptions · Disconfirmation。** 该表面由操作者本人的 Ed25519 密钥签名。PreToolUse hook 在表面缺失、过期或空泛时拒绝继续 —— 即使是操作者本人请求的动作。签名密钥在结构上位于代理无法触及之处。模型无法替你撰写这套实践。
+>
+> MIRROR 基准（[arXiv 2604.19809](https://arxiv.org/abs/2604.19809)）了结了这个经验问题：在 8 个实验室的 16 个模型、约 250,000 个实例上，*"向模型提供其自身的校准分数不会带来显著改善；只有架构性约束才有效。"* 在外部架构性约束下，Confident Failure Rate 从 0.60 降到 0.14。**实践本身就是产品。** `core/` 与 `src/episteme/` 之下的产物，是让实践在前沿模型强度下、当*作为意志力的警惕*崩溃时仍能存活的强制几何（enforcement geometry）。
+>
+> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** —— 被操作化的实践。
 
 ---
 
