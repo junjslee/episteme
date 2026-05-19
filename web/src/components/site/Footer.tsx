@@ -9,8 +9,8 @@ export function Footer() {
             episteme
           </span>
           <p className="max-w-md font-mono text-[0.75rem] leading-relaxed text-muted">
-            A sovereign cognitive kernel for agents that must reason about
-            consequences — not merely produce fluent outputs.
+            A way to think — 생각의 틀 — for the moments a fluent model would
+            otherwise think for you.
           </p>
         </div>
         <nav>
@@ -35,8 +35,8 @@ export function Footer() {
       </div>
       <div className="mx-auto max-w-7xl border-t border-hairline px-6 py-4 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-muted md:px-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span>v1.0 rc · 565 / 565 green · hash-chain verified</span>
-          <span>© 2026 · built on the kernel it describes</span>
+          <span>1066 tests green · hash-chain verified</span>
+          <span>© 2026 · built on the practice it describes</span>
         </div>
       </div>
     </footer>
