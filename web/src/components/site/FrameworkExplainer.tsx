@@ -5,27 +5,27 @@ const stages = [
   {
     n: "01",
     stage: "frame",
-    body: "Name the core question. Declare the uncomfortable friction driving the work. Build the distinction map — facts / unknowns / assumptions / preferences — before planning touches code.",
+    body: "Name the one question. Separate knowns, unknowns, assumptions — before code.",
   },
   {
     n: "02",
     stage: "decompose",
-    body: "Convert non-linear context into explicit tasks. Translate 'why' into 'how'. For major choices, state method, alternatives considered, and why this one fits the governing intent.",
+    body: "Turn the why into a how. State the method and the alternatives you rejected.",
   },
   {
     n: "03",
     stage: "execute",
-    body: "One bounded lane per owner. Reversible moves first. Record assumptions when data is incomplete. The hash chain seals each step.",
+    body: "One bounded task. Reversible moves first. Each step sealed into the hash chain.",
   },
   {
     n: "04",
     stage: "verify",
-    body: "Validate against success metric, not effort spent. Distinguish proven facts from inference. Evaluate the hypothesis — validated, refined, or invalidated.",
+    body: "Judge against the metric, not the effort. Facts and inferences stay distinct.",
   },
   {
     n: "05",
     stage: "handoff",
-    body: "Update authoritative docs. Capture unresolved risks and exact next action. Residual unknowns marked, not hidden.",
+    body: "Persist the trail. Residual unknowns named, not hidden.",
   },
 ];
 
@@ -38,15 +38,16 @@ export function FrameworkExplainer() {
     >
       <div className="mb-10 grid grid-cols-1 gap-8 md:grid-cols-12">
         <h2 className="font-display text-[2rem] leading-[1.1] text-bone md:col-span-7 md:text-[2.75rem]">
-          Five stages. None optional.
+          The practice is the product.
           <br />
           <span className="text-ash">
-            The kernel refuses to skip ahead.
+            Five stages. None skippable.
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
-          The agent that consistently closes Observe → Orient → Decide → Act
-          outruns the one that collapses stages to feel fast.
+          The signed surface, the typed ledgers, the hash chain — those are
+          residue. This loop is the thing. Skip a stage and the file system
+          declines to proceed.
         </p>
       </div>
 
