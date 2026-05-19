@@ -9,10 +9,10 @@ export function CTASection() {
             06 / install
           </span>
           <h2 className="max-w-3xl font-display text-[2.25rem] leading-[1.05] text-bone md:text-[3.25rem]">
-            Install the substrate.
+            Keep thinking — even when the model can finish your sentences.
             <br />
             <span className="text-ash">
-              Then keep shipping — with a chain behind every decision.
+              Two commands. Then a signed trail behind every irreversible decision.
             </span>
           </h2>
           <div className="w-full max-w-2xl border border-hairline bg-void p-5 font-mono text-[0.8125rem] text-ash">
@@ -31,7 +31,7 @@ export function CTASection() {
               href="https://github.com/junjslee/episteme"
               className="group inline-flex items-center gap-2 border border-line bg-bone px-6 py-3 font-mono text-[0.8125rem] uppercase tracking-[0.12em] text-void transition-colors hover:bg-chain"
             >
-              read the kernel
+              read the source
               <span className="transition-transform group-hover:translate-x-0.5">
                 →
               </span>

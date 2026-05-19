@@ -28,20 +28,21 @@ export function PillarsGrid() {
       id="framework"
       index="02"
       label="three pillars"
-      kicker="not a library, a substrate"
+      kicker="how the practice is enforced"
     >
       <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-12">
         <h2 className="font-display text-[2rem] leading-[1.1] text-bone md:col-span-7 md:text-[2.75rem]">
-          The kernel is small on purpose.
+          The practice is the product.
           <br />
           <span className="text-ash">
-            Three pillars. Everything else is scaffolding.
+            These three pillars are how it&apos;s enforced.
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
-          Each pillar earns its place by making a specific failure mode
-          structurally unavailable. The architecture below is what visitors
-          install, not what we describe.
+          A way to think only holds under pressure if something refuses to let
+          you skip it. Each pillar makes one specific failure mode structurally
+          unavailable — the mechanism that keeps the practice honest when
+          willpower alone would not.
         </p>
       </div>
 

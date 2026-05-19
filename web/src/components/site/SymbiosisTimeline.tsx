@@ -184,7 +184,7 @@ export function SymbiosisTimeline() {
           Six acts. Real history.
           <br />
           <span className="text-ash">
-            The kernel applied to a kernel decision under genuine pressure.
+            The practice applied to its own maintainers under genuine pressure.
           </span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">

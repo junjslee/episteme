@@ -9,6 +9,7 @@ from typing import List, Optional
 from episteme.practice._walk import run_walk
 from episteme.practice._demo import run_demo
 from episteme.practice._retro import run_retro
+from episteme.practice._trace import add_trace_subparser, run_trace
 
 
 EXIT_OK = 0
@@ -54,6 +55,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="narrated = stage-by-stage narration; json = body only (suitable for `surface sign`)",
     )
 
+    add_trace_subparser(sub)
+
     return p
 
 
@@ -66,6 +69,8 @@ def run_practice_cli(argv: Optional[List[str]] = None) -> int:
         return run_retro(since=args.since, until=args.until, format_=args.format)
     if args.action == "demo":
         return run_demo(format_=args.format)
+    if args.action == "trace":
+        return run_trace(args)
     parser.print_help(sys.stderr)
     return EXIT_USAGE
 

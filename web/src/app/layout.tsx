@@ -36,9 +36,9 @@ const satoshi = localFont({
 });
 
 const SITE_URL = "https://www.epistemekernel.com";
-const SITE_TITLE = "episteme — a thinking framework for AI agents";
+const SITE_TITLE = "episteme — a way to think when the model can finish your sentences";
 const SITE_DESCRIPTION =
-  "A socio-epistemic infrastructure for Claude Code. Blocks epistemic drift and cognitive deskilling by requiring the agent to state its reasoning on disk before high-impact moves — core question, knowns, unknowns, disconfirmation. A technical provenance system for agentic reasoning. Posture over prompt.";
+  "episteme is a way to think — 생각의 틀. A five-stage practice (frame, decompose, execute, verify, handoff) made mechanical at the file system level. Before any irreversible move, you write down what you know, what you don't, and what would prove you wrong; a hook refuses to proceed if that reasoning is thin. The practice is the product — the signed, hash-chained trail is what it leaves behind.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

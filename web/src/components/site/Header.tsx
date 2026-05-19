@@ -17,7 +17,7 @@ export function Header() {
           />
           <span className="leading-none">episteme</span>
           <span className="hidden sm:inline font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted">
-            rc · v1.0
+            a way to think
           </span>
         </Link>
 

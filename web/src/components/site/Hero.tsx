@@ -4,19 +4,17 @@ import { CornerMarkers } from "@/components/ui/CornerMarkers";
 import { FrameworkLoopDiagram } from "@/components/site/diagrams/FrameworkLoopDiagram";
 
 const HERO_WORDS = [
-  "There",
-  "are",
-  "many",
-  "agent",
-  "harnesses.",
-  "Episteme",
-  "is",
+  "A",
+  "way",
+  "to",
+  "think —",
+  "when",
   "the",
-  "cognition",
-  "layer",
-  "above",
-  "them",
-  "all.",
+  "model",
+  "can",
+  "finish",
+  "your",
+  "sentences.",
 ];
 
 export function Hero() {
@@ -45,7 +43,7 @@ export function Hero() {
                 substrate · v1.1.0-rc1
               </SignalBadge>
               <span className="font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-muted">
-                causal-consequence scaffolding · protocol synthesis · temporal integrity
+                생각의 틀 · frame · decompose · execute · verify · handoff
               </span>
             </div>
 
@@ -68,15 +66,13 @@ export function Hero() {
                 animation: "mask-word-rise 900ms var(--ease-enter) 700ms forwards",
               }}
             >
-              A socio-epistemic infrastructure between you and your AI coding agent. Before
-              any high-impact move — the task, not just the shell command — the agent has to
-              state its reasoning on disk: core question, knowns, unknowns, what would prove
-              the plan wrong. A file-system hook refuses to proceed if that surface goes
-              thin, even when the operator is the one who asked. Epistemic drift blocked at
-              the boundary; cognitive deskilling countered by forcing both sides to name
-              what they actually know. Every conflict resolved becomes a reusable protocol,
-              chained tamper-evidently — a technical provenance system for agentic reasoning.{" "}
-              <span className="text-bone">Posture over prompt.</span>
+              Frontier models are fluent enough now that the diff looks fine and you stop
+              reading it. Before any irreversible move, episteme makes you write down what
+              you know, what you don&apos;t, and what would prove you wrong — then a
+              file-system hook refuses to proceed if that reasoning is thin.{" "}
+              <span className="text-bone">
+                The practice is the product; the signed trail is what it leaves behind.
+              </span>
             </p>
 
             <div
@@ -123,10 +119,10 @@ export function Hero() {
               }}
             >
               {[
-                { k: "pillars", v: "03" },
-                { k: "blueprints", v: "04" },
-                { k: "tests green", v: "766 / 766 + 21" },
-                { k: "protocols synthesized", v: "live" },
+                { k: "stages", v: "05" },
+                { k: "cognitive moves", v: "21" },
+                { k: "tests green", v: "1066" },
+                { k: "signed · hash-chained", v: "live" },
               ].map((m) => (
                 <div key={m.k} className="flex flex-col gap-1">
                   <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-muted">
