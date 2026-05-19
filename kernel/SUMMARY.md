@@ -2,6 +2,8 @@
 
 A 30-line distillation of the entire episteme kernel. Load this first.
 
+**Primary identity:** [`../docs/THE_WAY_TO_THINK.md`](../docs/THE_WAY_TO_THINK.md) — what episteme *is* (a way to think; the practice is the product). This kernel is its enforcement specification, not a separate artifact.
+
 ---
 
 **Root claim.** The danger is not incompetence. It is *confident wrongness* — fluent answers indistinguishable from examined ones.

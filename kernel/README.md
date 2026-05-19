@@ -29,6 +29,15 @@ decomposition, per-case protocol synthesis, active guidance at future
 decisions, continuous self-maintenance. Full specification (v1.0 RC):
 [`../docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](../docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md).
 
+**Primary identity.** What this kernel *enforces* is named in
+[`../docs/THE_WAY_TO_THINK.md`](../docs/THE_WAY_TO_THINK.md) — the primary
+identity doc. The practice is the product; the Reasoning Surface schema,
+hash chain, gate, and adapters are enforcement geometry, not the thing
+itself. The practice is authored operator-side in
+[`../core/memory/global/cognitive_profile.md`](../core/memory/global/cognitive_profile.md)
++ [`../core/memory/global/workflow_policy.md`](../core/memory/global/workflow_policy.md);
+this kernel is the substrate-side specification that makes an LLM respect it.
+
 ## BYOS — bring your own skill
 
 episteme is a **cognitive and execution governance kernel**. It is not a
