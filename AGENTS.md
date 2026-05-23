@@ -106,9 +106,13 @@ All consequential edits follow the kernel's own loop:
 
 High-impact decisions must record to `.episteme/reasoning-surface.json` before the action. See `kernel/HOOKS_MAP.md`.
 
+> **Novel decisions vs. mechanical implementations.** A full Reasoning Surface fires on *novel decisions* — questions still open, alternatives still live. Mechanical implementations of an already-declared pattern produce a minimal `implementation-of` reference instead. See [`kernel/PATTERN_GOVERNANCE.md`](./kernel/PATTERN_GOVERNANCE.md) for the pattern-declaration artifact shape, the promotion gate, and the deviation-from-pattern escape hatch that promotes a "mostly mechanical" change back to novel.
+
 ---
 
 ## Boundaries
+
+> **Principled basis.** The four sub-lists below are the operational form of the four-tier artifact taxonomy formalized in [`kernel/ARTIFACT_TAXONOMY.md`](./kernel/ARTIFACT_TAXONOMY.md): *frozen-purpose* (no silent mutation; explicit authorization at each change) · *authoritative-living* (mutation expected; rationale required; supersede-with-history) · *working-execution* (standard engineering discipline) · *ephemeral* (untracked-by-design). Read the kernel doc for the failure-mode mechanism (silent mutation of declared contracts to fit drifted generation) the taxonomy counters.
 
 ### Do NOT touch
 
