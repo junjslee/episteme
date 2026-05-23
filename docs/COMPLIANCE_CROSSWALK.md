@@ -117,7 +117,82 @@ There is no single canonical "FS-AI-RMF." This crosswalk maps to the applicable 
 
 ---
 
-## 4. Cross-framework export tooling (deferred, designed)
+## 4. Regulatory extensions (v1.2 RC era — EU GPAI Code of Practice · ISO/IEC 42001 · NIST AI 800-1)
+
+Three regulator-recognizable standards the kernel's mechanisms are adjacent to, surfaced to [`kernel/REFERENCES.md`](../kernel/REFERENCES.md) § *Regulator-recognizable standards — 2025–2026* in Event 131 (commit `0ccf8dd`). The crosswalk below treats each as a **structural-mapping** target — same coverage notation as §§ 1-3, same honesty caveats (§ 7). episteme does NOT claim conformance certification; it provides cryptographically signed structured evidence at the operator decision layer that maps to the obligations these standards enumerate. The kernel-tone-discipline rule applies — adjacency is sufficient positioning; conformance claims are an operator-positioning decision made at this crosswalk layer per project, not at the kernel layer.
+
+### 4.1 EU GPAI Code of Practice (published 2025-07-10; in force 2025-08-02)
+
+The General-Purpose AI Code of Practice is the voluntary deployer-facing implementation guide for EU AI Act Chapter V (general-purpose AI model obligations). Signing the CoP is a deployer decision; the mappings below describe artifact evidence available to a deployer who signs.
+
+| Commitment (paraphrased) | Field path | Coverage | Technical justification |
+|---|---|---|---|
+| **Documentation Commitment** | Full surface schema + [`kernel/SUMMARY.md`](../kernel/SUMMARY.md) + [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md) | **Direct** | Per-decision artifact + governance-layer kernel docs supply the model-card-equivalent documentation per provider |
+| **Transparency Commitment (downstream)** | `surface.knowns[]` + `surface.assumptions[]` + Regulator Evidence Packet export | **Direct** | Per-decision input + assumption disclosure for downstream deployer consumption |
+| **Safety & Security Commitment — incident reporting** | Hash-chained `~/.episteme/framework/deferred_discoveries.jsonl` | **Supporting** | Per-decision deferred-risk log; aggregable into incident reports; not yet wired to a regulator-facing reporting endpoint |
+| **Safety & Security Commitment — systemic risk mitigation** | `surface.disconfirmation_conditions[]` + `core/hooks/_blueprint_d.py` cascade detector | **Supporting** | Pre-committed falsifiers + architectural-cascade gating reduce silent-failure surface; aggregation into systemic-risk frame is deployer responsibility |
+
+### 4.2 ISO/IEC 42001:2023 (AI Management System — first certifiable AI standard)
+
+Published 2023-12; first publicly certified deployers in 2025 (SAP, Cornerstone, others). Process-management standard; analogous to ISO 9001 for AI lifecycle. Certifiability requires an accredited certification body's audit; the mapping below describes artifact evidence the certifier would inspect, not certification itself.
+
+| Clause | Obligation (paraphrased) | Field path | Coverage | Technical justification |
+|---|---|---|---|---|
+| **6.1.2 — AI risk assessment** | Documented per-action risk evaluation | `surface.risk_classification.{reversibility, blast_radius, ai_act_tier, article_79_1_triggers[]}` | **Direct** | Per-decision risk classification structured for aggregation |
+| **6.1.3 — AI risk treatment** | Documented mitigation per identified risk | `surface.disconfirmation_conditions[]` + `surface.decision.stop_rollback_path` | **Direct** | Per-decision mitigation (falsifier + rollback) pre-committed |
+| **7.4 — Communication** | Internal + external communication channels for AI matters | Operator-signed surface + Regulator Evidence Packet ZIP | **Supporting** | Substrate; channel policy is deployer-defined |
+| **8.1 — Operational planning and control** | Documented AI lifecycle processes | [`kernel/CONSTITUTION.md`](../kernel/CONSTITUTION.md) + [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md) + project-level `workflow_policy.md` | **Direct** | Five-stage cognitive practice IS the operational process; constitution is the invariant policy |
+| **9.1 — Performance evaluation** | Monitoring, measurement, analysis | [`kernel/CALIBRATION_TELEMETRY.md`](../kernel/CALIBRATION_TELEMETRY.md) (Brier · calibration curve · base-rate slicing · coverage first-class) | **Direct** | Falsifiable measurement spec; refuses to emit Brier below coverage threshold |
+| **9.2 — Internal audit** | Independent audit programme | `episteme verify` standalone CLI + `episteme review` spot-check CLI | **Direct** | Reproducible audit substrate; auditor independence is structural (signing key out of agent reach) |
+| **10.1 — Continual improvement** | Continual improvement of the AIMS | Phase 12 audit + [`kernel/ACTIVE_GUIDANCE_RANKING.md`](../kernel/ACTIVE_GUIDANCE_RANKING.md) | **Direct** | Friction-weighted axis rescoring drives improvement loop on the same evidentiary substrate as the audit |
+
+### 4.3 NIST AI 800-1 (finalized mid-2025; foundation-model deployment guidance)
+
+NIST AI 800-1 *Managing Misuse Risk for Dual-Use Foundation Models* — the deployer-facing complement to NIST AI 600-1 (already mapped in § 2). Guidance, not regulation; the compliance posture follows the standard's own framing — documented adoption is the artifact, not certification.
+
+| Section | Obligation (paraphrased) | Field path | Coverage | Technical justification |
+|---|---|---|---|---|
+| **4.1 — Pre-deployment risk identification** | Documented misuse-risk enumeration | `surface.risk_classification.article_79_1_triggers[]` + `surface.unknowns[]` (named, not vague) | **Direct** | Per-decision misuse-risk surface; Unknowns field rejects placeholder values structurally |
+| **4.3 — Misuse-event monitoring** | Operational monitoring for misuse events | `core/hooks/_spot_check.py` + Phase 12 audit | **Supporting** | Per-op sampling + axis-level drift detection; misuse-class taxonomy is deployer-defined |
+| **5.2 — Post-deployment incident response** | Documented response to identified misuse | Hash-chained `deferred_discoveries.jsonl` + `episteme review` triage CLI | **Direct** | Append-only incident substrate; triage discipline structured |
+| **6.1 — Information sharing** | Sharing relevant misuse signals with downstream parties | Regulator Evidence Packet export | **Supporting** | Substrate; sharing policy is deployer-defined |
+
+---
+
+## 5. Agent Skills conformance — mapping kernel artifacts to the Anthropic skill manifest contract
+
+Anthropic's Agent Skills open spec (agentskills.io; emerging 2025-Q4 / 2026-Q1) declares `skills/**/SKILL.md` files as the agent-skill manifest format, with YAML frontmatter (`name`, `description`, optional `version` / `model` / etc.) and Markdown body. episteme's [`skills/`](../skills/) directory predates the spec and uses a compatible-but-richer shape; this section maps the kernel's skill artifacts to the open-spec contract.
+
+| Agent Skills field | episteme equivalent | Coverage | Notes |
+|---|---|---|---|
+| `name` (frontmatter) | `name` in `skills/**/SKILL.md` frontmatter | **Direct** | Kebab-case; identical convention |
+| `description` (frontmatter) | `description` in `skills/**/SKILL.md` frontmatter | **Direct** | Per-skill one-line trigger description |
+| `version` (frontmatter, optional) | Repo-level via `pyproject.toml` + release-please-managed `.release-please-manifest.json`; per-skill version not declared | **Conditional** | Versioning is repo-level, not per-skill; a future per-skill version field would be additive |
+| `model` (frontmatter, optional) | Not declared per-skill | **Conditional** | episteme is BYOS (Bring Your Own Substrate); skills do not pin a model |
+| Markdown body (skill content) | Body of `skills/**/SKILL.md` | **Direct** | Identical convention |
+| Frontmatter validation | `core/manifest.py` validators + `episteme doctor` | **Direct** | Per-skill schema validation runs at session start (`episteme doctor`) |
+
+### 5.1 episteme-specific extensions (not in the open spec)
+
+episteme skills carry additional structure the open spec does not (yet) cover; the additions are backward-compatible (valid frontmatter the open spec ignores):
+
+| Extension | Purpose | Path |
+|---|---|---|
+| Vendor classification (`[vendor]` · `[custom]` · `[agent]`) | Three-bucket pre-commit validation distinguishes upstream skills, episteme-custom skills, and agent-defined skills | `core/manifest.py` |
+| Episodic skill provenance | Skill artifacts can be hash-chained into `~/.episteme/framework/protocols.jsonl` when a skill synthesis fires at runtime | `core/hooks/_chain.py` |
+| Skill-level Reasoning Surface enforcement | When a skill is invoked on a high-impact op, the Reasoning Surface gate fires before skill execution — the skill cannot bypass the precondition | `core/hooks/reasoning_surface_guard.py` |
+
+### 5.2 What episteme does NOT claim about Agent Skills conformance
+
+- **Versioned spec conformance.** The open spec is in active evolution (~3 months old as of 2026-05-23); episteme does not pin to a specific spec version until the spec stabilizes.
+- **Marketplace listing.** episteme has no Anthropic Skills Marketplace bundle as of this writing (intentionally — substrate-neutrality erosion risk per Event 122 audit).
+- **Cross-tool skill portability.** episteme skills are designed BYOS-portable in principle (kernel-level); per-tool runtime behavior may differ across Claude Code, Codex, Cursor, opencode.
+
+The conformance posture follows the kernel's general framing: episteme's artifacts are structurally adjacent to the Agent Skills contract; conformance certification is a separate operator decision and is not claimed here.
+
+---
+
+## 6. Cross-framework export tooling (deferred, designed)
 
 ```
 episteme export --framework=<eu-ai-act|nist-genai|sr-11-7|eba-ml|mas-feat|osfi-e23|finra> \
@@ -129,7 +204,7 @@ The framework-specific export rearranges the same underlying signed surfaces int
 
 ---
 
-## 5. Honesty caveats
+## 7. Honesty caveats
 
 This document does **not** claim:
 
@@ -137,5 +212,6 @@ This document does **not** claim:
 - That the Coverage column is dispositive against legal challenge. Each deployer's compliance counsel must independently assess applicability for their deployment.
 - That the artifact alone satisfies any framework end-to-end. Even where Coverage = Direct, the artifact is the **evidence**; the **compliance program** wrapping it is the deployer's responsibility.
 - That the schema is final. `signed-surface@1.0` is the load-bearing v1 shape; v1.1+ amendments will preserve backward compatibility (the schema version field exists for exactly this).
+- That conformance to EU GPAI CoP, ISO/IEC 42001, NIST AI 800-1, or the Anthropic Agent Skills open spec is asserted. § 4 and § 5 are structural-mapping exercises; conformance certification (where applicable) is a separate operator action subject to its own audit.
 
 The kernel-tone-discipline rule applies: governance surface stays precise about what is structurally defensible vs. what requires external validation.
