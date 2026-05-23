@@ -1,8 +1,8 @@
-# Architecture — The Sovereign Kernel (v1.2.0-rc1 shipped · 1066 tests + 54 subtests green)
+# Architecture — The Sovereign Kernel (v1.3.0-rc1 shipped · 1066 tests + 54 subtests green)
 
-> Mermaid flowchart. Renders natively on GitHub, Obsidian, and any CommonMark viewer with Mermaid support. Four subgraphs trace the full lifecycle from agent intention through the three-pillar kernel — Cognitive Blueprints, Append-Only Hash Chain, Framework Synthesis & Active Guidance — into praxis and the learning loop.
+> Mermaid flowchart. Renders natively on GitHub, Obsidian, and any CommonMark viewer with Mermaid support. **Five** subgraphs trace the full lifecycle from agent intention through the three-pillar kernel — Cognitive Blueprints, Append-Only Hash Chain, Framework Synthesis & Active Guidance — into praxis, the learning loop, and the post-v1.0-RC behavior-conformance extensions (Event 130 — Contract Gate; Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY).
 >
-> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21). All ten RC checkpoints have shipped with paused-review-before-commit discipline. Current head: v1.2.0-rc1 (cut 2026-05-19), 1066 tests + 54 subtests green; v1.3.0-rc1 staged by release-please. Post-v1.0-RC architectural extensions (Event 130 — Contract Gate; Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY) compose with the four subgraphs below; see § *Post-v1.0-RC extensions* after the diagram.
+> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21) plus the v1.2-RC behavior-conformance extensions in Subgraph ⑤. All ten RC checkpoints shipped with paused-review-before-commit discipline. Current head: v1.3.0-rc1 (cut 2026-05-23 via release-please PR #80); 1066 tests + 54 subtests green. v1.3.0-rc2 stages from this Event's `feat:` commits; release-please regenerates the staging PR automatically — no manual version edit.
 
 ---
 
@@ -45,6 +45,14 @@ graph TD
         GD["episteme guide CLI\nSessionStart digest\nN protocols · M deferred pending"]
     end
 
+    subgraph SG5["⑤ Behavior-conformance — post-v1.0-RC extensions (Event 130-131)"]
+        CG["Contract Gate · opt-in\ndocs/CONTRACT_GATE.md\ncore/hooks/contract_gate.py (Stop-hook stub)\nbehavioral-drift complement\nOpenAPI · Hurl · JSON Schema · DDL · PBT"]
+        AT["Artifact Taxonomy\nkernel/ARTIFACT_TAXONOMY.md\nfour-tier mutation discipline\nfrozen-purpose · authoritative-living\nworking-execution · ephemeral"]
+        PG["Pattern Governance\nkernel/PATTERN_GOVERNANCE.md\nnovel-decision vs mechanical-impl\npattern-declaration + implementation-of"]
+        FM12["FAILURE_MODE 12\nkernel/FAILURE_MODES.md\nsilent mutation of frozen-purpose\nWYSIATI projected onto artifact axis"]
+        CT["Calibration Telemetry\nkernel/CALIBRATION_TELEMETRY.md\nBrier · calibration curve\nbase-rate slicing · coverage first-class"]
+    end
+
     A --> B
     B --> D
     B --> E
@@ -79,6 +87,15 @@ graph TD
     DD -.->|"deferred surface"| GD
     GD -.->|"active guidance"| A
 
+    BPV -.->|"frozen-purpose contract"| AT
+    AT -.-> PG
+    H -.->|"opt-in Stop-hook"| CG
+    J --> CT
+    CT -.-> PH12
+    FM12 -.->|"countered by"| AT
+    FM12 -.->|"countered by"| PG
+    FM12 -.->|"countered by"| CG
+
     classDef doxaStyle fill:#c0392b,stroke:#922b21,color:#fff
     classDef episteStyle fill:#1e8449,stroke:#145a32,color:#fff
     classDef passStyle fill:#27ae60,stroke:#1e8449,color:#fff
@@ -88,6 +105,8 @@ graph TD
     classDef chainStyle fill:#2471a3,stroke:#1a5276,color:#fff
     classDef pillarStyle fill:#884ea0,stroke:#6c3483,color:#fff
     classDef neutralStyle fill:#2c3e50,stroke:#1a252f,color:#fff
+    classDef behaviorStyle fill:#117a65,stroke:#0e6655,color:#fff
+    classDef failureStyle fill:#a93226,stroke:#7b241c,color:#fff
 
     class D,G doxaStyle
     class E episteStyle
@@ -98,6 +117,8 @@ graph TD
     class FQ,SC,PH12,GD pillarStyle
     class CH,PR,DD,PC chainStyle
     class A,B neutralStyle
+    class CG,AT,PG,CT behaviorStyle
+    class FM12 failureStyle
 ```
 
 ---
@@ -150,6 +171,18 @@ Advisory mode opt-in per-project: `touch .episteme/advisory-surface`.
 | **CONSTITUTION.md** | `kernel/CONSTITUTION.md` — four principles; nine failure-mode counters recalibrated from observed friction |
 | **`episteme guide` CLI** | `src/episteme/cli.py` — `guide [--context] [--since] [--deferred] [--json]`; SessionStart digest banner: `N protocols since last session · M deferred discoveries pending` (CP9) |
 
+### ⑤ Behavior-conformance — post-v1.0-RC extensions
+
+| Node | Implementation | Role |
+|------|---------------|------|
+| **Contract Gate** | [`docs/CONTRACT_GATE.md`](./CONTRACT_GATE.md) design + `core/hooks/contract_gate.py` Stop-hook stub | Behavioral-drift complement to the Reasoning Surface's epistemological gate. Dual-signal opt-in (`contracts/` dir + explicit `settings.json` registration). Supported formats: OpenAPI · Hurl · JSON Schema · DDL · state-machines · property-based tests (peer-reviewed per arXiv:2506.18315) |
+| **Artifact Taxonomy** | [`kernel/ARTIFACT_TAXONOMY.md`](../kernel/ARTIFACT_TAXONOMY.md) | Four-tier mutation discipline — `frozen-purpose` · `authoritative-living` · `working-execution` · `ephemeral`. The Contract Gate's correctness depends on contracts being frozen-purpose so they cannot be silently rewritten to fit drifted implementation |
+| **Pattern Governance** | [`kernel/PATTERN_GOVERNANCE.md`](../kernel/PATTERN_GOVERNANCE.md) | Novel-decision vs mechanical-implementation distinction; pattern-declaration artifact + implementation-of reference. Counters the PTSP uniform-application bottleneck at scale |
+| **FAILURE_MODE 12** | [`kernel/FAILURE_MODES.md`](../kernel/FAILURE_MODES.md) § Mode 12 | *Silent mutation of frozen-purpose state* — WYSIATI (Mode 1) projected onto the artifact axis. Counter pair = Artifact Taxonomy tier discipline + Contract Gate Stop-hook enforcement. Closes the 1:1 mode↔counter mapping gap Event 130 opened |
+| **Calibration Telemetry** | [`kernel/CALIBRATION_TELEMETRY.md`](../kernel/CALIBRATION_TELEMETRY.md) · `core/hooks/calibration_telemetry.py` | Measurement spec operationalizing Tetlock: Brier score · calibration curve · base-rate-aware slicing · coverage as first-class metric (refuses to emit Brier below 0.20 coverage). Falsifiability loop — if calibration curves don't trend toward the diagonal across windows on the same operator, the kernel's central empirical claim is falsified |
+
+SG5 wires into the existing flow at three boundaries: (a) Blueprint Validator consults Artifact Taxonomy when an edit targets a tier-marked artifact; (b) PASS optionally invokes Contract Gate as an opt-in Stop-hook; (c) Observed Outcome feeds Calibration Telemetry, which drives Phase 12 audit alongside the existing spot-check verdicts. Failure Mode 12 names the failure class all three nodes jointly counter.
+
 ---
 
 ## Colour legend
@@ -163,6 +196,8 @@ Advisory mode opt-in per-project: `touch .episteme/advisory-surface`.
 | Blue (dark) | Pillar 2 — chain writer, protocols stream, deferred-discoveries stream, pending contracts |
 | Blue (medium) | Gyeol — operator profile, constitution, learning feedback |
 | Dark grey | Neutral infrastructure — Agent and Reasoning Surface |
+| Teal | SG5 Behavior-conformance — Contract Gate, Artifact Taxonomy, Pattern Governance, Calibration Telemetry |
+| Red (dark) | SG5 Failure mode — silent mutation of frozen-purpose state (Mode 12) |
 
 ---
 
@@ -245,4 +280,4 @@ Both extensions are *additive*. The four-subgraph hot path is unchanged; the ext
 - **Mode 12** completes Subgraph ④'s failure-mode↔counter audit trail.
 - **CALIBRATION_TELEMETRY** specifies the measurement that Subgraph ④'s Gyeol learning loop computes from Subgraph ③'s correlation_id-paired prediction + outcome records.
 
-A future diagram revision may pull these extensions into the Mermaid body; the current minimum-coherent move is to name them in prose so the diagram itself stays readable.
+Event 133 landed the Mermaid expansion: Subgraph ⑤ now visualizes Contract Gate, Artifact Taxonomy, Pattern Governance, Failure Mode 12, and Calibration Telemetry alongside the four-subgraph hot path. The prose above remains as the conceptual explanation; the diagram above is the visual reference.
