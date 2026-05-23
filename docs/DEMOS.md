@@ -1,6 +1,6 @@
 # Demos
 
-Four demos. Each one targets a different class of LLM failure mode. The
+Five demos. Each one targets a different class of LLM failure mode. The
 matrix below is the authoritative cross-reference between named modes from
 [`kernel/FAILURE_MODES.md`](../kernel/FAILURE_MODES.md) and the demo that
 exhibits the kernel catching it in operation.
@@ -28,9 +28,18 @@ The order is **load-bearing first**, not chronological:
 4. **Demo 01 — Attribution audit.** The recursive demo. Kernel applied to
    itself, auditing whether every borrowed concept in its own wording is
    traceable to a primary source. Canonical four-artifact shape.
+5. **Demo 05 — Contract Gate complement.** The recursive-defense demo. Kernel
+   applied to a public substitution critique of itself (deterministic contract
+   testing positioned as replacement for the Reasoning Surface). Output: the
+   five-artifact composition (`kernel/ARTIFACT_TAXONOMY.md`,
+   `kernel/PATTERN_GOVERNANCE.md`, `docs/CONTRACT_GATE.md`,
+   `core/hooks/contract_gate.py` stub, `contracts/` example) plus
+   `kernel/FAILURE_MODES.md` § Mode 12 closing the mode↔counter mapping gap.
 
 A reader who only watches one should watch **04**. A reader who needs to
 verify the framework changes outputs on identical inputs should watch **03**.
+A reader stress-testing the kernel against an attack on its premise should
+watch **05**.
 
 ---
 
@@ -42,20 +51,25 @@ governance-layer modes added in v0.11. A check mark means the demo
 demonstrably blocks that mode in operation — not that the demo merely
 discusses it.
 
-| Failure mode (with mechanism) | 04 Symbiosis | 03 Differential | 02 Debug | 01 Attribution |
-|---|:---:|:---:|:---:|:---:|
-| **WYSIATI** — agent reasons from what's in context, never flags what's absent | ✓ | ✓ |  | ✓ |
-| **Question substitution** — hard question silently replaced by a nearby easy one | ✓ | ✓ | ✓ |  |
-| **Anchoring** — first framing dominates; later evidence adjusts insufficiently | ✓ |  |  |  |
-| **Narrative fallacy** — sparse data assembled into a coherent causal story |  | ✓ | ✓ |  |
-| **Planning fallacy** — effort/risk underestimated, benefits overestimated |  |  | ✓ |  |
-| **Overconfidence** — expressed confidence consistently exceeds calibrated accuracy |  | ✓ | ✓ | ✓ |
-| **Constraint removal** (governance) — fence dropped without reconstructing its purpose | ✓ |  |  |  |
-| **Measure-as-target drift** (governance) — proxy metric optimized; underlying goal lost |  |  | ✓ |  |
-| **Cognitive deskilling** (governance) — operator's reasoning capacity erodes from over-reliance | ✓ |  |  | ✓ |
+| Failure mode (with mechanism) | 04 Symbiosis | 03 Differential | 02 Debug | 01 Attribution | 05 Contract Gate |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **WYSIATI** — agent reasons from what's in context, never flags what's absent | ✓ | ✓ |  | ✓ | ✓ |
+| **Question substitution** — hard question silently replaced by a nearby easy one | ✓ | ✓ | ✓ |  |  |
+| **Anchoring** — first framing dominates; later evidence adjusts insufficiently | ✓ |  |  |  | ✓ |
+| **Narrative fallacy** — sparse data assembled into a coherent causal story |  | ✓ | ✓ |  | ✓ |
+| **Planning fallacy** — effort/risk underestimated, benefits overestimated |  |  | ✓ |  |  |
+| **Overconfidence** — expressed confidence consistently exceeds calibrated accuracy |  | ✓ | ✓ | ✓ | ✓ |
+| **Constraint removal** (governance) — fence dropped without reconstructing its purpose | ✓ |  |  |  | ✓ |
+| **Measure-as-target drift** (governance) — proxy metric optimized; underlying goal lost |  |  | ✓ |  |  |
+| **Cognitive deskilling** (governance) — operator's reasoning capacity erodes from over-reliance | ✓ |  |  | ✓ | ✓ |
+| **Silent mutation of frozen-purpose** (governance · Mode 12, v1.2 RC) — frozen-purpose artifact silently edited to fit drifted implementation |  |  |  |  | ✓ |
 
-Three modes (Anchoring, Constraint removal, Cognitive deskilling) are caught
-exclusively by Demo 04. That is why it is the load-bearing demo.
+Three modes (Question substitution, Measure-as-target drift, Planning fallacy)
+are caught by demos other than 04+05; three modes (Anchoring, Constraint
+removal, Cognitive deskilling) are caught load-bearingly by Demo 04. Mode 12
+(silent mutation of frozen-purpose state) is caught exclusively by Demo 05,
+which is also the only demo that names the failure class the Contract Gate
+exists to counter.
 
 ---
 
@@ -234,6 +248,87 @@ Principle I (*explicit > implicit*).
   know *what artifacts episteme produces* without reading any philosophy.
   Open the four files in this directory in order; that is the kernel's output
   contract.
+
+---
+
+## Demo 05 — Contract Gate complement
+
+- **Asset.** [`demos/05_contract_gate/`](../demos/05_contract_gate/) — full
+  four-artifact shape (reasoning-surface → decision-trace → verification →
+  handoff), plus a README that positions the demo against the substitution
+  critique.
+
+### Plot
+
+External public feedback frames deterministic contract testing (OpenAPI ·
+Hurl · JSON Schema · DDL · state-machines · property-based tests, per
+arXiv:2506.18315) as a *substitute* for the Reasoning Surface — kernel
+positioned as redundant ceremony. The critique is technically grounded:
+contract testing genuinely catches a class of failures (behavioral drift —
+code-vs-spec divergence) the Reasoning Surface does not gate at PreToolUse.
+Defending the kernel rhetorically would be dishonest. The kernel is applied
+to the critique itself. The audit produces a binary answer — **different
+failure classes** (epistemological drift vs behavioral drift), at **different
+layers** (PreToolUse decision admission vs Stop / CI behavioral conformance).
+Substitution would discard the missing class. The shipped composition lands
+the Contract Gate as an opt-in Stop-hook alongside the Reasoning Surface,
+with `kernel/ARTIFACT_TAXONOMY.md` declaring four-tier mutation discipline
+(contracts must be `frozen-purpose`), `kernel/PATTERN_GOVERNANCE.md`
+separating novel-decision from mechanical-implementation, and a follow-up
+Event 131 closing the failure-mode taxonomy with `kernel/FAILURE_MODES.md`
+§ Mode 12 — *silent mutation of frozen-purpose state*. The Reasoning Surface
+schema is unchanged; the composition is at the hook layer.
+
+### Blueprints fired
+
+- **Axiomatic Judgment** (Blueprint A) — resolves the conflict between
+  Source A (*"contract testing is the real gate; Reasoning Surface is
+  ceremony"*) and Source B (*"both gate orthogonal failure classes;
+  substitution loses one"*) by naming which feature of the architectural
+  context (PreToolUse vs Stop / CI layer; epistemological vs behavioral
+  failure class) selects between them.
+- **Fence Reconstruction** (Blueprint B) — the substitution critique
+  proposed removing the Reasoning Surface gate; the demo reconstructs its
+  purpose (gating the epistemological-drift class the Contract Gate cannot
+  reach) before accepting any reduction in scope. The fence stays because
+  the purpose holds.
+- **Consequence Chain** (Blueprint C) — Auto-activating the Contract Gate
+  by default would blast every existing episteme repo. The decision
+  decomposes first-order (gate fires on commit with no `contracts/`
+  directory → unhelpful failure), second-order (operator disables the
+  gate via env-var workaround → kernel loses signal that contracts/
+  is missing), failure-mode inversion (what does failure look like *with*
+  auto-activation vs *without*), base-rate reference (default-on
+  enforcement features historically generate downstream workarounds at high
+  rate). Conclusion: dual-signal opt-in (`contracts/` dir present + explicit
+  `settings.json` registration) is the loss-averse posture.
+
+### What this demo proves that no other demo proves
+
+- **Stress-test against substitution.** Demos 01–04 apply the kernel to
+  questions where the kernel's role is uncontested. Demo 05 applies the
+  kernel to a question where the kernel's *existence* is contested. The
+  four-file artifact is the receipt that the question got a real answer,
+  not a defensive deflection.
+- **Architectural-commitment output.** The Execute stage produced five new
+  kernel/docs artifacts and one stub hook — not a code change, a
+  composition rule. Demo 05 is the audit trail for that commitment.
+- **Verify-stage honesty distinguishes held vs carries.** The Verify table
+  names which assumptions held by design (complement-not-substitute;
+  dual-signal opt-in) vs which carry into soak (activation friction,
+  verifier-resolution chain order). Demos that report all-green are weaker
+  evidence than demos that name which Unknowns carry.
+
+### What it costs to run
+
+No recording. The four artifacts are the demo. Reading
+[`reasoning-surface.json`](../demos/05_contract_gate/reasoning-surface.json),
+[`decision-trace.md`](../demos/05_contract_gate/decision-trace.md),
+[`verification.md`](../demos/05_contract_gate/verification.md), and
+[`handoff.md`](../demos/05_contract_gate/handoff.md) in order takes ~15
+minutes. The shipped artifacts the demo records (`kernel/ARTIFACT_TAXONOMY`,
+`kernel/PATTERN_GOVERNANCE`, `docs/CONTRACT_GATE.md`, the stub hook, the
+example) are linked from the demo's README.
 
 ---
 
