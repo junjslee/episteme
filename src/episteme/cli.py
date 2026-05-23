@@ -5962,7 +5962,9 @@ def main(argv: Iterable[str] | None = None) -> int:
     # argparse trees (with flags like --keys-dir that argparse REMAINDER
     # cannot forward cleanly through the parent parser). Dispatch BEFORE
     # the main argparse runs so the submodule sees its argv unmolested.
-    if argv_list and argv_list[0] in ("surface", "evidence", "verify", "practice"):
+    if argv_list and argv_list[0] in (
+        "surface", "evidence", "verify", "practice", "tier1", "evaluate"
+    ):
         subcmd, rest = argv_list[0], argv_list[1:]
         if subcmd == "surface":
             from episteme.surface import run_surface_cli
@@ -5976,6 +5978,14 @@ def main(argv: Iterable[str] | None = None) -> int:
         if subcmd == "practice":
             from episteme.practice import run_practice_cli
             return run_practice_cli(rest)
+        if subcmd == "tier1":
+            # Event 135 — Stage 3 calibration audit CLI
+            from episteme._tier1_audit import run_tier1_cli
+            return run_tier1_cli(rest)
+        if subcmd == "evaluate":
+            # Event 135 — FINAL evaluation method CLI
+            from episteme._evaluate import run_evaluate_cli
+            return run_evaluate_cli(rest)
 
     parser = build_parser()
     args = parser.parse_args(argv_list)

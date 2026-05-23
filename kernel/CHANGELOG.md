@@ -11,6 +11,25 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## Unreleased — 2026-05-23 — Event 135 — Tier 1 micro-surface (minor)
+
+First new Reasoning Surface dispatch path since v1.0 RC. Adds a § *Tier 1 micro-surface* section to [`kernel/REASONING_SURFACE.md`](./REASONING_SURFACE.md) — a strictly-smaller schema for **bounded irreversible ops** (feature-branch push, prerelease creation, gh issue/PR metadata) whose blast radius is local and rollback path is one command. The four-field fallback (and the four named blueprints) continue to apply to Tier 2/3 ops unchanged; the Tier 1 path is additive, not substitutive.
+
+Motivation: forcing the full five-field fill on `git push origin <feature-branch>` produces ceremony-shaped surfaces, which train the agent to treat the discipline as bureaucracy rather than cognition. The Tier 1 micro-surface is the kernel's response to its own friction: scale discipline depth to blast radius, not uniform across all ops. Operator's elicited `asymmetry_posture: loss-averse` is preserved on Tier 2/3 where it is load-bearing.
+
+Three structural counters built into the schema to prevent the relaxation from becoming a loophole:
+- **Branch-binding** — the micro-surface's `branch` field must equal `git rev-parse --abbrev-ref HEAD` at op-execute time. Closes context-bleed within the 5-min TTL window.
+- **Soak gate** — the live hook's Tier 1 dispatch is disabled until the lived-behavior telemetry trail at `~/.episteme/telemetry/tier1.jsonl` clears three thresholds: N ≥ 20 Tier 1 ops, ≥ 7 calendar days span, ≥ 90% rationale-accuracy rate (operator-confirmed AND no subsequent revert within 24h). New installations start with the gate CLOSED. The kernel governs its own promotion timing.
+- **OperatorProfile override** — when `risk_tolerance == 0` (incident-response posture), every Tier 1 hit force-escalates to Tier 2. The override only tightens; Tier 3 denylist is unchanged.
+
+Audit surface: `episteme tier1 audit` reads the telemetry trail and reports the three thresholds + gate verdict. `episteme evaluate` consumes both `tier1.jsonl` and `YYYY-MM-DD-audit.jsonl` to produce decision-quality signals from lived behavior (self-audit), a bundled challenge-set of System-1 failure scenarios the surface is designed to catch, and before-after window comparisons.
+
+Classification: **minor** (new dispatch path + new schema field set in REASONING_SURFACE.md; existing four blueprints and fallback unchanged; existing Tier 2/3 behavior preserved). `kernel/MANIFEST.sha256` regenerated: REASONING_SURFACE.md content hash changes.
+
+Full design + integration plan: [`docs/PROPOSAL_TIERED_IRREVERSIBLE_GATE.md`](../docs/PROPOSAL_TIERED_IRREVERSIBLE_GATE.md). Lived-behavior soak clearance is the only remaining gate before runtime behavior diverges from the pre-Tier-1 strict-block default.
+
+---
+
 ## Unreleased — 2026-05-23 — Event 131 — REFERENCES convergent-work + CALIBRATION_TELEMETRY + CONTRACT_GATE PBT (minor + patch)
 
 Extends the kernel's external-credibility surface with three peer-reviewed papers + three regulator-recognizable standards bodies that landed in 2025–2026 mirroring kernel pillars; adds a new measurement-surface kernel doc operationalizing the long-standing Tetlock citation; cites peer-reviewed property-based-testing convergence in the just-shipped Contract Gate.

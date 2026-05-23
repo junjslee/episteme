@@ -28,7 +28,7 @@
 >
 > **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** — the practice, operationalized.
 
-**[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)**
+**[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)** · **[Does it work? ↗](docs/EVALUATION_METHOD.md)**
 
  ![Episteme — the Thinking Framework in motion](docs/assets/demo_posture.gif)
 
@@ -105,7 +105,7 @@ This is the difference between a prompt reminder and a compiler: one asks nicely
 
 `episteme` is **not just a blocker**. The framework's real job is to turn every conflict it resolves into durable know-how that the agent re-applies automatically at the next matching decision.
 
-Here is the loop (v1.0.0 GA shipped · CP1–CP10 green; **v1.2.0-rc1 cut 2026-05-19** · 1066 tests + 54 subtests green — see [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md)):
+Here is the loop (v1.0.0 GA shipped · CP1–CP10 green; **v1.4.0-rc1 cut 2026-05-23** · 1170 tests + 54 subtests green — see [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md)):
 
 1. **Detect conflict.** The agent encounters two valid-looking but incompatible approaches for a context it hasn't fully resolved before.
 2. **Decompose, don't average.** The Thinking Framework refuses the "average" answer. It forces the agent to extract *why* the sources conflict and which feature of the context tips the decision.
@@ -461,7 +461,7 @@ The four blueprints (above) and three pillars — Cognitive Blueprints · Append
 - **Arm B · Causal Synthesis** — zero-LLM entity extraction over the deferred-discovery stream produces cluster proposals the framework can act on. Verification window: 60 days.
 - **Arm C · Self-Consistency Convergence** — protocols promote to models that derive disconfirmations structurally. Verification window: 90 days.
 
-The distinction is load-bearing — pillars are settled vocabulary; arms are how the system audits and refines its own outputs across time. Status: **v1.2.0-rc1 cut 2026-05-19**, 1066 tests + 54 subtests green. Arm A substrate shipped (supersede-with-history infrastructure + auto-instrumentation hooks that record operator profile + policy edits to chain streams); Arm A residue resumes opportunistically. **Arm B substrate-facing form formally SUNSET at Event 129** — its premise (a stable model-capability gap) was falsified by the Event 119–120 saturation finding; its operator-facing residue (`core/ptsp/` typed Fact/Inference promotion gate) is retained-and-reachable via `episteme practice trace`. Arm C scoped for a future cycle pending evidence the substrate-gap claim survives.
+The distinction is load-bearing — pillars are settled vocabulary; arms are how the system audits and refines its own outputs across time. Status: **v1.4.0-rc1 cut 2026-05-23**, 1170 tests + 54 subtests green. Arm A substrate shipped (supersede-with-history infrastructure + auto-instrumentation hooks that record operator profile + policy edits to chain streams); Arm A residue resumes opportunistically. **Arm B substrate-facing form formally SUNSET at Event 129** — its premise (a stable model-capability gap) was falsified by the Event 119–120 saturation finding; its operator-facing residue (`core/ptsp/` typed Fact/Inference promotion gate) is retained-and-reachable via `episteme practice trace`. Arm C scoped for a future cycle pending evidence the substrate-gap claim survives.
 
 ---
 
