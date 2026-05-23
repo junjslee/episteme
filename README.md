@@ -472,11 +472,10 @@ Start at **[`kernel/`](./kernel/)**. Pure markdown. No code. No vendor lock-in.
 | [`PATTERN_GOVERNANCE.md`](./kernel/PATTERN_GOVERNANCE.md)          | Novel-decision vs mechanical-implementation; pattern-declaration artifact + implementation-of reference |
 | [`CALIBRATION_TELEMETRY.md`](./kernel/CALIBRATION_TELEMETRY.md)    | Brier score + calibration curve + base-rate-aware metrics from signed-surface outputs |
 | [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md)           | Knowns / Unknowns / Assumptions / Disconfirmation protocol   |
-| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Nine fluent-agent failure modes ↔ counter artifacts (6 Kahneman · 3 governance) |
 | [`OPERATOR_PROFILE_SCHEMA.md`](./kernel/OPERATOR_PROFILE_SCHEMA.md) | Schema for encoding an operator's cognitive preferences   |
 | [`MEMORY_ARCHITECTURE.md`](./kernel/MEMORY_ARCHITECTURE.md)       | Five memory tiers (working / episodic / semantic / procedural / reflective) |
 | [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md)                   | When the kernel is the wrong tool; declared gaps             |
-| [`REFERENCES.md`](./kernel/REFERENCES.md)                         | Attribution for every load-bearing borrowed concept          |
+| [`REFERENCES.md`](./kernel/REFERENCES.md)                         | Attribution for every load-bearing borrowed concept; convergent contemporary work; regulator-recognizable standards |
 | [`CHANGELOG.md`](./kernel/CHANGELOG.md)                           | Versioned kernel history                                     |
 
 Authority hierarchy: **project docs > operator profile > kernel defaults > runtime defaults.** Specific beats general.
@@ -497,6 +496,8 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 | Substrate bridge (mem0, memori, noop)      | [`docs/SUBSTRATE_BRIDGE.md`](./docs/SUBSTRATE_BRIDGE.md)         |
 | Profile + cognition setup                  | [`docs/SETUP.md`](./docs/SETUP.md)                               |
 | Sync matrix, memory model, contracts       | [`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md)           |
+| Architecture diagram + cross-references    | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)                 |
+| Behavioral-drift complement (Contract Gate) | [`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)              |
 | Harness system                             | [`docs/HARNESSES.md`](./docs/HARNESSES.md)                       |
 | Hook reference + governance packs          | [`docs/HOOKS.md`](./docs/HOOKS.md)                               |
 | Skills + agent personas + provenance       | [`docs/SKILLS_AND_PERSONAS.md`](./docs/SKILLS_AND_PERSONAS.md)   |
