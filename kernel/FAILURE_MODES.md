@@ -1,6 +1,6 @@
 # Failure Modes and Their Counters
 
-**Operational summary — six reasoner modes + three governance-layer modes (v0.11.0) + two v1.0 RC additions:**
+**Operational summary — six reasoner modes + three governance-layer modes (v0.11.0) + two v1.0 RC additions + one v1.2 RC addition (Event 130/131):**
 
 | # | Failure mode                          | Counter artifact                                      |
 |---|---------------------------------------|-------------------------------------------------------|
@@ -13,8 +13,9 @@
 | 7 | Constraint removal without understanding | Fence-Check before any constraint is removed (full realization in Blueprint B / Fence Reconstruction, v1.0 RC CP5) |
 | 8 | Measure-as-target drift (scorecard)   | Periodic audit vs outcome evidence; drift is allowed (Phase 12 profile-audit loop, shipped at v0.11.0) |
 | 9 | Controller-variety mismatch (hooks)   | Escalate-by-default for out-of-coverage action shapes |
-| 10 | Framework-as-Doxa (v1.0 RC+)         | Layer 3 grounding + Layer 8 protocol-quality verdicts + Phase 12 synthesis-distribution audit          |
-| 11 | Cascade-theater (v1.0 RC+)           | Layer 3 entity grounding on `blast_radius_map[]` + Layer 8 "cascade-theater vs real sync" verdict + retrospective orphan-reference detection (v1.0.1)         |
+| 10 | Framework-as-Doxa                    | Layer 3 grounding + Layer 8 protocol-quality verdicts + Phase 12 synthesis-distribution audit          |
+| 11 | Cascade-theater                      | Layer 3 entity grounding on `blast_radius_map[]` + Layer 8 "cascade-theater vs real sync" verdict + retrospective orphan-reference detection (v1.0.1) |
+| 12 | Silent mutation of frozen-purpose state | Artifact Taxonomy frozen-purpose tier discipline (no silent mutation; explicit authorization at each change) + Contract Gate (declared spec conformance enforced at turn-end) |
 
 Removing or bypassing a counter means naming which mode is now unprotected. If the answer is "none," the counter was not earning its place.
 
@@ -224,7 +225,7 @@ coverage itself is a living document; what was out-of-coverage yesterday
 may be in-coverage tomorrow once the rule is written, but never by the
 rule silently expanding to fit an action it had no basis to evaluate.
 
-### 10. Framework-as-Doxa (v1.0 RC+)
+### 10. Framework-as-Doxa
 
 **The mode.** The v1.0 RC framework (Pillar 3) accumulates context-indexed
 protocols synthesized from resolved Axiomatic Judgment, Fence
@@ -255,7 +256,7 @@ blueprint class. See
 [`kernel/KERNEL_LIMITS.md`](./KERNEL_LIMITS.md) limit 9 for operator
 response guidance.
 
-### 11. Cascade-theater (v1.0 RC+)
+### 11. Cascade-theater
 
 **The mode.** Blueprint D (Architectural Cascade & Escalation) requires
 the agent to enumerate a `blast_radius_map[]` of surfaces that must
@@ -286,6 +287,68 @@ selector narrows — not every cross-surface edit is Blueprint D
 territory; scope the trigger classes to real architectural-cascade
 signals.
 
+### 12. Silent mutation of frozen-purpose state
+
+**The mode.** When the agent is generating code that must conform to a
+declared contract / schema / invariant (an OpenAPI spec, a DDL baseline,
+a state-machine declaration, a kernel CONSTITUTION clause, a profile
+schema), the locally-fluent move during generation is to *modify the
+constraint to match the generated code* rather than the harder move of
+*conforming the generated code to the constraint*. The result: handler
+and spec now "agree," the build no longer fails, and the consumer that
+depended on the original contract silently breaks downstream — under
+hash-chained claims of internal coherence.
+
+This is WYSIATI (Mode 1) applied to file content on the mutation side
+rather than to context on the decision side. The agent reasons from what
+is *in* the file as if that were the *purpose* of the file, and rewrites
+the file to make its current generation consistent — losing the
+distinction between *what the file says* and *what the file is for*.
+
+**Why fluent models are especially vulnerable.** Auto-regressive
+training rewards local fluency: the next token that fits the immediate
+context. When the immediate context contains a declared constraint and a
+draft implementation that diverges from it, regenerating the constraint
+is just as fluent a move as fixing the implementation, and often
+shorter. There is no internal signal distinguishing "the spec governs
+the code" from "the spec describes the code."
+
+**The counter.** Two composed mechanisms:
+
+(a) [Artifact Taxonomy](./ARTIFACT_TAXONOMY.md) tier discipline. Every
+file in an episteme-governed repository carries an implicit or explicit
+tier — frozen-purpose, authoritative-living, working-execution,
+ephemeral. Frozen-purpose state may be **read** freely; **mutation
+requires explicit operator authorization** named at the time of the
+change. Examples: `kernel/CONSTITUTION.md`, `core/schemas/*`,
+`contracts/*.openapi.yaml`, `schema/baseline.sql`. Editing
+frozen-purpose content as a side-effect of code generation is
+structurally illegitimate; the change must be its own Event with its
+own Reasoning Surface (Knowns: *why does the contract need to change*;
+Disconfirmation: *what observable would prove the new contract wrong*).
+
+(b) [Contract Gate](../docs/CONTRACT_GATE.md). A `Stop`-event hook that
+runs declared `contracts/*` conformance tests at turn-end. If the
+implementation does not match the declared spec, the gate exits
+non-zero, the turn-end checkpoint does not land, and the agent must
+surface the divergence — *fixing the implementation, not the spec*. The
+gate cannot be defeated by silently rewriting the spec because the
+Artifact Taxonomy makes the spec a frozen-purpose artifact whose
+mutation triggers its own Reasoning Surface gate.
+
+Without taxonomy, contract tests can be defeated by spec mutation.
+Without contract tests, taxonomy can be defeated by behavior drift. The
+pair holds where either alone leaks.
+
+**Relationship to other modes.** This is structurally Mode 1 (WYSIATI)
+projected onto the artifact axis. The Reasoning Surface counters Mode 1
+on the *decision* axis (what unknowns is the agent reasoning from); the
+Artifact Taxonomy + Contract Gate counter Mode 12 on the *mutation* axis
+(what state is the agent silently rewriting to fit its draft). The two
+axes are orthogonal in the same way the FAILURE_MODES vocabulary is
+orthogonal to `flaw_classification` (next section). Both axes must be
+gated; neither subsumes the other.
+
 ---
 
 ## Two-vocabulary distinction — FAILURE_MODES vs `flaw_classification`
@@ -294,7 +357,7 @@ Episteme carries two distinct classification vocabularies that operate on **orth
 
 | Vocabulary | Dimension | Values | Owner file |
 |---|---|---|---|
-| **FAILURE_MODES** (this document) | *Cognitive reasoning mode* — how the agent's reasoning went wrong | 11 modes: WYSIATI · question-substitution · anchoring · narrative-fallacy · planning-fallacy · overconfidence · Chesterton's-fence · Goodhart-drift · Ashby-variety-mismatch · framework-as-Doxa · cascade-theater | `kernel/FAILURE_MODES.md` (this file) |
+| **FAILURE_MODES** (this document) | *Cognitive reasoning mode* — how the agent's reasoning went wrong | 12 modes: WYSIATI · question-substitution · anchoring · narrative-fallacy · planning-fallacy · overconfidence · Chesterton's-fence · Goodhart-drift · Ashby-variety-mismatch · framework-as-Doxa · cascade-theater · silent-mutation-of-frozen-purpose | `kernel/FAILURE_MODES.md` (this file) |
 | **`flaw_classification`** enum | *Artifact-state flaw class* — what kind of codebase flaw the current op is addressing | 8 classes: `vulnerability` · `stale-artifact` · `config-gap` · `core-logic-misalignment` · `deprecated-dependency` · `doc-code-drift` · `schema-implementation-drift` · `other` | `core/hooks/_blueprint_d.py` (line 72, `FLAW_CLASSES` frozenset) |
 
 **Why they are orthogonal, not hierarchical.** A Blueprint-D op tagged `flaw_classification: config-gap` (artifact dimension — "the codebase has a config value out of sync") may *causally trace* back to a `WYSIATI` reasoning failure (cognitive dimension — "the agent reasoned from what was in context and didn't notice the absent config value"). Both are true facets of the same decision, but the classification axes are independent:

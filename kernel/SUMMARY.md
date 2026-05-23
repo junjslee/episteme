@@ -14,7 +14,7 @@ A 30-line distillation of the entire episteme kernel. Load this first.
 - **III. No model is sufficient alone.** Every lens has a structural blind spot. Convergence across lenses confirms; conflict informs.
 - **IV. The loop is the unit of progress.** Frame → Decompose → Execute → Verify → Handoff. A skipped stage defers its cost, not removes it.
 
-**Six reasoner failure modes ↔ counter artifacts. Plus five governance-layer modes (three at v0.11, two added at v1.0 RC).**
+**Six reasoner failure modes ↔ counter artifacts. Plus six governance-layer modes (three at v0.11, two added at v1.0 RC, one added at v1.2 RC).**
 
 | Mode                              | Counter                                    |
 |-----------------------------------|--------------------------------------------|
@@ -27,8 +27,9 @@ A 30-line distillation of the entire episteme kernel. Load this first.
 | Constraint removal w/o understanding | Fence-Check before removing any rule    |
 | Measure-as-target drift           | Periodic scorecard audit vs outcome record |
 | Controller-variety mismatch       | Escalate-by-default on out-of-coverage ops |
-| Framework-as-Doxa (v1.0 RC)       | Layer 3 grounding + Layer 8 protocol-quality verdicts + Phase 12 synthesis-distribution audit |
-| Cascade-theater (v1.0 RC)         | Layer 3 entity grounding on `blast_radius_map[]` + Layer 8 "cascade-theater vs real sync" verdict |
+| Framework-as-Doxa                 | Layer 3 grounding + Layer 8 protocol-quality verdicts + Phase 12 synthesis-distribution audit |
+| Cascade-theater                   | Layer 3 entity grounding on `blast_radius_map[]` + Layer 8 "cascade-theater vs real sync" verdict |
+| Silent mutation of frozen-purpose | Artifact Taxonomy frozen-purpose tier (no silent mutation) + Contract Gate (spec conformance at turn-end) |
 
 **v1.0 RC pillars.** Three additions the substrate cannot perform natively: **(1) Cognitive Blueprints** — four named scaffolds for high-impact decision shapes: **Axiomatic Judgment** (per-decision source-conflict synthesis), **Fence Reconstruction** (constraint-removal safety + rollback smoke test), **Consequence Chain** (irreversible-op decomposition), **Blueprint D · Architectural Cascade & Escalation** (patch-vs-refactor evaluation + symmetric cascade synchronization + deferred-discovery logging — the emergent-flaw counter to cascade-theater) — plus a generic maximum-rigor fallback. **(2) Append-Only Hash Chain** — SHA-256-linked stream across episodic tier + pending contracts + framework protocols. **(3) Framework Synthesis & Active Guidance** — context-indexed protocols surfaced advisory-only at PreToolUse; never blocking.
 

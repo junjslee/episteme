@@ -26,14 +26,26 @@ governance + cognition product whose own artifacts are its thesis.
 ```
 kernel/          philosophy; markdown; vendor-neutral; the contract
   SUMMARY.md     load first (30-line distillation)
-  CONSTITUTION.md    root claim, four principles, nine failure modes (+2 planned for v1.0 RC: framework-as-Doxa, cascade-theater)
+  CONSTITUTION.md    root claim, four principles, six reasoner failure modes
   REASONING_SURFACE.md   Knowns/Unknowns/Assumptions/Disconfirmation
-  FAILURE_MODES.md       named modes ↔ counter artifacts
+  FAILURE_MODES.md       12 modes ↔ counter artifacts (6 reasoner + 3 governance v0.11 + 2 v1.0 RC + 1 v1.2 RC)
   OPERATOR_PROFILE_SCHEMA.md  how operators encode their worldview
   KERNEL_LIMITS.md       when this kernel is the wrong tool
+  ARTIFACT_TAXONOMY.md   four-tier mutation discipline (frozen-purpose · authoritative-living · working-execution · ephemeral)
+  PATTERN_GOVERNANCE.md  novel-decision vs mechanical-implementation; pattern-declaration artifact
+  MEMORY_ARCHITECTURE.md five memory tiers
+  FALSIFIABILITY_CONDITIONS.md  per-claim falsifiability matrix
+  CALIBRATION_TELEMETRY.md  Brier score + calibration curve + base-rate-aware measurement surface
+  CHAIN_RECOVERY_PROTOCOL.md  legitimate state-loss recovery
+  CONTINUITY_PLAN.md     project governance continuity
+  DESIGN_BEHAVIOR_INVARIANTS.md  design-behavior verification invariants
+  ACTIVE_GUIDANCE_RANKING.md  Pillar 3 active guidance ranking strategy
+  MODEL_PROGRESS_RISK_MODEL.md  saturation-vs-positioning threat model
+  PHASE_12_LEXICON.md    profile-audit vocabulary
   REFERENCES.md          attribution for every load-bearing borrow
   CHANGELOG.md           versioned kernel history
   HOOKS_MAP.md           kernel invariants ↔ runtime hooks
+  README.md              kernel manifest index
   MANIFEST.sha256        kernel integrity digest
 
 demos/           reference deliverables produced by the loop itself
