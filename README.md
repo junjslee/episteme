@@ -217,6 +217,25 @@ The gap `episteme` fills: no other project syncs a *governed cognitive contract*
 
 ---
 
+## Why isn't this just contract testing?
+
+A reasonable critique: if the kernel exists to keep generated behavior aligned with declared intent, why not just write more **contract tests** (OpenAPI conformance, Hurl scripts, DDL diffs) and let CI reject the commit when behavior diverges? No human reads anything; the machine judges.
+
+The answer is a layer distinction.
+
+Contract tests catch **behavioral regressions** — *did the code do what the spec says*. Deterministic, no human in the loop, strictly stronger than review for the class of properties they can express. The Reasoning Surface catches a different failure class: **epistemological regressions** — *did we write the right spec, did we frame the right question, did we silently rule out an alternative, did we substitute a comfortable question for the real one*. A passing Hurl suite cannot tell you you're solving the wrong problem fluently — that failure happens **before** the spec exists.
+
+The two layers compose. Contract tests pin the **output** (behavior boundary). Reasoning Surfaces pin the **framing** (decision boundary). Same constraint-system meta, different target.
+
+Episteme ships both:
+
+- **Reasoning Surface** — the existing kernel substrate (`kernel/REASONING_SURFACE.md`).
+- **Contract Gate** — a deterministic stop-hook that runs declared contracts at turn-end (`docs/CONTRACT_GATE.md`, `core/hooks/contract_gate.py`). Currently a stub; activation is operator-gated.
+
+When tooling lets you skip either, the gap re-opens at that layer. The kernel's job is to make both default-on for projects that opt in.
+
+---
+
 ## Zero-trust execution
 
 The [**OWASP Top 10 for Agentic Applications (2026)**](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) — peer-reviewed by 100+ industry experts — identifies prompt injection, goal hijacking, overreach, memory poisoning, and unbounded action as the primary risk classes for autonomous agents. The Knowns / Unknowns / Assumptions / Disconfirmation structure is a structural counter to each:
