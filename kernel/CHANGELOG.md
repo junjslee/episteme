@@ -73,6 +73,16 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.4.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.3.0-rc1...episteme-v1.4.0-rc1) (2026-05-23)
+
+
+### Features
+
+* **demos:** Event 133 — 5th demo Contract Gate complement (substitution stress-test) ([9fea00e](https://github.com/junjslee/episteme/commit/9fea00eba355a237a32dad49fea8a2cfca3155d3))
+* **docs:** Event 133 — ARCHITECTURE SG5 Mermaid expansion (Event 130-131 visualized) ([0230783](https://github.com/junjslee/episteme/commit/02307830554d51bb49fabcb197ad8df5fde84100))
+* **docs:** Event 133 — COMPLIANCE_CROSSWALK § 4 regulatory extensions + § 5 Agent Skills conformance ([f866926](https://github.com/junjslee/episteme/commit/f866926a1093c428e144d9172f68a36c957b5555))
+* **readme:** Event 133 — EN hero parity, reverse Event 129 Fence ([2b289f6](https://github.com/junjslee/episteme/commit/2b289f6e4efeb67daff51d78b16453591935f0c5))
+
 ## [1.3.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.2.0-rc1...episteme-v1.3.0-rc1) (2026-05-23)
 
 
