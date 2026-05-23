@@ -125,7 +125,7 @@
 - **Arm B · Causal Synthesis** — deferred-discovery 스트림에 대한 zero-LLM 엔티티 추출이 프레임워크가 작동할 수 있는 클러스터 제안을 만들어낸다. 검증 윈도우: 60일.
 - **Arm C · Self-Consistency Convergence** — 프로토콜이 disconfirmation을 구조적으로 도출하는 모델로 승격된다. 검증 윈도우: 90일.
 
-이 구분은 하중을 지탱한다 — Pillar는 정착된 어휘이고, Arm은 시스템이 자기 출력을 시간을 건너 감사하고 다듬는 방식이다. 상태: **v1.1.0-rc1이 2026-04-29에 cut되었다**. Arm A 기반(supersede-with-history 인프라 + operator profile / policy 편집을 chain stream에 자동 기록하는 hook)이 출하되었으며, Arm A 부패 검증 메커니즘 · Arm B · Arm C는 v1.1.0 GA → v1.2로 스코프되었다.
+이 구분은 하중을 지탱한다 — Pillar는 정착된 어휘이고, Arm은 시스템이 자기 출력을 시간을 건너 감사하고 다듬는 방식이다. 상태: **v1.2.0-rc1이 2026-05-19에 cut되었고**, 1066 테스트 + 54 subtests 통과. Arm A 기반(supersede-with-history 인프라 + operator profile / policy 편집을 chain stream에 자동 기록하는 hook)이 출하되었으며, Arm A 잔여 작업은 기회주의적으로 재개된다. **Arm B의 substrate-facing 형태는 Event 129에서 공식 SUNSET** — 그 전제(안정적 모델 능력 격차)는 Event 119–120 saturation finding에 의해 반증되었다. Operator-facing 잔여물(`core/ptsp/` typed Fact/Inference 승급 게이트)은 `episteme practice trace`로 도달 가능한 상태로 보존된다. Arm C는 substrate-gap 주장이 살아남는다는 증거를 기다리며 미래 사이클로 스코프되었다.
 
 ---
 
