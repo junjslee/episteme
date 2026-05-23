@@ -92,6 +92,14 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.5.1-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.5.0-rc1...episteme-v1.5.1-rc1) (2026-05-23)
+
+
+### Bug Fixes
+
+* **cli:** installed-CLI repo-root discovery for episteme tier1 / evaluate ([c6c5805](https://github.com/junjslee/episteme/commit/c6c580557090e7a001657e5cdd74be17d5ff0d64))
+* **cli:** installed-CLI repo-root discovery for episteme tier1 / evaluate ([c608789](https://github.com/junjslee/episteme/commit/c608789838253f7ee5ffa6eb8d554f466e7e0717))
+
 ## [1.5.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.4.0-rc1...episteme-v1.5.0-rc1) (2026-05-23)
 
 
