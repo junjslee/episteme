@@ -681,6 +681,123 @@ map onto the kernel's existing artifacts:
 Proofpoint's framework was published 2026-03-16 with the kernel's CP1–CP10
 already shipped; the alignment is convergent, not derivative.
 
+## MCP governance — Securing the Model Context Protocol
+
+**Anthropic / Linux Foundation Agentic AI Foundation (AAIF) and arXiv community —
+*Securing the Model Context Protocol* (arXiv:2511.20920, November 2025).
+MCP was donated to the Linux Foundation–hosted AAIF in December 2025;
+the paper is the first peer-reviewed governance treatment of the
+substrate that episteme rides on.**
+
+Validates Pillar 2 (hash-chained audit) and the PreToolUse Reasoning
+Surface guard — the paper independently names "hash-chained logs,"
+"provenance tracking," and "centralized governance" as the load-bearing
+controls for MCP-mediated agent action. Episteme's `cp7-chained-v1`
+envelope (`core/hooks/_chain.py`) and the PreToolUse interception layer
+predate the publication; the alignment is convergent.
+
+| MCP governance control                | Kernel implementation                                       |
+|---------------------------------------|-------------------------------------------------------------|
+| Hash-chained tool-invocation logs     | `cp7-chained-v1` envelope across episodic + framework + pending-contract streams |
+| Pre-invocation provenance check       | `core/hooks/reasoning_surface_guard.py` — refuses unverified high-impact ops    |
+| Centralized governance per-substrate  | `kernel/HOOKS_MAP.md` invariant ↔ hook mapping (substrate-neutral by design)    |
+
+Adjacent peer-reviewed work surfacing during the same window — *TRAIL:
+Trace Reasoning and Agentic Issue Localization* (arXiv:2505.08638, May
+2025) — proposes a taxonomy of agentic trace failure modes that maps
+onto the kernel's typed PTSP (Fact / Inference / Unknown / Assumption /
+StepBoundary) promotion gate at `core/ptsp/`.
+
+## Property-based testing as LLM validation oracle
+
+**arXiv:2506.18315 — *Property-Generated Solver: A Framework for
+Property-Based Testing of LLM-Generated Code* (June 2025).
+arXiv:2505.23549 — *LLM-PBT: Property-Based Testing as a Guardrail for
+LLM-Generated Cyber-Physical Code* (May 2025).**
+
+Validates the property-test row in [`../docs/CONTRACT_GATE.md`](../docs/CONTRACT_GATE.md)
+§ *What counts as a contract*. Both papers propose property-based
+testing (Hypothesis / fast-check style) as the deterministic validation
+oracle for LLM-generated code that cannot be exhaustively unit-tested.
+The Contract Gate's `*.prop.py` / `*.prop.ts` row is exactly this
+mechanism applied at the kernel's contract-enforcement boundary.
+
+The convergence sharpens the Contract Gate's positioning: property
+tests are not merely *a* supported format — they are the format
+peer-reviewed work has converged on for the class of LLM-generated code
+whose behavior cannot be exhaustively enumerated as fixtures. Both
+papers shipped before Event 130 cut the Contract Gate; the architectural
+choice is convergent.
+
+## Verify-Before-Commit — faithful reasoning at write boundary
+
+**arXiv:2604.08401 — *Verify Before Commit: Self-Auditing Faithful
+Reasoning in Language Models* (early 2026).**
+
+Validates the Disconfirmation field of the Reasoning Surface and the
+turn-end checkpoint enforcement (`core/hooks/quality_gate.py` +
+`core/hooks/contract_gate.py`). The paper proposes that LLM reasoning
+chains commit to a verifiable, observable condition before tokens are
+emitted as final answers — a structural counter to anchor-and-elaborate
+narrative fallacy. The Disconfirmation field formalizes the same
+discipline at the agent-action boundary instead of the token-emission
+boundary: a plan that cannot be falsified is not admitted to execution.
+
+| Verify-Before-Commit step          | Kernel implementation                                       |
+|------------------------------------|-------------------------------------------------------------|
+| Pre-emission falsifiability claim  | Reasoning Surface § Disconfirmation — concrete observable required |
+| Self-audit before commit           | `core/hooks/_verification_trace.py` — verification trace at Layer 4 |
+| Faithful reasoning chain           | PTSP typed promotion gate (`core/ptsp/`) — inference→fact requires test pass or operator cosign |
+
+---
+
+# Regulator-recognizable standards — 2025–2026
+
+These are standards bodies whose published guidance is what regulators
+and procurement frameworks cite. They are NOT kernel sources; they are
+the regulator-recognizable surface the kernel's mechanisms are designed
+to satisfy. Listed here for cross-walk; detailed mapping lives in
+[`../docs/COMPLIANCE_CROSSWALK.md`](../docs/COMPLIANCE_CROSSWALK.md) (an
+operator-positioning surface that is operator-reviewed before regulator
+claims land).
+
+**European Commission — *General-Purpose AI Code of Practice* (published
+2025-07-10; endorsed 2025-08-01; in force 2025-08-02 for GPAI obligations;
+Commission enforcement 2026-08-02). Three chapters: Transparency, Copyright,
+Safety & Security. Voluntary route to EU AI Act Article 53 / 55 conformance.
+https://digital-strategy.ec.europa.eu/en/policies/contents-code-gpai**
+
+Adjacent to episteme's Reasoning Surface artifacts (Transparency chapter)
+and the signed-surface evidence-packet exporter (Safety & Security
+measures). Direct claim mapping is positioning-sensitive — see
+COMPLIANCE_CROSSWALK.
+
+**NIST — *AI 800-1: Managing Misuse Risk for Dual-Use Foundation
+Models* (second public draft 2025-01-15; finalized mid-2025). Appendix to
+AI RMF (NIST AI 100-1) covering CBRN and cyber-misuse risk.
+https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.800-1.ipd2.pdf**
+
+Episteme's Pillar 3 active-guidance suppression of vapor-verdict
+synthesized protocols (`core/hooks/_guidance.query` verdict filter) is
+adjacent to AI 800-1 misuse-risk *measurement* discipline — guidance
+quality is the measurement signal.
+
+**ISO/IEC — *ISO/IEC 42001:2023 — Information technology — Artificial
+intelligence — Management system*. The first certifiable AI management
+system standard. Annex A controls A.6 (AI system impact assessment),
+A.8 (data quality), A.9 (information for users). SAP + Cornerstone
+publicly certified during 2025. https://www.iso.org/standard/42001**
+
+Adjacent to episteme's operator profile schema (A.6 impact assessment)
+and Reasoning Surface human-readable artifact (A.9 information for
+users). Certification path is operator-reviewed; episteme's posture is
+to enable conformance, not claim it.
+
+The kernel does not currently make conformance claims to these standards.
+Adjacency is sufficient for the kernel's positioning; conformance claims
+land at the operator-positioning layer when the operator chooses to
+make them.
+
 ---
 
 # Secondary sources (adjacent, shape tone or single concepts)

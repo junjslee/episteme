@@ -11,6 +11,34 @@ Format: `[version] — date — change`. Versions follow semantic intent:
 
 ---
 
+## Unreleased — 2026-05-23 — Event 131 — REFERENCES convergent-work + CALIBRATION_TELEMETRY + CONTRACT_GATE PBT (minor + patch)
+
+Extends the kernel's external-credibility surface with three peer-reviewed papers + three regulator-recognizable standards bodies that landed in 2025–2026 mirroring kernel pillars; adds a new measurement-surface kernel doc operationalizing the long-standing Tetlock citation; cites peer-reviewed property-based-testing convergence in the just-shipped Contract Gate.
+
+- **[`kernel/REFERENCES.md`](./REFERENCES.md)** § *Convergent contemporary work* extended with three peer-reviewed arxiv entries: **arXiv:2511.20920** *Securing the Model Context Protocol* (Nov 2025) mirroring Pillar 2 hash-chain + Reasoning Surface PreToolUse gate; **arXiv:2506.18315** *Property-Generated Solver* (Jun 2025) + **arXiv:2505.23549** *LLM-PBT for cyber-physical code* (May 2025) mirroring the Contract Gate's `*.prop.py` row; **arXiv:2604.08401** *Verify Before Commit: Self-Auditing Faithful Reasoning* (early 2026) mirroring the Disconfirmation field + turn-end checkpoint enforcement. Adjacent TRAIL paper (arXiv:2505.08638) referenced for PTSP promotion gate parallels. New § *Regulator-recognizable standards — 2025–2026* lists the three standards bodies the kernel's mechanisms are adjacent to without claiming conformance: **EU GPAI Code of Practice** (published 2025-07-10, in force 2025-08-02), **NIST AI 800-1** (finalized mid-2025), **ISO/IEC 42001:2023** (first certifiable AI management system; SAP + Cornerstone publicly certified during 2025). The kernel does NOT make conformance claims to these standards — adjacency is sufficient for the kernel's positioning; conformance claims are operator-positioning decisions made at the [`../docs/COMPLIANCE_CROSSWALK.md`](../docs/COMPLIANCE_CROSSWALK.md) layer.
+
+- **[`kernel/CALIBRATION_TELEMETRY.md`](./CALIBRATION_TELEMETRY.md)** new doc. Operationalizes the Tetlock *Superforecasting* citation that the kernel has carried as borrowed concept since v0.x without specifying *what* episteme actually computes from signed-surface@1.0 outputs. Defines the three measurement axes — Brier score, calibration curve, base-rate-aware metrics — plus coverage as a first-class metric (refuses to emit a Brier scalar below 0.20 coverage to prevent dishonest measurement claims). Closes the falsifiability loop with [`FALSIFIABILITY_CONDITIONS.md`](./FALSIFIABILITY_CONDITIONS.md): if calibration curves do not trend toward the diagonal across windows on the same operator, the kernel's central empirical claim is falsified. Companion to [`MODEL_PROGRESS_RISK_MODEL.md`](./MODEL_PROGRESS_RISK_MODEL.md) — if model-strength saturation closes the substrate-gap claim, the kernel's surviving value is measurable operator-side calibration improvement; without this file, that survival claim is unfalsifiable.
+
+- **[`../docs/CONTRACT_GATE.md`](../docs/CONTRACT_GATE.md)** § *What counts as a contract* extended with § *Behavioral verification — property-based testing as cited convergence* citing arXiv:2506.18315 + arXiv:2505.23549 as peer-reviewed convergence on PBT-for-LLM-generated-code. Converts the `*.prop.py` row from inference to cited convergence; turns Event 130's Contract Gate into an explicitly-grounded architectural choice rather than an undefended preference.
+
+Classification: **minor** (new CALIBRATION_TELEMETRY artifact) + **patch** (REFERENCES additions are attribution-only; CONTRACT_GATE addition is citation-only). `kernel/MANIFEST.sha256` regenerated: `REFERENCES.md` content hash changes. CALIBRATION_TELEMETRY.md is NOT added to MANIFEST tracking — current policy tracks only the enumerated governance-critical surface; promotion is a separate future Event if integrity verification on the measurement specification is wanted.
+
+---
+
+## Unreleased — 2026-05-23 — Event 131 — FAILURE_MODES mode 12 formalization (minor)
+
+Closes the 1:1 mode↔counter mapping gap that Event 130 opened. `kernel/ARTIFACT_TAXONOMY.md` defined "silent mutation of frozen-purpose state" as the failure class it counters but `kernel/FAILURE_MODES.md` had no corresponding mode entry — the canonical taxonomy was out of sync with the canonical counter discipline.
+
+- **Mode 12 added** — *Silent mutation of frozen-purpose state.* The mode: when the agent is generating code that must conform to a declared contract / schema / invariant, the locally-fluent move during generation is to *modify the constraint to match the generated code* rather than the harder move of *conforming the generated code to the constraint*. Structurally Mode 1 (WYSIATI) projected onto the artifact axis — the agent reasons from what is *in* the file as if that were the *purpose* of the file. Counter: (a) [`kernel/ARTIFACT_TAXONOMY.md`](./ARTIFACT_TAXONOMY.md) tier discipline — frozen-purpose state requires explicit operator authorization per mutation; (b) [`../docs/CONTRACT_GATE.md`](../docs/CONTRACT_GATE.md) Stop-hook enforcement of declared spec conformance at turn-end. Neither mechanism alone is sufficient — without taxonomy the contract gate can be defeated by spec mutation; without contract gate the taxonomy can be defeated by behavior drift.
+- **Modes 10 (Framework-as-Doxa) and 11 (Cascade-theater)** promoted from "(v1.0 RC+)" to shipped state. The "(v1.0 RC+)" parenthetical on the H3 headers and operational-summary table was stale post-v1.0 GA and is removed.
+- **Two-vocabulary distinction** section updated from "11 modes" to "12 modes" enumeration.
+- **`kernel/SUMMARY.md`** summary table refreshed to match — mode 12 row added; `(v1.0 RC)` parentheticals on modes 10/11 dropped; summary line updated from "five governance-layer modes (three at v0.11, two added at v1.0 RC)" to "six governance-layer modes (three at v0.11, two added at v1.0 RC, one added at v1.2 RC)."
+- **`../AGENTS.md`** repository map expanded: kernel listing extended from 10 docs to 20 (matching `kernel/` directory contents); failure-mode wording updated from "nine failure modes (+2 planned for v1.0 RC: framework-as-Doxa, cascade-theater)" to the current 12-mode taxonomy.
+
+Classification: **minor** — one new failure-mode entry (a new artifact in the canonical taxonomy). `kernel/MANIFEST.sha256` regenerated: `FAILURE_MODES.md` content hash changed from `88743fc83da1abe5...` to `6c30b85216318af3...`.
+
+---
+
 ## Unreleased — 2026-05-23 — Event 130 — ARTIFACT_TAXONOMY + PATTERN_GOVERNANCE — contract-gate complement architecture (minor)
 
 Two new kernel docs codify principled bases for two long-implicit disciplines, and clear the way for an additive deterministic-contract complement to the Reasoning Surface.

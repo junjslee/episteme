@@ -4,18 +4,39 @@
 
 episteme is the posture layer installed beneath whichever memory substrate and whichever runtime the operator uses. A *posture* is how a reasoner holds themselves before a decision: which questions get asked, which unknowns get named, which options are pre-rejected, and which conditions force a pivot. Tools cycle every 18–36 months; the posture does not. The kernel is a small set of markdown files defining the posture's four observable artifacts (reasoning-surface, decision-trace, verification, handoff), named counters to the most dangerous failure modes, and schema for encoding operator preferences. Adapters mount the same kernel files into specific runtimes (Claude Code, Hermes, future).
 
-## Kernel (load first, in priority order)
+## Primary identity (load first)
+
+- [THE_WAY_TO_THINK](./docs/THE_WAY_TO_THINK.md): what episteme *is* — a way to think when the model can finish your sentences. The practice is the product; the kernel is its enforcement specification.
+
+## Kernel (load second, in priority order — 20 docs as of v1.2.0-rc1)
 
 - [SUMMARY](./kernel/SUMMARY.md): 30-line distillation of the entire kernel
-- [CONSTITUTION](./kernel/CONSTITUTION.md): root claim, four principles, nine failure modes (+2 v1.0 RC)
+- [CONSTITUTION](./kernel/CONSTITUTION.md): root claim, four principles, six reasoner failure modes
 - [REASONING_SURFACE](./kernel/REASONING_SURFACE.md): Knowns/Unknowns/Assumptions/Disconfirmation protocol (scenario-polymorphic blueprints at v1.0 RC)
-- [FAILURE_MODES](./kernel/FAILURE_MODES.md): nine failure modes mapped 1:1 to counter artifacts; v1.0 RC adds modes 10 (framework-as-Doxa) and 11 (cascade-theater)
+- [FAILURE_MODES](./kernel/FAILURE_MODES.md): 12-mode taxonomy (6 reasoner + 3 governance v0.11 + 2 v1.0 RC + 1 v1.2 RC silent-mutation-of-frozen-purpose) ↔ counter artifacts
+- [ARTIFACT_TAXONOMY](./kernel/ARTIFACT_TAXONOMY.md): four-tier mutation discipline (frozen-purpose · authoritative-living · working-execution · ephemeral)
+- [PATTERN_GOVERNANCE](./kernel/PATTERN_GOVERNANCE.md): novel-decision vs mechanical-implementation; pattern-declaration artifact + implementation-of reference
 - [DESIGN_V1_0_SEMANTIC_GOVERNANCE](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md): v1.0 RC spec — three pillars, four named blueprints, ten CPs
 - [KERNEL_LIMITS](./kernel/KERNEL_LIMITS.md): when this kernel is the wrong tool; declared structural gaps
+- [FALSIFIABILITY_CONDITIONS](./kernel/FALSIFIABILITY_CONDITIONS.md): per-claim falsifiability matrix; what would prove each kernel claim wrong
+- [CALIBRATION_TELEMETRY](./kernel/CALIBRATION_TELEMETRY.md): Brier score + calibration curve + base-rate-aware metrics from signed-surface outputs
+- [MODEL_PROGRESS_RISK_MODEL](./kernel/MODEL_PROGRESS_RISK_MODEL.md): saturation-vs-positioning threat model; what survives when the substrate gap closes
+- [MEMORY_ARCHITECTURE](./kernel/MEMORY_ARCHITECTURE.md): five memory tiers (working / episodic / semantic / procedural / reflective)
 - [OPERATOR_PROFILE_SCHEMA](./kernel/OPERATOR_PROFILE_SCHEMA.md): schema for encoding operator preferences
-- [REFERENCES](./kernel/REFERENCES.md): attribution for every load-bearing borrowed concept
+- [CHAIN_RECOVERY_PROTOCOL](./kernel/CHAIN_RECOVERY_PROTOCOL.md): legitimate state-loss recovery for the hash chain
+- [CONTINUITY_PLAN](./kernel/CONTINUITY_PLAN.md): project governance continuity
+- [DESIGN_BEHAVIOR_INVARIANTS](./kernel/DESIGN_BEHAVIOR_INVARIANTS.md): design-behavior verification invariants
+- [ACTIVE_GUIDANCE_RANKING](./kernel/ACTIVE_GUIDANCE_RANKING.md): Pillar 3 active guidance ranking strategy
+- [PHASE_12_LEXICON](./kernel/PHASE_12_LEXICON.md): profile-audit vocabulary
+- [REFERENCES](./kernel/REFERENCES.md): attribution for every load-bearing borrowed concept; convergent contemporary work (2025–2026); regulator-recognizable standards (EU GPAI CoP, NIST AI 800-1, ISO/IEC 42001)
 - [CHANGELOG](./kernel/CHANGELOG.md): versioned kernel history
 - [HOOKS_MAP](./kernel/HOOKS_MAP.md): kernel invariants ↔ runtime enforcement
+
+## Contracts and behavioral verification (Event 130–131)
+
+- [docs/CONTRACT_GATE.md](./docs/CONTRACT_GATE.md): deterministic-contract-test complement to the Reasoning Surface. Layer distinction (decisions vs behavior); supported spec formats including peer-reviewed PBT (arXiv:2506.18315); Stop-hook integration; composition with the Reasoning Surface.
+- [docs/COMPLIANCE_CROSSWALK.md](./docs/COMPLIANCE_CROSSWALK.md): regulatory mapping surface (operator-positioning); EU AI Act + NIST + FS framework set with cell-by-cell crosswalk.
+- [contracts/README.md](./contracts/README.md): contracts/ directory convention; supported spec formats; wire-up procedure.
 
 ## Delivery framing
 

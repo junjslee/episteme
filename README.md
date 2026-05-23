@@ -99,7 +99,7 @@ This is the difference between a prompt reminder and a compiler: one asks nicely
 
 `episteme` is **not just a blocker**. The framework's real job is to turn every conflict it resolves into durable know-how that the agent re-applies automatically at the next matching decision.
 
-Here is the loop (v1.0.0 GA shipped · CP1–CP10 · 565 / 565 green; **v1.1.0-rc1 cut 2026-04-29** · 766 / 766 + 21 subtests green — see [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md)):
+Here is the loop (v1.0.0 GA shipped · CP1–CP10 green; **v1.2.0-rc1 cut 2026-05-19** · 1066 tests + 54 subtests green — see [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md)):
 
 1. **Detect conflict.** The agent encounters two valid-looking but incompatible approaches for a context it hasn't fully resolved before.
 2. **Decompose, don't average.** The Thinking Framework refuses the "average" answer. It forces the agent to extract *why* the sources conflict and which feature of the context tips the decision.
@@ -455,7 +455,7 @@ The four blueprints (above) and three pillars — Cognitive Blueprints · Append
 - **Arm B · Causal Synthesis** — zero-LLM entity extraction over the deferred-discovery stream produces cluster proposals the framework can act on. Verification window: 60 days.
 - **Arm C · Self-Consistency Convergence** — protocols promote to models that derive disconfirmations structurally. Verification window: 90 days.
 
-The distinction is load-bearing — pillars are settled vocabulary; arms are how the system audits and refines its own outputs across time. Status: **v1.1.0-rc1 cut 2026-04-29** with Arm A substrate shipped (supersede-with-history infrastructure + auto-instrumentation hooks that record operator profile + policy edits to chain streams). Arm A decay-verification mechanism, Arm B, and Arm C are scoped for v1.1.0 GA → v1.2.
+The distinction is load-bearing — pillars are settled vocabulary; arms are how the system audits and refines its own outputs across time. Status: **v1.2.0-rc1 cut 2026-05-19**, 1066 tests + 54 subtests green. Arm A substrate shipped (supersede-with-history infrastructure + auto-instrumentation hooks that record operator profile + policy edits to chain streams); Arm A residue resumes opportunistically. **Arm B substrate-facing form formally SUNSET at Event 129** — its premise (a stable model-capability gap) was falsified by the Event 119–120 saturation finding; its operator-facing residue (`core/ptsp/` typed Fact/Inference promotion gate) is retained-and-reachable via `episteme practice trace`. Arm C scoped for a future cycle pending evidence the substrate-gap claim survives.
 
 ---
 
@@ -466,7 +466,11 @@ Start at **[`kernel/`](./kernel/)**. Pure markdown. No code. No vendor lock-in.
 | File                                                              | What it defines                                              |
 |-------------------------------------------------------------------|--------------------------------------------------------------|
 | [`SUMMARY.md`](./kernel/SUMMARY.md)                               | 30-line operational distillation                             |
-| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md)                     | Root claim, four principles, nine failure modes              |
+| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md)                     | Root claim, four principles, six reasoner failure modes      |
+| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Full 12-mode taxonomy (6 reasoner + 3 governance v0.11 + 2 v1.0 RC + 1 v1.2 RC) ↔ counter artifacts |
+| [`ARTIFACT_TAXONOMY.md`](./kernel/ARTIFACT_TAXONOMY.md)            | Four-tier mutation discipline (frozen-purpose · authoritative-living · working-execution · ephemeral) |
+| [`PATTERN_GOVERNANCE.md`](./kernel/PATTERN_GOVERNANCE.md)          | Novel-decision vs mechanical-implementation; pattern-declaration artifact + implementation-of reference |
+| [`CALIBRATION_TELEMETRY.md`](./kernel/CALIBRATION_TELEMETRY.md)    | Brier score + calibration curve + base-rate-aware metrics from signed-surface outputs |
 | [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md)           | Knowns / Unknowns / Assumptions / Disconfirmation protocol   |
 | [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Nine fluent-agent failure modes ↔ counter artifacts (6 Kahneman · 3 governance) |
 | [`OPERATOR_PROFILE_SCHEMA.md`](./kernel/OPERATOR_PROFILE_SCHEMA.md) | Schema for encoding an operator's cognitive preferences   |
