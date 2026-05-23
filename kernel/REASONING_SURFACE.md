@@ -131,6 +131,120 @@ blueprint additions:
 
 ---
 
+## Tier 1 micro-surface (v1.4.x+)
+
+A separate, narrower surface shape for **bounded irreversible ops** —
+operations whose blast radius is genuinely local (feature-branch push,
+prerelease creation, gh issue/PR metadata changes) and whose rollback
+path is one command away. The motivation is that the four-field fallback
+(or any five-field blueprint) becomes ceremony when the rationale
+literally fits in one line, and ceremony-shaped surfaces train the agent
+to treat the discipline as bureaucracy rather than cognition.
+
+The Tier 1 micro-surface is **not** a fifth blueprint. It is a
+strictly-smaller schema applied only when the kernel's pure-function
+classifier recognizes the op as Tier 1 (positive-system allowlist) AND a
+lived-behavior soak gate has cleared. Tier 2/3 ops continue to require
+the full blueprint or fallback shape — the Tier 1 path is additive, not
+substitutive.
+
+### Schema
+
+Two required text fields + a strict branch binding + a fresh timestamp:
+
+```jsonc
+{
+  "tier": 1,
+  "branch": "event-N-coherence",
+  "rationale_one_line": "<≥40 chars naming bounded blast radius AND concrete rollback path>",
+  "disconfirmation_one_line": "<≥20 chars naming a specific observable mistake-signal>",
+  "timestamp": "<ISO-8601 UTC; TTL = 5 minutes>"
+}
+```
+
+Validator gates (any False routes the op to the strict-block path —
+loss-averse precedence):
+
+1. `tier` field equals `1` (rejects misuse against Tier 2/3 ops).
+2. `branch` field present, non-empty, and equal to
+   `git rev-parse --abbrev-ref HEAD` at op-execute time. The
+   branch-binding is the **context-bleed counter**: a micro-surface
+   authored on branch X cannot authorize an irreversible op executed on
+   branch Y, even within the 5-minute TTL window.
+3. `rationale_one_line` length ≥ 40 chars, must name both blast bound
+   AND rollback command — context-free template rationales fail FM-B
+   (rationale rot).
+4. `disconfirmation_one_line` length ≥ 20 chars, must name a specific
+   observable.
+5. `timestamp` parses as ISO-8601 (`Z` or `+00:00`) and is within the
+   5-minute TTL; future-dated timestamps are rejected as clock skew or
+   fabrication.
+
+### Lived-behavior soak gate
+
+The Tier 1 advisory dispatch is **disabled by default**. It activates
+only after the runtime soak gate clears three thresholds against the
+local Tier 1 telemetry trail at `~/.episteme/telemetry/tier1.jsonl`:
+
+- **Volume:** N ≥ 20 Tier 1 ops have actually fired (default value;
+  configurable per installation).
+- **Calendar span:** the earliest record is at least 7 calendar days
+  old (gives time for downstream consequences to materialize).
+- **Rationale-accuracy rate:** of records where
+  `operator_confirmed` is True, the fraction where
+  `subsequent_revert_within_24h` is False must be ≥ 90%.
+
+A new installation starts with the gate **CLOSED**, and the live hook
+emits a one-line stderr advisory naming what's missing each time a
+Tier 1 op would otherwise have dispatched. This is the loss-averse
+default the kernel governs itself with — the code is in place; runtime
+behavior change waits on the kernel's own evidence that the dispatch
+isn't producing rationale rot or mis-classifications.
+
+Operators inspect the gate via:
+
+```bash
+episteme tier1 audit              # human-readable report
+episteme tier1 audit --json       # machine-readable
+episteme tier1 audit --require-open   # exit 2 if CLOSED (CI gating)
+```
+
+### Tier classification (pure function)
+
+The classifier returns one of three tiers from `(tool, args, git_ctx)`:
+
+- **Tier 1** (positive-system allowlist) — bounded irreversible.
+  Initial allowlist: `git push origin <non-protected-branch>`,
+  `gh release create --prerelease`, `gh issue create`, `gh pr create`,
+  `gh issue/pr comment | edit`.
+- **Tier 2** (default) — everything in the existing high-impact pattern
+  set not relaxed to Tier 1 or escalated to Tier 3. Requires the full
+  fallback or blueprint surface; the strict-block default applies.
+- **Tier 3** (negative-system denylist) — hard reject regardless of
+  surface. Force-push / hard-reset / branch-delete against a protected
+  branch, history rewrites (`filter-branch` / `filter-repo` /
+  `rebase --root`), `DROP DATABASE/SCHEMA`, catastrophic shell.
+
+The classifier also consults an optional `OperatorProfile` — when
+`risk_tolerance == 0` (incident-response posture), every Tier 1 hit is
+force-escalated to Tier 2. The override only tightens; Tier 3 is
+unchanged.
+
+### Telemetry isolation
+
+Tier 1 outcomes write to a separate JSONL at
+`~/.episteme/telemetry/tier1.jsonl` so the experimental signal stays
+decontaminated from the primary calibration audit trail at
+`~/.episteme/telemetry/YYYY-MM-DD-audit.jsonl`. Per-record fields
+include the rationale, branch, exit code, operator-confirmed flag, and
+a `subsequent_revert_within_24h` flag the audit pass back-fills.
+
+Full Tier 1 specification, soak-gate thresholds, calibration loop, and
+failure-mode counters:
+[`docs/PROPOSAL_TIERED_IRREVERSIBLE_GATE.md`](../docs/PROPOSAL_TIERED_IRREVERSIBLE_GATE.md).
+
+---
+
 ## When to fill it in
 
 - **Always** before an irreversible action.
