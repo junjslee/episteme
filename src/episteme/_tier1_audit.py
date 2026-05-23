@@ -26,6 +26,19 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Editable-install + repo-checkout discoverability: src/episteme/ is the
+# installed package, but the classifier lives at core/practice/ which is
+# outside the package tree. When invoked from an editable install (`pip
+# install -e .`), Path(__file__).parents[2] is the repo root which holds
+# both src/ and core/. Add it to sys.path so `from core.practice...`
+# resolves at CLI runtime. Non-editable wheel installs (rare today —
+# PyPI publish is disabled per release-please.yml) fall back to the
+# ImportError path in _audit().
+_REPO_ROOT_CANDIDATE = Path(__file__).resolve().parents[2]
+if (_REPO_ROOT_CANDIDATE / "core" / "practice").is_dir():
+    if str(_REPO_ROOT_CANDIDATE) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT_CANDIDATE))
+
 
 def run_tier1_cli(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(

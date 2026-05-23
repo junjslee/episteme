@@ -33,6 +33,16 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Editable-install + repo-checkout discoverability: see _tier1_audit.py
+# for the rationale on this sys.path injection. The evaluate CLI doesn't
+# import from core/ today, but the pattern lands here for symmetry +
+# future-proofing if Mode 4+ surfaces consume telemetry shapes that the
+# classifier owns.
+_REPO_ROOT_CANDIDATE = Path(__file__).resolve().parents[2]
+if (_REPO_ROOT_CANDIDATE / "core" / "practice").is_dir():
+    if str(_REPO_ROOT_CANDIDATE) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT_CANDIDATE))
+
 
 def run_evaluate_cli(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
