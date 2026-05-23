@@ -1,0 +1,56 @@
+{
+  "schema": "episteme/reasoning-surface@1",
+  "decision_id": "2026-05-23-contract-gate-complement",
+  "operator": "default",
+  "core_question": "Is deterministic contract testing (the 'Reins Engineering' framing — OpenAPI / Hurl / JSON Schema / DDL / state-machines / PBT) a substitute for, or a complement to, episteme's Reasoning Surface?",
+  "constraint_regime": {
+    "allowed": [
+      "new kernel/ docs (frozen-purpose tier)",
+      "new docs/ design docs",
+      "new core/hooks/ stub (must default to inert / dual-signal opt-in)",
+      "new contracts/ scaffolding (declared-spec example)",
+      "README FAQ section addition"
+    ],
+    "forbidden": [
+      "auto-installing the Contract Gate (irreversible blast on existing repos using episteme)",
+      "rewriting the Reasoning Surface schema (substitution would be exactly that)",
+      "claiming contract testing is unnecessary or redundant (false; it's load-bearing for the behavioral-drift class)",
+      "touching kernel/MODEL_PROGRESS_RISK_MODEL.md (soak-gated)"
+    ],
+    "cost_limit": "single session; no remote push without operator review (Path A workflow per AGENTS.md)"
+  },
+  "decision_type": "reversible (markdown + stub hook + example scaffolding, all recoverable via git); the irreversible step would be activating the gate by default — which this decision explicitly forbids",
+  "knowns": [
+    "External feedback (Reddit critique of episteme on the substitute-vs-complement question) explicitly framed deterministic contract testing as the 'real' way to catch AI-coding-agent failures, with the Reasoning Surface positioned as redundant ceremony.",
+    "Reasoning Surface gates PreToolUse — it catches epistemological drift (operator about to act with vapor framing). It does not check whether the shipped code matches its declared spec.",
+    "Contract testing (OpenAPI conformance / Hurl integration tests / JSON Schema / DDL drift / state-machine reachability / property-based tests per arXiv:2506.18315) gates behavioral drift at Stop-hook / CI — runtime divergence between code and declared spec. It does not check whether the operator's framing of WHY a change is being made is sound.",
+    "The two gates operate at different layers (PreToolUse decision vs PostToolUse / Stop behavior) and catch different failure classes (epistemological vs behavioral). One does not subsume the other.",
+    "Existing literature: arXiv:2506.18315 (peer-reviewed PBT for LLM-generated code, Q3-2025) and arXiv:2505.23549 (PBT-for-LLM survey) are independently strong evidence that the behavioral-drift class is real and unaddressed by the Reasoning Surface alone."
+  ],
+  "unknowns": [
+    "Whether 'frozen-purpose' contracts can be enforced cleanly without the operator having to manually mark every contract file as such — discovery: needs ARTIFACT_TAXONOMY taxonomy + clear tier declarations",
+    "Whether episteme should ship the Contract Gate as default-on, default-off, or opt-in — failure-first read: default-on risks blast on existing repos that have no contracts/ directory, opt-in is the loss-averse choice",
+    "Whether the existing FAILURE_MODES taxonomy already names 'silent mutation of frozen-purpose state' or whether this is a new mode the audit will surface",
+    "Whether contract conformance can be expressed as a single verifier interface (declared format → runner) or whether each format needs its own runner adapter"
+  ],
+  "assumptions": [
+    {
+      "claim": "Complement (not substitute) is the correct framing — the two gates cover orthogonal failure classes; merging would weaken both.",
+      "falsification": "False if a single concrete failure scenario is found where the Reasoning Surface and the Contract Gate would catch the same defect, AND the Contract Gate's catch is strictly more reliable. So far: zero such scenarios surfaced in the audit."
+    },
+    {
+      "claim": "Dual-signal opt-in (contracts/ directory present + explicit settings.json registration) is the right activation gate — loss-averse posture, no blast on existing repos.",
+      "falsification": "False if operators consistently report that the gate fails to activate when contracts/ IS present (configuration friction would drive abandonment), OR if operators consistently report unintended activations (the dual signal proves insufficient)."
+    },
+    {
+      "claim": "Contracts must be frozen-purpose artifacts (Artifact Taxonomy tier 1) — the gate's correctness depends on the contract not being silently rewritten to fit drifted implementation.",
+      "falsification": "False if the gate's enforcement remains useful when contracts are routinely edited to match implementation drift (in which case the contract is doing zero work — it's documentation, not a gate)."
+    }
+  ],
+  "disconfirmation": [
+    "A peer-reviewed paper or empirical benchmark shows that Reasoning-Surface-style gating catches behavioral drift (code-vs-spec divergence) at parity with deterministic contract testing — in which case substitution becomes plausible.",
+    "Operator reports after 30 days of Contract Gate use that the gate adds friction without catching any defect the Reasoning Surface would not have caught — meaning the two gates ARE redundant in practice, contra the design hypothesis.",
+    "FAILURE_MODE 12 (silent mutation of frozen-purpose state) cannot be reproduced in a real scenario — meaning the failure class the Contract Gate exists to counter doesn't actually occur, only sounds plausible."
+  ],
+  "hypothesis": "The two gates compose: the Reasoning Surface gates the decision to make a change at all; the Contract Gate gates whether the resulting change still conforms to the declared spec. Treating them as substitutes loses the failure class the missing one was catching. The right design lands four new artifacts — kernel/ARTIFACT_TAXONOMY.md (tier discipline), kernel/PATTERN_GOVERNANCE.md (novel vs mechanical), docs/CONTRACT_GATE.md (design + format support), core/hooks/contract_gate.py (Stop-hook stub, dual-signal opt-in) — plus a contracts/ example and a README FAQ that explicitly addresses the substitution critique."
+}
