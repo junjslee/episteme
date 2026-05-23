@@ -120,7 +120,7 @@
 - **Arm B · Causal Synthesis** — 对 deferred-discovery 流进行零-LLM 实体抽取，产生 framework 可以据此行动的聚类提案。验证窗口：60 天。
 - **Arm C · Self-Consistency Convergence** — 协议升级为以结构化方式推导 disconfirmation 的模型。验证窗口：90 天。
 
-这个区分承载结构性意义 — Pillar 是已沉淀的术语，Arm 是系统跨越时间审计和打磨自己输出的方式。状态：**v1.2.0-rc1 于 2026-05-19 切出**，1066 tests + 54 subtests 通过。Arm A 基础设施已交付（supersede-with-history 基础设施 + 将 operator profile / policy 编辑自动记录到 chain stream 的 hook）；Arm A 剩余工作伺机恢复。**Arm B substrate-facing 形态在 Event 129 正式 SUNSET** — 其前提（稳定的模型能力差距）已被 Event 119–120 饱和发现证伪。其 operator-facing 残留（`core/ptsp/` typed Fact/Inference 提升门）通过 `episteme practice trace` 保留可达。Arm C 已 scope 到未来周期，等待 substrate-gap 主张存活的证据。
+这个区分承载结构性意义 — Pillar 是已沉淀的术语，Arm 是系统跨越时间审计和打磨自己输出的方式。状态：**v1.4.0-rc1 于 2026-05-23 切出**，1170 tests + 54 subtests 通过。Arm A 基础设施已交付（supersede-with-history 基础设施 + 将 operator profile / policy 编辑自动记录到 chain stream 的 hook）；Arm A 剩余工作伺机恢复。**Arm B substrate-facing 形态在 Event 129 正式 SUNSET** — 其前提（稳定的模型能力差距）已被 Event 119–120 饱和发现证伪。其 operator-facing 残留（`core/ptsp/` typed Fact/Inference 提升门）通过 `episteme practice trace` 保留可达。Arm C 已 scope 到未来周期，等待 substrate-gap 主张存活的证据。
 
 ---
 
