@@ -43,6 +43,15 @@ The kernel does **not** dictate format. A project might have only OpenAPI specs,
 
 Spec proliferation is the project's choice. The gate's policy is: *whatever you declared, you ship conformance for.*
 
+### Behavioral verification — property-based testing as cited convergence
+
+The `*.prop.py` / `*.prop.ts` row above is not just a convenience format; it is the format that peer-reviewed work in 2025 converged on as the deterministic validation oracle for LLM-generated code whose behavior cannot be exhaustively enumerated as fixtures.
+
+- **arXiv:2506.18315 — *Property-Generated Solver: A Framework for Property-Based Testing of LLM-Generated Code* (June 2025).** Proposes property-based testing (Hypothesis-style for Python, fast-check for TypeScript) as the structural validator for LLM output where the input space is too large for fixture-based test coverage. The kernel's `*.prop.py` row is exactly this mechanism applied at the contract-enforcement boundary.
+- **arXiv:2505.23549 — *LLM-PBT: Property-Based Testing as a Guardrail for LLM-Generated Cyber-Physical Code* (May 2025).** Extends the technique to cyber-physical code where exhaustive fixtures cannot cover the safety envelope. The kernel's posture on contract-test selection is identical: the format follows the problem shape; for code whose input space is unbounded, property tests are the only honest contract.
+
+Both papers shipped before Event 130 cut the Contract Gate. The architectural choice is convergent, not derivative — independent confirmation that the contract layer's design picks the right tool for the LLM-generated-code class. Full citation in [`../kernel/REFERENCES.md`](../kernel/REFERENCES.md) § *Property-based testing as LLM validation oracle*.
+
 ---
 
 ## Where the gate fires
