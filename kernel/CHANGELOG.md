@@ -73,6 +73,16 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.3.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.2.0-rc1...episteme-v1.3.0-rc1) (2026-05-23)
+
+
+### Features
+
+* **contracts:** Event 130 — Contract Gate design + stub hook + example ([56e83d8](https://github.com/junjslee/episteme/commit/56e83d8d3ff0d1826a099a4ff07d69dac490ea46))
+* **kernel,docs:** Event 131 — convergent-work refresh + CALIBRATION_TELEMETRY + CONTRACT_GATE PBT (minor + patch) ([0ccf8dd](https://github.com/junjslee/episteme/commit/0ccf8ddd9f2cc74bbd54e853dbafcfaff6c92b9d))
+* **kernel:** Event 130 — ARTIFACT_TAXONOMY + PATTERN_GOVERNANCE (minor) ([02454f1](https://github.com/junjslee/episteme/commit/02454f15e303f309d76ad1050005ee8eec8d198d))
+* **kernel:** Event 131 — FAILURE_MODES mode 12 formalization (minor) ([d22896c](https://github.com/junjslee/episteme/commit/d22896c3429538f61797fbfabd8e7991a09f77b6))
+
 ## [1.2.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.1.0-rc1...episteme-v1.2.0-rc1) (2026-05-19)
 
 
