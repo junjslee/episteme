@@ -20,7 +20,13 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **There are many agent harnesses. `episteme` is the cognition layer that runs above them all** — a thinking framework for the AI coding agent you already ship. Before any high-impact move — the task, not just the shell command — the agent has to state its reasoning on disk: core question, knowns, unknowns, what would prove the plan wrong. A file-system hook refuses to proceed if that surface is missing or vapor, even when the operator is the one who asked for the move. Every resolved conflict becomes a reusable protocol, chained tamper-evidently and surfaced back at the next matching decision. Built as a **Sovereign Cognitive Kernel** — **생각의 틀**, posture over prompt.
+> **episteme is a way to think — 생각의 틀 — with mechanical teeth at the gate of irreversible AI-assisted decisions.**
+>
+> A five-stage cognitive practice — **Frame → Decompose → Execute → Verify → Handoff** — anchored in Kahneman's System-2 forcing, Dalio's Radical Transparency, Boyd's OODA Orientation, and Munger's Latticework of Mental Models. episteme enforces it *structurally* at the file-system level. Before any high-impact action — `git push`, `npm publish`, `terraform apply`, DB migrations, lockfile edits — the operator externalizes reasoning onto a typed Reasoning Surface: **Core Question · Knowns · Unknowns · Assumptions · Disconfirmation.** The surface is signed with the operator's own Ed25519 key. The PreToolUse hook refuses to proceed if the surface is absent, stale, or vapor — even when the operator is the one who asked for the move. The signing key is structurally out of the agent's reach. The model cannot author the practice for you.
+>
+> The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) settled the empirical question: across 16 models from 8 labs and ~250,000 instances, *"providing models with their own calibration scores produces no significant improvement; only architectural constraint is effective."* Confident Failure Rate drops from 0.60 to 0.14 under external architectural constraint. **The practice itself is the product.** The artifacts under `core/` and `src/episteme/` — the typed Reasoning Surface, the Append-Only Hash Chain, the Active-Guidance loop — are the **Sovereign Cognitive Kernel** that keeps the practice alive at frontier model strength, when *vigilance-as-willpower* fails. Posture over prompt.
+>
+> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** — the practice, operationalized.
 
 **[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)**
 
