@@ -92,6 +92,15 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.5.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.4.0-rc1...episteme-v1.5.0-rc1) (2026-05-23)
+
+
+### Features
+
+* **kernel:** Event 135 - Tier 1 micro-surface section in REASONING_SURFACE + manifest regen + changelog ([40a8412](https://github.com/junjslee/episteme/commit/40a841234377ef678514a67329ae9e61ad3bef3e))
+* Tier 1 micro-surface + soak gate + evaluation method (Events 134, 134.1, 135) ([c4295c3](https://github.com/junjslee/episteme/commit/c4295c35352b015b4383bb78a759b2a72a127f6a))
+* Tier 1 micro-surface + soak gate + evaluation method (Events 134, 134.1, 135) ([2071c13](https://github.com/junjslee/episteme/commit/2071c13518039b3edf1c340dfde8ed4c3b051600))
+
 ## [1.4.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.3.0-rc1...episteme-v1.4.0-rc1) (2026-05-23)
 
 
