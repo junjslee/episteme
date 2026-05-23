@@ -1,0 +1,67 @@
+# Example OpenAPI contract — minimal placeholder for the contracts/ directory.
+#
+# This file exists as a worked example of the format the contract gate will
+# enforce when the verifier-resolution chain ships in a follow-up Event. It is
+# NOT a real contract for episteme itself — episteme is a CLI + kernel doc
+# layer, not an HTTP service. Downstream projects forking this directory
+# should delete this file and replace it with their own real specs.
+#
+# Companion design: ../docs/CONTRACT_GATE.md
+# Frozen-purpose tier: ../kernel/ARTIFACT_TAXONOMY.md
+
+openapi: 3.0.3
+info:
+  title: Example API
+  version: 0.0.0
+  description: |
+    Minimal placeholder so the contracts/ directory has at least one supported
+    spec file. The contract gate's verifier-resolution chain will discover this
+    file by its .openapi.yaml extension and dispatch it to an OpenAPI verifier
+    (schemathesis or openapi-validator) once the chain ships.
+
+paths:
+  /orders/{order_id}:
+    get:
+      summary: Fetch a single order by id (illustrative endpoint).
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            type: string
+            pattern: '^ord_[A-Za-z0-9]{12}$'
+      responses:
+        '200':
+          description: Order found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found.
+        '410':
+          description: |
+            Order existed but was purged per retention policy. Consumers MUST
+            treat 410 as terminal (do not retry); this is the kind of
+            contract-encoded behavior the gate exists to enforce — silently
+            changing this to 404 would break consumers that relied on 410's
+            terminality.
+
+components:
+  schemas:
+    Order:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          pattern: '^ord_[A-Za-z0-9]{12}$'
+        status:
+          type: string
+          enum: [pending, confirmed, shipped, delivered, cancelled]
+        created_at:
+          type: string
+          format: date-time
