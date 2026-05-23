@@ -56,6 +56,14 @@ _HOOKS_DIR = Path(__file__).resolve().parent
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
+# Event 135 — Stage 2 Tier-1 dispatch path needs to import from
+# core.practice.irreversible_tier (sibling under core/). The hook runs
+# as a standalone script in production; add the repo root to sys.path so
+# the package import resolves the same under runtime and pytest.
+_REPO_ROOT = _HOOKS_DIR.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 from _blueprint_registry import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     BlueprintParseError as _BlueprintParseError,
     BlueprintValidationError as _BlueprintValidationError,
@@ -1078,6 +1086,103 @@ def _surface_template() -> str:
     return base + _advisory_footer()
 
 
+def _try_tier1_dispatch(payload: dict, tool_name: str, label: str) -> bool:
+    """Event 135 — Stage 2 Tier-1 advisory dispatch path.
+
+    Returns True iff the op qualifies for Tier 1 dispatch AND a valid
+    micro-surface exists AND the soak gate is open. On True, an advisory
+    has already been emitted to stderr and main() should return 0
+    immediately. On False, main() continues to the existing strict-block
+    validation (loss-averse default).
+
+    Any exception in the dispatch path falls through to False — the
+    existing gate remains the source of truth on errors.
+    """
+    try:
+        from core.practice.irreversible_tier import (  # noqa: E402
+            Tier as _Tier,
+            classify as _classify,
+            load_git_context as _load_git_ctx,
+            load_operator_profile as _load_profile,
+            soak_gate_open as _soak_gate,
+            validate_micro_surface as _validate_micro,
+        )
+    except Exception as exc:
+        sys.stderr.write(
+            f"[episteme tier1] import fallback: "
+            f"{exc.__class__.__name__} — strict-block enforced\n"
+        )
+        return False
+
+    try:
+        cwd = Path(payload.get("cwd") or os.getcwd())
+        git_ctx = _load_git_ctx(cwd)
+        verdict = _classify(
+            tool_name=tool_name,
+            tool_args=_tool_input(payload),
+            git_context=git_ctx,
+            operator_profile=_load_profile(),
+        )
+    except Exception as exc:
+        sys.stderr.write(
+            f"[episteme tier1] classify fallback: "
+            f"{exc.__class__.__name__} — strict-block enforced\n"
+        )
+        return False
+
+    if verdict.tier != _Tier.ONE:
+        return False  # Tier 2 or Tier 3 — existing path handles it
+
+    # Read the on-disk surface ONCE and check it's shaped as a Tier 1
+    # micro-surface (tier=1 field). Anything else falls through.
+    surface_dict = _read_surface(cwd)
+    if surface_dict is None or surface_dict.get("tier") != 1:
+        sys.stderr.write(
+            f"[episteme tier1] {verdict.reason} — no Tier 1 micro-surface "
+            f"on disk; falling through to strict-block\n"
+        )
+        return False
+
+    try:
+        ok, reason = _validate_micro(surface_dict, git_ctx)
+    except Exception as exc:
+        sys.stderr.write(
+            f"[episteme tier1] validator fallback: "
+            f"{exc.__class__.__name__} — strict-block enforced\n"
+        )
+        return False
+    if not ok:
+        sys.stderr.write(
+            f"[episteme tier1] micro-surface invalid: {reason} — "
+            f"falling through to strict-block\n"
+        )
+        return False
+
+    try:
+        gate_open, gate_reason = _soak_gate()
+    except Exception as exc:
+        sys.stderr.write(
+            f"[episteme tier1] soak-gate fallback: "
+            f"{exc.__class__.__name__} — strict-block enforced\n"
+        )
+        return False
+    if not gate_open:
+        sys.stderr.write(
+            f"[episteme tier1] {gate_reason} — falling through to "
+            f"strict-block until soak clears\n"
+        )
+        return False
+
+    # All three gates open — emit the advisory and let the op through.
+    # Claude Code's permission popup is the next gate.
+    sys.stderr.write(
+        f"[episteme tier1 advisory] {verdict.reason} on `{label}`; "
+        f"micro-surface valid; {gate_reason}. Operator confirmation "
+        f"required at the permission popup.\n"
+    )
+    return True
+
+
 def main() -> int:
     raw = sys.stdin.read().strip()
     if not raw:
@@ -1116,6 +1221,20 @@ def main() -> int:
         elif _probe_scenario == "fence_reconstruction":
             label = "fence:constraint-removal"
     if not label:
+        return 0
+
+    # Event 135 — Stage 2 Tier-1 advisory dispatch.
+    # Runs AFTER high-impact pattern match (label is non-None) but BEFORE
+    # the strict-block surface validation. When ALL THREE conditions
+    # hold — classifier returns Tier.ONE, the on-disk surface is a
+    # valid micro-surface, AND the soak gate is open per Stage 3's
+    # lived-behavior threshold — the hook emits a stderr advisory and
+    # exits 0. Claude Code's permission popup remains the human-in-loop
+    # gate. ANY of those gates failing falls through to the existing
+    # strict-block path below (loss-averse precedence: an error or gap
+    # in the new path never weakens the gate).
+    _tier1_dispatched = _try_tier1_dispatch(payload, tool_name, label)
+    if _tier1_dispatched:
         return 0
 
     cwd = Path(payload.get("cwd") or os.getcwd())
