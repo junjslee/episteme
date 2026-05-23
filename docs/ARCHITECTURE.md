@@ -1,8 +1,8 @@
-# Architecture — The Sovereign Kernel (v1.0 RC shipped · CP1–CP10 · 565/565 green)
+# Architecture — The Sovereign Kernel (v1.2.0-rc1 shipped · 1066 tests + 54 subtests green)
 
 > Mermaid flowchart. Renders natively on GitHub, Obsidian, and any CommonMark viewer with Mermaid support. Four subgraphs trace the full lifecycle from agent intention through the three-pillar kernel — Cognitive Blueprints, Append-Only Hash Chain, Framework Synthesis & Active Guidance — into praxis and the learning loop.
 >
-> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21). All ten RC checkpoints have shipped with paused-review-before-commit discipline; 565/565 tests green at HEAD.
+> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21). All ten RC checkpoints have shipped with paused-review-before-commit discipline. Current head: v1.2.0-rc1 (cut 2026-05-19), 1066 tests + 54 subtests green; v1.3.0-rc1 staged by release-please. Post-v1.0-RC architectural extensions (Event 130 — Contract Gate; Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY) compose with the four subgraphs below; see § *Post-v1.0-RC extensions* after the diagram.
 
 ---
 
@@ -197,13 +197,52 @@ Nothing executes until preconditions hold. Nothing evolves until postconditions 
 - Hot-path hooks: `core/hooks/reasoning_surface_guard.py` · `_scenario_detector.py` · `_specificity.py` · `_grounding.py` · `_verification_trace.py` · `_cascade_detector.py` · `_blueprint_d.py`
 - Pillar 2 substrate: `core/hooks/_chain.py` · `_pending_contracts.py` · `_framework.py`
 - Pillar 3 substrate: `core/hooks/_framework.py` (protocols + deferred_discoveries streams) · `core/hooks/_guidance.py` · `core/hooks/_context_signature.py`
-- Calibration telemetry: `core/hooks/calibration_telemetry.py`
+- Calibration telemetry: `core/hooks/calibration_telemetry.py` · `kernel/CALIBRATION_TELEMETRY.md` (measurement specification — Brier · calibration curve · base-rate-aware metrics · coverage as first-class)
 - Spot-check: `core/hooks/_spot_check.py` · `episteme review` CLI
 - Phase 12 audit: `src/episteme/_profile_audit.py`
 - Active guidance CLI: `src/episteme/cli.py` · `episteme guide`
 - Operator profile schema: `kernel/OPERATOR_PROFILE_SCHEMA.md`
 - Kernel constitution: `kernel/CONSTITUTION.md`
-- Failure modes: `kernel/FAILURE_MODES.md`
+- Failure modes: `kernel/FAILURE_MODES.md` (12-mode taxonomy as of v1.2 RC — 6 reasoner + 3 governance v0.11 + 2 v1.0 RC + 1 v1.2 RC silent-mutation-of-frozen-purpose)
 - Reasoning Surface protocol: `kernel/REASONING_SURFACE.md`
 - Memory architecture: `kernel/MEMORY_ARCHITECTURE.md`
 - v1.0 RC spec: `docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`
+- **Post-v1.0-RC extensions (Event 130-131):** `kernel/ARTIFACT_TAXONOMY.md` · `kernel/PATTERN_GOVERNANCE.md` · `docs/CONTRACT_GATE.md` · `core/hooks/contract_gate.py` (stub) · `contracts/*` (declared spec format examples) · `kernel/CALIBRATION_TELEMETRY.md`
+
+---
+
+## Post-v1.0-RC extensions (Event 130-131)
+
+The Mermaid diagram above depicts the **v1.0 RC shipped state**. Two further architectural extensions composed onto that foundation in May 2026 — both *additive*, neither modifying the four-subgraph hot path. They sit alongside the existing pillars at distinct boundaries the v1.0 RC architecture did not gate.
+
+### Event 130 — Contract Gate (behavioral-drift complement)
+
+**Insertion point.** Subgraph ② (Sovereign Kernel) gates *decisions* at the PreToolUse boundary. Subgraph ③ (Praxis + Hash Chain) records *outcomes* at the PostToolUse boundary. Neither subgraph gates *behavioral conformance* — the question of whether the running code matches its declared spec. The Contract Gate adds that layer at the Stop hook (turn-end), composed with the existing `core/hooks/quality_gate.py` and `core/hooks/checkpoint.py`.
+
+| Artifact | Surface | Role |
+|---|---|---|
+| [`docs/CONTRACT_GATE.md`](./CONTRACT_GATE.md) | Design doc | Layer distinction (decisions vs behavior); supported formats (OpenAPI · Hurl · JSON Schema · DDL · state-machines · property-based tests, peer-reviewed per arXiv:2506.18315); composition with the Reasoning Surface; explicit non-goals |
+| `core/hooks/contract_gate.py` | Stop-hook stub | Dual-signal opt-in (`contracts/` directory present + explicit `settings.json` registration); inert until activated to preserve loss-averse posture |
+| [`kernel/ARTIFACT_TAXONOMY.md`](../kernel/ARTIFACT_TAXONOMY.md) | Kernel doc | Four-tier mutation discipline (frozen-purpose · authoritative-living · working-execution · ephemeral); the gate's correctness depends on contracts being frozen-purpose so they cannot be silently rewritten to fit drifted implementation |
+| [`kernel/PATTERN_GOVERNANCE.md`](../kernel/PATTERN_GOVERNANCE.md) | Kernel doc | Novel-decision vs mechanical-implementation distinction; pattern-declaration artifact + implementation-of reference; counter to PTSP uniform-application bottleneck at scale |
+| `contracts/*` | Declared specs | Frozen-purpose tier per ARTIFACT_TAXONOMY; whatever you declare, you ship conformance for |
+
+### Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY (taxonomy + measurement)
+
+**Insertion point.** Subgraph ④ (Gyeol — Learning Loop) ties Layer 8 spot-checks + Phase 12 audit back into the Operator Profile + Constitution. Two refinements landed at v1.2 RC:
+
+| Artifact | Surface | Role |
+|---|---|---|
+| [`kernel/FAILURE_MODES.md`](../kernel/FAILURE_MODES.md) § Mode 12 | Kernel taxonomy | *Silent mutation of frozen-purpose state* — WYSIATI (Mode 1) projected onto the artifact axis; counter pair = ARTIFACT_TAXONOMY tier discipline + Contract Gate Stop-hook enforcement. Closes the 1:1 mode↔counter mapping gap Event 130 opened |
+| [`kernel/CALIBRATION_TELEMETRY.md`](../kernel/CALIBRATION_TELEMETRY.md) | Kernel doc | Measurement specification operationalizing the long-standing Tetlock citation: Brier score · calibration curve · base-rate-aware slicing · coverage as first-class metric (refuses to emit Brier below 0.20 coverage). Closes the falsifiability loop — if calibration curves do not trend toward the diagonal across windows on the same operator, the kernel's central empirical claim is falsified |
+
+### Composition with the four subgraphs
+
+Both extensions are *additive*. The four-subgraph hot path is unchanged; the extensions plug in at boundaries the original diagram did not address:
+
+- **Frozen-purpose mutation** triggers an explicit Reasoning Surface in Subgraph ① with operator authorization required at edit time (taxonomy enforces what counts as frozen-purpose).
+- **Contract Gate** fires at Subgraph ③'s Stop boundary alongside `quality_gate.py` + `checkpoint.py`; the gate is *opt-in*, gated on `contracts/` directory presence + explicit `settings.json` registration.
+- **Mode 12** completes Subgraph ④'s failure-mode↔counter audit trail.
+- **CALIBRATION_TELEMETRY** specifies the measurement that Subgraph ④'s Gyeol learning loop computes from Subgraph ③'s correlation_id-paired prediction + outcome records.
+
+A future diagram revision may pull these extensions into the Mermaid body; the current minimum-coherent move is to name them in prose so the diagram itself stays readable.
