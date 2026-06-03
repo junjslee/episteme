@@ -31,7 +31,16 @@ def main() -> int:
     _run(["git", "add", "-A"], cwd=git_root)
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-    _run(["git", "commit", "--no-verify", "-m", f"chkpt: {timestamp}"], cwd=git_root)
+    # Conventional-Commits-compatible prefix: `chore(chkpt):` parses as
+    # type=chore (already hidden in release-please-config.json), so these
+    # auto-checkpoint commits no longer 500 the release-please parser on
+    # merge-commit walks (CP-RELEASE-PLEASE-CHKPT-FILTER-01). Bare `chkpt:`
+    # is not a registered Conventional type and threw a server-side parse
+    # error when release-please walked a master that contained it.
+    _run(
+        ["git", "commit", "--no-verify", "-m", f"chore(chkpt): {timestamp}"],
+        cwd=git_root,
+    )
 
     return 0
 

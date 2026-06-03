@@ -25,7 +25,7 @@ Packs are applied via `episteme sync` or `episteme setup --sync`.
 | `context_guard.py`      | `PostToolUse Bash\|Edit\|Write\|MultiEdit\|Agent\|Task`  | Advisory warning when session context approaches compaction thresholds                          |
 | `quality_gate.py`       | `Stop`                                                   | Blocks completion if tests fail (opt-in via `.quality-gate` in project root)                    |
 | `contract_gate.py`      | `Stop`                                                   | Runs declared contract tests (`contracts/*`) at turn-end. Opt-in via settings.json + `contracts/` directory presence. Currently a no-op stub; verifier chain ships in a follow-up Event. See [`CONTRACT_GATE.md`](./CONTRACT_GATE.md) |
-| `checkpoint.py`         | `Stop`                                                   | Auto-commits uncommitted changes as `chkpt:` after every turn                                   |
+| `checkpoint.py`         | `Stop`                                                   | Auto-commits uncommitted changes as `chore(chkpt):` after every turn                            |
 | `precompact_backup.py`  | `PreCompact`                                             | Backs up session transcripts before context compaction                                          |
 
 ## Customization

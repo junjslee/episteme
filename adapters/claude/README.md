@@ -43,7 +43,7 @@ The Claude adapter deploys lifecycle hooks that run on every session:
 | `block_dangerous.py` | `PreToolUse Bash` | Blocks destructive commands |
 | `workflow_guard.py` | `PreToolUse Write\|Edit` | Nudges doc alignment with implementation |
 | `format.py` | `PostToolUse Write\|Edit` | Auto-runs ruff / prettier |
-| `checkpoint.py` | `Stop` | Auto-commits as `chkpt:` after every turn |
+| `checkpoint.py` | `Stop` | Auto-commits as `chore(chkpt):` after every turn |
 | `quality_gate.py` | `Stop` | Blocks completion if tests fail (opt-in) |
 
 ## Files managed
