@@ -19,7 +19,7 @@ import pytest
 
 from datetime import datetime, timedelta, timezone
 
-from core.practice.irreversible_tier import (
+from core.hooks._irreversible_tier import (
     GitContext,
     MICRO_SURFACE_DISCONFIRMATION_MIN_LEN,
     MICRO_SURFACE_RATIONALE_MIN_LEN,
@@ -945,14 +945,14 @@ class TestLoadOperatorProfile:
     def test_returns_none_when_no_source(self, monkeypatch, tmp_path):
         # Both disk sources missing — function returns None and the
         # classifier's static defaults apply.
-        from core.practice import irreversible_tier as it
+        from core.hooks import _irreversible_tier as it
         monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", tmp_path / "missing.json")
         monkeypatch.setattr(it, "_OPERATOR_PROFILE_MD", tmp_path / "missing.md")
         assert it.load_operator_profile() is None
 
     def test_reads_derived_knobs_json(self, monkeypatch, tmp_path):
         import json as _json
-        from core.practice import irreversible_tier as it
+        from core.hooks import _irreversible_tier as it
         knobs = tmp_path / "derived_knobs.json"
         knobs.write_text(_json.dumps({
             "risk_tolerance": 0,
@@ -965,7 +965,7 @@ class TestLoadOperatorProfile:
         assert profile.asymmetry_posture == "loss-averse"
 
     def test_falls_back_to_markdown(self, monkeypatch, tmp_path):
-        from core.practice import irreversible_tier as it
+        from core.hooks import _irreversible_tier as it
         md = tmp_path / "operator_profile.md"
         md.write_text("""
 risk_tolerance:
@@ -984,12 +984,155 @@ asymmetry_posture:
         assert profile.asymmetry_posture == "loss-averse"
 
     def test_malformed_knobs_returns_none(self, monkeypatch, tmp_path):
-        from core.practice import irreversible_tier as it
+        from core.hooks import _irreversible_tier as it
         knobs = tmp_path / "derived_knobs.json"
         knobs.write_text("not valid json {{{")
         monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", knobs)
         monkeypatch.setattr(it, "_OPERATOR_PROFILE_MD", tmp_path / "missing.md")
         assert it.load_operator_profile() is None
+
+
+# ---------------------------------------------------------------------------
+# Event 136 (B) — refspec normalization in branch-binding.
+# ---------------------------------------------------------------------------
+
+
+def _ctx(current_branch):
+    return GitContext(
+        current_branch=current_branch,
+        protected_branches=frozenset({"main", "master"}),
+    )
+
+
+def _micro(branch):
+    return {
+        "tier": 1,
+        "branch": branch,
+        "rationale_one_line": (
+            "feature-branch push — no protected impact; revert via gh pr close "
+            "+ branch delete"
+        ),
+        "disconfirmation_one_line": "if CI fails, close the PR without merging",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+class TestRefspecNormalization:
+    def test_accepts_refs_heads_branch_form(self):
+        ok, reason = validate_micro_surface(
+            _micro("refs/heads/event-135"), _ctx("event-135")
+        )
+        assert ok, reason
+
+    def test_accepts_head_colon_refspec_form(self):
+        ok, reason = validate_micro_surface(
+            _micro("HEAD:event-135"), _ctx("event-135")
+        )
+        assert ok, reason
+
+    def test_accepts_full_src_dst_refspec(self):
+        ok, reason = validate_micro_surface(
+            _micro("HEAD:refs/heads/event-135"), _ctx("event-135")
+        )
+        assert ok, reason
+
+    def test_normalizes_both_sides(self):
+        # current_branch itself reported as a refspec normalizes too.
+        ok, reason = validate_micro_surface(
+            _micro("event-135"), _ctx("refs/heads/event-135")
+        )
+        assert ok, reason
+
+    def test_still_rejects_genuine_branch_mismatch(self):
+        ok, reason = validate_micro_surface(
+            _micro("refs/heads/other"), _ctx("event-135")
+        )
+        assert not ok
+        assert "branch-binding mismatch" in reason
+
+    def test_detached_head_still_rejects(self):
+        ok, reason = validate_micro_surface(_micro("event-135"), _ctx(None))
+        assert not ok
+        assert "branch-binding mismatch" in reason
+
+    def test_classify_refspec_push_unaffected(self):
+        # The unified _normalize_branch_ref must not regress classify's
+        # existing refspec handling on the push path.
+        v = classify(
+            "Bash",
+            {"command": "git push origin HEAD:event-135"},
+            _ctx("event-135"),
+        )
+        assert v.tier == Tier.ONE
+
+
+# ---------------------------------------------------------------------------
+# Event 136 (C) — OperatorProfile.dominant_lens additive axis.
+# ---------------------------------------------------------------------------
+
+
+class TestDominantLensAxis:
+    def test_default_is_empty_tuple_and_inert(self):
+        p = OperatorProfile()
+        assert p.dominant_lens == ()
+        assert p.risk_tolerance == 2
+        assert p.asymmetry_posture == "loss-averse"
+
+    def test_classify_unaffected_by_dominant_lens(self):
+        # Additive axis is inert in classify — same Tier.ONE verdict.
+        v = classify(
+            "Bash",
+            {"command": "git push origin event-135"},
+            _ctx("event-135"),
+            operator_profile=OperatorProfile(
+                dominant_lens=("failure-first", "causal-chain"),
+                risk_tolerance=2,
+            ),
+        )
+        assert v.tier == Tier.ONE
+
+    def test_reads_dominant_lens_from_knobs(self, monkeypatch, tmp_path):
+        import json as _json
+        from core.hooks import _irreversible_tier as it
+        knobs = tmp_path / "derived_knobs.json"
+        knobs.write_text(_json.dumps({
+            "risk_tolerance": 2,
+            "asymmetry_posture": "loss-averse",
+            "dominant_lens": ["failure-first", "causal-chain", "first-principles"],
+        }))
+        monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", knobs)
+        p = it.load_operator_profile()
+        assert p is not None
+        assert p.dominant_lens == ("failure-first", "causal-chain", "first-principles")
+        assert p.risk_tolerance == 2
+
+    def test_dominant_lens_absent_is_default_safe(self, monkeypatch, tmp_path):
+        import json as _json
+        from core.hooks import _irreversible_tier as it
+        knobs = tmp_path / "derived_knobs.json"
+        knobs.write_text(_json.dumps({"risk_tolerance": 2}))
+        monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", knobs)
+        p = it.load_operator_profile()
+        assert p is not None  # additive axis missing never breaks the loader
+        assert p.dominant_lens == ()
+
+    def test_markdown_parses_dominant_lens_list(self, monkeypatch, tmp_path):
+        from core.hooks import _irreversible_tier as it
+        md = tmp_path / "operator_profile.md"
+        md.write_text("""
+risk_tolerance:
+  value: 2
+  confidence: elicited
+
+dominant_lens:
+  value: [failure-first, causal-chain, first-principles]
+  confidence: inferred
+""")
+        monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", tmp_path / "missing.json")
+        monkeypatch.setattr(it, "_OPERATOR_PROFILE_MD", md)
+        p = it.load_operator_profile()
+        assert p is not None
+        assert p.dominant_lens == ("failure-first", "causal-chain", "first-principles")
 
 
 # Quiet pyright on the test-file's pytest import in environments where
