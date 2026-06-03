@@ -4621,6 +4621,31 @@ def _chain_dispatch(args) -> int:
         print(f"  {result.message}")
         return 0
 
+    if action == "compact":
+        # Event 136 CP-DEDUP-01 one-time compaction. Only deferred_discoveries
+        # has the pre-Event-49 duplicate bloat. Non-dry-run rewrites the chain
+        # in place (backup + atomic replace + post-verify), so gate it on
+        # --confirm — operator-action per the loss-averse posture.
+        dry_run = bool(getattr(args, "dry_run", False))
+        if not dry_run and not getattr(args, "confirm", False):
+            print(
+                "[episteme chain compact] refusing to rewrite chain without "
+                "--confirm (or pass --dry-run to preview)",
+                file=sys.stderr,
+            )
+            return 2
+        result = _framework.compact_deferred_discoveries(dry_run=dry_run)
+        print(f"[episteme chain compact] status={result.status}")
+        print(f"  total_before={result.total_before}")
+        print(f"  total_after={result.total_after}")
+        print(f"  removed={result.removed}")
+        if result.backup_path:
+            print(f"  backup_path={result.backup_path}")
+        if result.head_hash:
+            print(f"  head_hash={result.head_hash}")
+        print(f"  {result.message}")
+        return 0
+
     print(f"[episteme chain] unknown action: {action}", file=sys.stderr)
     return 2
 
@@ -5131,6 +5156,11 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("update", help="Pull the latest episteme from git")
     sub.add_parser("list", help="Show installed agents, skills, plugins, and active hooks")
     sub.add_parser("validate", help="Check manifest integrity — every declared skill must have a SKILL.md")
+    vex = sub.add_parser(
+        "verify-examples",
+        help="Structural-parity guard: confirm core/memory/global/examples/*.example.md stay at v2 schema parity with canonical memory (CP-EXAMPLES-SCHEMA-PARITY-01)",
+    )
+    vex.add_argument("--json", action="store_true", help="Emit JSON instead of a human-readable report")
 
     for cmd in ("bootstrap", "new-project"):
         p = sub.add_parser(cmd, help="Scaffold the standard project structure")
@@ -5378,6 +5408,26 @@ def build_parser() -> argparse.ArgumentParser:
         default="protocols",
         choices=["protocols"],
         help="Stream to upgrade (only `protocols` has legacy records to upgrade at CP7)",
+    )
+    c_compact = chain_sub.add_parser(
+        "compact",
+        help="One-time CP-DEDUP-01 compaction of the deferred_discoveries chain (collapse pre-Event-49 open duplicates; first-wins, audit trail preserved)",
+    )
+    c_compact.add_argument(
+        "--stream",
+        default="deferred_discoveries",
+        choices=["deferred_discoveries"],
+        help="Stream to compact (only deferred_discoveries has CP-DEDUP-01 bloat)",
+    )
+    c_compact.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be removed without backing up or rewriting",
+    )
+    c_compact.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Required to actually rewrite the chain when not --dry-run (in-place rewrite + backup)",
     )
 
     # CP-TEMPORAL-INTEGRITY-EXPANSION-01 Item 1 + Item 5 / Event 82 — unified
@@ -5944,6 +5994,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Make the practice tangible — walk / retro / demo (no surface authored)",
         add_help=False,
     ).add_argument("practice_args", nargs=argparse.REMAINDER)
+    sub.add_parser(
+        "report",
+        help="Tangible, quantified value report — surface authoring, failure modes, Tier-1 soak, calibration trend (read-only)",
+        add_help=False,
+    ).add_argument("report_args", nargs=argparse.REMAINDER)
 
     return parser
 
@@ -5963,7 +6018,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     # cannot forward cleanly through the parent parser). Dispatch BEFORE
     # the main argparse runs so the submodule sees its argv unmolested.
     if argv_list and argv_list[0] in (
-        "surface", "evidence", "verify", "practice", "tier1", "evaluate"
+        "surface", "evidence", "verify", "practice", "tier1", "evaluate", "report"
     ):
         subcmd, rest = argv_list[0], argv_list[1:]
         if subcmd == "surface":
@@ -5986,6 +6041,10 @@ def main(argv: Iterable[str] | None = None) -> int:
             # Event 135 — FINAL evaluation method CLI
             from episteme._evaluate import run_evaluate_cli
             return run_evaluate_cli(rest)
+        if subcmd == "report":
+            # Event 136 — tangible value-visibility report (read-only)
+            from episteme._report import run_report_cli
+            return run_report_cli(rest)
 
     parser = build_parser()
     args = parser.parse_args(argv_list)
@@ -6039,6 +6098,10 @@ def main(argv: Iterable[str] | None = None) -> int:
         return 0
     if args.command == "validate":
         return _validate_manifest()
+    if args.command == "verify-examples":
+        # Event 136 — fork-onboarding example-template parity guard
+        from episteme._verify_examples import run_verify_examples
+        return run_verify_examples(json_out=getattr(args, "json", False))
     if args.command in ("bootstrap", "new-project"):
         _bootstrap_project(
             _resolve_bootstrap_target(args.path),
