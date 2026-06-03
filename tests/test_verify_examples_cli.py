@@ -21,6 +21,20 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 _GLOBAL = _REPO_ROOT / "core" / "memory" / "global"
 _EXAMPLES = _GLOBAL / "examples"
 
+# The canonical profiles (operator_profile.md etc.) are privatized symlinks
+# into ~/episteme-private. They resolve locally for the maintainer but DANGLE
+# in CI / on a fork without the private repo (.exists() follows the symlink
+# and returns False when the target is absent). Parity tests need canonical
+# present; they skip cleanly where it isn't. The guard's own graceful
+# degradation (EXIT_USAGE on unreadable canonical) is covered by
+# test_canonical_unreadable_returns_usage + test_cli_bad_arg_returns_usage,
+# which need NO canonical and so run everywhere — that is the fork/CI path.
+_CANONICAL_PRESENT = (_GLOBAL / "operator_profile.md").exists()
+_needs_canonical = pytest.mark.skipif(
+    not _CANONICAL_PRESENT,
+    reason="canonical profiles are private-repo symlinks; absent in CI / forks without ~/episteme-private",
+)
+
 
 @pytest.fixture
 def mod():
@@ -37,6 +51,11 @@ def _build_tmp_repo(tmp_path: Path) -> Path:
     Canonical files are symlinks into the private repo; copy follows the
     symlink (`shutil.copy` reads through it) so the tmp tree is concrete and
     independent of the private repo's presence. Returns the tmp repo root."""
+    if not _CANONICAL_PRESENT:
+        pytest.skip(
+            "canonical profiles absent (private-repo symlinks not present "
+            "in CI / fork); verify-examples parity is a local-only check"
+        )
     glob = tmp_path / "core" / "memory" / "global"
     examples = glob / "examples"
     examples.mkdir(parents=True)
@@ -54,6 +73,7 @@ def _build_tmp_repo(tmp_path: Path) -> Path:
 
 
 class TestVerifyExamplesCli:
+    @_needs_canonical
     def test_committed_examples_pass(self, mod, capsys):
         # Runs against the REAL repo tree (run_verify_examples resolves repo
         # root from the module location). Requires the private repo to be
@@ -64,6 +84,7 @@ class TestVerifyExamplesCli:
         assert rc == mod.EXIT_OK, out
         assert "PASS" in out
 
+    @_needs_canonical
     def test_committed_examples_check_examples_ok(self, mod):
         code, lines = mod.check_examples(_REPO_ROOT)
         assert code == mod.EXIT_OK, lines
@@ -172,6 +193,7 @@ class TestVerifyExamplesCli:
         rc = mod.main(["--nonexistent-flag"])
         assert rc == mod.EXIT_USAGE
 
+    @_needs_canonical
     def test_json_output_parses(self, mod, capsys):
         rc = mod.run_verify_examples(json_out=True)
         out = capsys.readouterr().out
