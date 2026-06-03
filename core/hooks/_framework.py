@@ -79,6 +79,15 @@ DEFERRED_DISCOVERY_TYPE = "deferred_discovery"
 CP5_FORMAT_VERSION = "cp5-pre-chain"
 UPGRADED_FORMAT_MARKER = "cp7-chained-v1"
 
+# CP-DEDUP-01 compaction — which deferred_discovery statuses are
+# eligible to be collapsed by the one-time compaction. Only `pending`
+# entries are de-duplicated: a resolved/superseded/closed record is
+# part of the audit trail (it records that a finding was addressed) and
+# is preserved verbatim regardless of duplication. A deferred_discovery
+# with no `status` field is treated as open (the historical
+# Blueprint-D writer emitted no status, so the bloat is all `pending`).
+OPEN_STATUSES = frozenset({"pending"})
+
 
 class UpgradeError(ChainError):
     """Raised on unrecoverable retroactive-upgrade condition —
@@ -92,6 +101,30 @@ class UpgradeResult:
     status: Literal["upgraded", "already_upgraded", "empty", "missing"]
     entries_processed: int
     backup_path: Path | None
+    message: str
+
+
+@dataclass(frozen=True)
+class CompactResult:
+    """Output of ``compact_deferred_discoveries``.
+
+    - ``status`` — ``compacted`` (open duplicates removed + chain
+      rebuilt), ``noop`` (no open duplicates found; file untouched),
+      ``empty`` (file present but blank), ``missing`` (no file).
+    - ``total_before`` / ``total_after`` — record counts before/after.
+    - ``removed`` — ``total_before - total_after``.
+    - ``backup_path`` — set only when ``status == "compacted"`` (the
+      ``noop`` path never writes a backup).
+    - ``head_hash`` — chain head after compaction (None on empty /
+      missing).
+    """
+
+    status: Literal["compacted", "noop", "empty", "missing"]
+    total_before: int
+    total_after: int
+    removed: int
+    backup_path: Path | None
+    head_hash: str | None
     message: str
 
 
@@ -627,6 +660,238 @@ def upgrade_cp5_prechain(
         message=(
             f"{target}: upgraded {len(parsed)} records from "
             f"cp5-pre-chain to cp7-chained-v1; chain intact. "
+            f"Backup: {backup}"
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
+# One-time CP-DEDUP-01 compaction (deferred_discoveries)
+# ---------------------------------------------------------------------------
+
+
+def compact_deferred_discoveries(
+    *,
+    path: Path | None = None,
+    dedup_desc_prefix: int = DEFAULT_DEDUP_DESC_PREFIX,
+    dry_run: bool = False,
+) -> CompactResult:
+    """One-time in-place compaction of the deferred_discoveries chain.
+
+    Event 49's CP-DEDUP-01 stopped *new* duplicates at write time via a
+    pre-write tail-scan (see ``write_deferred_discovery``). This function
+    is the complementary one-shot cleanup of the chain that bloated
+    *before* that gate shipped — the framework writer historically
+    logged identical findings on every ``cascade:architectural`` firing
+    (a 32x duplication ratio across 1,294 records).
+
+    Algorithm (modelled on ``upgrade_cp5_prechain`` — the sanctioned
+    in-place atomic-rewrite + recompute-from-GENESIS pattern):
+
+    1. Read + parse every JSONL line. Any non-JSON / non-dict line aborts
+       with ``ChainError`` BEFORE any write — no partial rewrite.
+    2. Walk in file order keeping a seen-set of
+       ``_dedup_key(payload, dedup_desc_prefix)``. Among payloads whose
+       ``type == "deferred_discovery"`` AND ``status`` in
+       ``OPEN_STATUSES``, KEEP the FIRST envelope per key and drop later
+       open duplicates. ALWAYS keep non-deferred_discovery payloads and
+       non-open (resolved / superseded / closed) records verbatim — the
+       audit trail is never dropped.
+    3. If nothing was removed (``total_after == total_before``),
+       short-circuit ``status="noop"`` WITHOUT writing a backup.
+    4. Otherwise back the original bytes up to
+       ``<name>.compact-<ts>.bak``, rebuild by re-walking the KEPT
+       records recomputing ``prev_hash`` from ``GENESIS_PREV_HASH`` +
+       ``entry_hash`` via ``compute_entry_hash(prev, original_ts,
+       payload)`` while preserving each kept record's ORIGINAL envelope
+       ``ts`` (byte-stable re-run), ``atomic_replace_file``, then
+       ``verify_chain`` and raise ``ChainError`` if not intact (backup
+       preserved).
+
+    ``dry_run=True`` computes the would-be result (status, counts,
+    removed) without backing up or rewriting; ``backup_path`` /
+    ``head_hash`` stay None on the dry-run compaction path.
+
+    Idempotent: a second run finds no open duplicates and returns
+    ``noop`` (no new backup).
+    """
+    target = path if path is not None else _deferred_discoveries_path()
+
+    if not target.is_file():
+        return CompactResult(
+            status="missing",
+            total_before=0,
+            total_after=0,
+            removed=0,
+            backup_path=None,
+            head_hash=None,
+            message=f"{target} does not exist — nothing to compact",
+        )
+
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ChainError(f"compact_deferred_discoveries read: {exc}") from exc
+
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if not lines:
+        return CompactResult(
+            status="empty",
+            total_before=0,
+            total_after=0,
+            removed=0,
+            backup_path=None,
+            head_hash=None,
+            message=f"{target} is empty — nothing to compact",
+        )
+
+    # Parse every line first. A single bad line aborts the whole run so
+    # we never produce a partial rewrite (matches upgrade_cp5_prechain).
+    parsed: list[dict] = []
+    for idx, line in enumerate(lines):
+        try:
+            rec = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ChainError(
+                f"{target}:line {idx + 1}: not valid JSON ({exc})"
+            ) from exc
+        if not isinstance(rec, dict):
+            raise ChainError(f"{target}:line {idx + 1}: not a JSON object")
+        parsed.append(rec)
+
+    total_before = len(parsed)
+
+    # INPUT chain pre-verify (Event 136 review must-fix). The rebuild below
+    # recomputes prev_hash/entry_hash from GENESIS, so a pre-existing break
+    # or tamper in the input would be SILENTLY "healed" into a self-consistent
+    # chain — laundering a quarantined/tampered record into a verified state,
+    # and the post-rebuild verify passes by construction so it can never catch
+    # this. Refuse to compact a non-intact input (mirrors the sibling
+    # upgrade_cp5_prechain guard). The operator must resolve the break
+    # manually (archive + re-play from backup) before compaction. This fires
+    # for the dry-run path too — you cannot safely preview a compaction whose
+    # rebuild would erase tamper evidence.
+    input_verdict = _chain_verify(target)
+    if not input_verdict.intact:
+        raise ChainError(
+            f"{target}: input chain not intact ({input_verdict.reason}) — "
+            f"refusing to compact. A GENESIS rebuild would launder the break "
+            f"into a verified chain and promote quarantined records. Operator "
+            f"must resolve the break manually (archive + re-play from backup) "
+            f"before compaction."
+        )
+
+    # Walk in file order; keep the first open deferred_discovery per
+    # dedup key, drop later open duplicates, keep everything else.
+    seen_keys: set[tuple[str, str]] = set()
+    kept: list[dict] = []
+    for rec in parsed:
+        payload = rec.get("payload")
+        if (
+            isinstance(payload, dict)
+            and payload.get("type") == DEFERRED_DISCOVERY_TYPE
+            and str(payload.get("status", "pending")) in OPEN_STATUSES
+        ):
+            key = _dedup_key(payload, dedup_desc_prefix)
+            if key in seen_keys:
+                continue  # later open duplicate — drop
+            seen_keys.add(key)
+        kept.append(rec)
+
+    total_after = len(kept)
+    removed = total_before - total_after
+
+    if removed == 0:
+        return CompactResult(
+            status="noop",
+            total_before=total_before,
+            total_after=total_after,
+            removed=0,
+            backup_path=None,
+            head_hash=_chain_verify(target).head_hash,
+            message=(
+                f"{target}: no open duplicates among {total_before} records "
+                f"— nothing to compact"
+            ),
+        )
+
+    # Rebuild the chain from GENESIS, preserving each kept record's
+    # ORIGINAL envelope ts (byte-stable: re-running on already-compacted
+    # input is a noop because the hashes reproduce exactly).
+    new_lines: list[str] = []
+    expected_prev = GENESIS_PREV_HASH
+    head_hash = expected_prev
+    for rec in kept:
+        payload = rec.get("payload")
+        ts = rec.get("ts")
+        if not isinstance(payload, dict) or not isinstance(ts, str):
+            raise ChainError(
+                f"{target}: kept record missing payload / ts during rebuild "
+                f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
+            )
+        entry_hash = compute_entry_hash(expected_prev, ts, payload)
+        envelope = {
+            "schema_version": UPGRADED_FORMAT_MARKER,
+            "ts": ts,
+            "prev_hash": expected_prev,
+            "payload": payload,
+            "entry_hash": entry_hash,
+        }
+        new_lines.append(json.dumps(envelope, ensure_ascii=False))
+        expected_prev = entry_hash
+        head_hash = entry_hash
+
+    if dry_run:
+        return CompactResult(
+            status="compacted",
+            total_before=total_before,
+            total_after=total_after,
+            removed=removed,
+            backup_path=None,
+            head_hash=None,
+            message=(
+                f"{target}: DRY RUN — would remove {removed} open duplicate(s), "
+                f"leaving {total_after} of {total_before} records"
+            ),
+        )
+
+    # Backup the original bytes before any rewrite.
+    from datetime import datetime, timezone
+
+    backup_ts = (
+        datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
+    )
+    backup = target.with_suffix(f".compact-{backup_ts}.bak")
+    try:
+        backup.write_bytes(target.read_bytes())
+    except OSError as exc:
+        raise ChainError(f"compact_deferred_discoveries backup: {exc}") from exc
+
+    new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
+    try:
+        _atomic_replace(target, new_contents)
+    except OSError as exc:
+        raise ChainError(
+            f"compact_deferred_discoveries atomic replace: {exc}"
+        ) from exc
+
+    post_verdict = _chain_verify(target)
+    if not post_verdict.intact:
+        raise ChainError(
+            f"{target}: compaction wrote file but post-verify failed "
+            f"({post_verdict.reason}). Backup preserved at {backup}."
+        )
+
+    return CompactResult(
+        status="compacted",
+        total_before=total_before,
+        total_after=total_after,
+        removed=removed,
+        backup_path=backup,
+        head_hash=post_verdict.head_hash,
+        message=(
+            f"{target}: compacted {total_before} → {total_after} records "
+            f"({removed} open duplicate(s) removed); chain intact. "
             f"Backup: {backup}"
         ),
     )

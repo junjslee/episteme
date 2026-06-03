@@ -57,9 +57,9 @@ if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
 
 # Event 135 — Stage 2 Tier-1 dispatch path needs to import from
-# core.practice.irreversible_tier (sibling under core/). The hook runs
-# as a standalone script in production; add the repo root to sys.path so
-# the package import resolves the same under runtime and pytest.
+# core.hooks._irreversible_tier (moved there in Event 136 Stage 4b). The
+# hook runs as a standalone script in production; add the repo root to
+# sys.path so the package import resolves the same under runtime and pytest.
 _REPO_ROOT = _HOOKS_DIR.parent.parent
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -1099,7 +1099,7 @@ def _try_tier1_dispatch(payload: dict, tool_name: str, label: str) -> bool:
     existing gate remains the source of truth on errors.
     """
     try:
-        from core.practice.irreversible_tier import (  # noqa: E402
+        from core.hooks._irreversible_tier import (  # noqa: E402
             Tier as _Tier,
             classify as _classify,
             load_git_context as _load_git_ctx,

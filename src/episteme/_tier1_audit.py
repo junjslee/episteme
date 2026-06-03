@@ -8,7 +8,7 @@ metrics that govern the Stage 3 soak gate:
 - **Rationale-accuracy rate:** of operator-confirmed records, the
   fraction where `subsequent_revert_within_24h` is False.
 - **Soak gate verdict:** OPEN iff all three thresholds in
-  `core.practice.irreversible_tier.soak_gate_open` are met.
+  `core.hooks._irreversible_tier.soak_gate_open` are met.
 
 Exit codes:
 - 0 — audit succeeded (gate OPEN or CLOSED, both are normal states)
@@ -27,15 +27,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # Editable-install + repo-checkout discoverability: src/episteme/ is the
-# installed package, but the classifier lives at core/practice/ which is
-# outside the package tree. When invoked from an editable install (`pip
-# install -e .`), Path(__file__).parents[2] is the repo root which holds
-# both src/ and core/. Add it to sys.path so `from core.practice...`
-# resolves at CLI runtime. Non-editable wheel installs (rare today —
-# PyPI publish is disabled per release-please.yml) fall back to the
-# ImportError path in _audit().
+# installed package, but the classifier lives at core/hooks/_irreversible_tier.py
+# (Event 136 Stage 4b move) which is outside the package tree. When invoked
+# from an editable install (`pip install -e .`), Path(__file__).parents[2] is
+# the repo root which holds both src/ and core/. Add it to sys.path so
+# `from core.hooks...` resolves at CLI runtime. Non-editable wheel installs
+# (rare today — PyPI publish is disabled per release-please.yml) fall back to
+# the ImportError path in _audit().
+# Guard keys on `core/` itself (the stable package-root invariant) rather than
+# a specific subpackage — Event 136 fence-discipline call: the prior
+# `core/practice` check's purpose (locate the classifier's home) is obsolete
+# after the move; `core/` is the durable thing both import paths require.
 _REPO_ROOT_CANDIDATE = Path(__file__).resolve().parents[2]
-if (_REPO_ROOT_CANDIDATE / "core" / "practice").is_dir():
+if (_REPO_ROOT_CANDIDATE / "core").is_dir():
     if str(_REPO_ROOT_CANDIDATE) not in sys.path:
         sys.path.insert(0, str(_REPO_ROOT_CANDIDATE))
 
@@ -89,7 +93,7 @@ def _audit(
     json_output: bool,
 ) -> int:
     # Import lazily so the CLI module imports cheaply.
-    from core.practice.irreversible_tier import (
+    from core.hooks._irreversible_tier import (
         SOAK_GATE_MIN_DAYS,
         SOAK_GATE_MIN_OPS,
         SOAK_GATE_MIN_RATIONALE_ACCURACY,

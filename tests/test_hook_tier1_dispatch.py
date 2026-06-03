@@ -41,7 +41,7 @@ def hook_module(monkeypatch, tmp_path):
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    from core.practice import irreversible_tier as it
+    from core.hooks import _irreversible_tier as it
     monkeypatch.setattr(it, "TIER1_TELEMETRY_PATH", tmp_path / "tier1.jsonl")
     monkeypatch.setattr(it, "_DERIVED_KNOBS_PATH", tmp_path / "derived.json")
     monkeypatch.setattr(it, "_OPERATOR_PROFILE_MD", tmp_path / "profile.md")

@@ -191,7 +191,7 @@ High-impact decisions must record to `.episteme/reasoning-surface.json` before t
 
 6. All commits land on the feature branch. **Never commit directly to local master.** All work — including small typo fixes — goes through a feature branch.
 7. **Never run `git merge` on local master.** Merging happens on origin (via PR) or via post-merge sync (step 11 below), not via local merge.
-8. Conventional-commit messages, imperative mood, scoped: `kernel: …`, `docs: …`, `feat(scope): …`, `fix(scope): …`, etc. Checkpoint commits keep prefix `chkpt:` (existing chkpt hook still uses it).
+8. Conventional-commit messages, imperative mood, scoped: `kernel: …`, `docs: …`, `feat(scope): …`, `fix(scope): …`, etc. Checkpoint commits use the Conventional-Commits-valid prefix `chore(chkpt):` (parses as type=chore, release-please-hidden; replaced the bare `chkpt:` that 500'd the release-please parser — CP-RELEASE-PLEASE-CHKPT-FILTER-01).
 
 ### Ship Event — pick exactly one path
 
@@ -294,7 +294,7 @@ git push origin --delete event-NN-shortname
 
 ## Commit and handoff conventions
 
-- Commit messages: imperative mood, scoped (`kernel: …`, `docs: …`, `adapters: …`). Checkpoint commits use prefix `chkpt:`.
+- Commit messages: imperative mood, scoped (`kernel: …`, `docs: …`, `adapters: …`). Checkpoint commits use the Conventional-Commits-valid prefix `chore(chkpt):`.
 - Maintainer workflow: every substantive change updates the project's authoritative operational record (PROGRESS / NEXT_STEPS — may be in private staging) with a Reasoning Surface block, and every session ends with a one-sentence "So-What Now?".
 - External contributor workflow: include the Reasoning Surface block + "So-What Now?" inline in the PR description; the maintainer integrates these into the operational record on merge. Contributors do not need to update operational docs themselves.
 - Branch naming: `event-NN-shortname` for maintainer-ordered Events (numbering tracked in the maintainer's operational record); `feat/<name>`, `fix/<name>`, `research/<name>`, `ops/<name>`, `docs/<name>` for non-Event work.

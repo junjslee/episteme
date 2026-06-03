@@ -532,6 +532,256 @@ class FrameworkWrite(unittest.TestCase):
             records = _framework.list_deferred_discoveries()
             self.assertEqual(len(records), 2)
 
+    # ---- CP-DEDUP-01 one-time compaction (compact already-bloated store) ----
+
+    def _dd_path(self) -> Path:
+        return _framework._deferred_discoveries_path()
+
+    def _seed_dup(self, payload: dict) -> dict:
+        """Write a deferred_discovery bypassing the write-time dedup gate
+        (dedup=False) so the store can be deliberately bloated the way the
+        pre-Event-49 framework writer did."""
+        return _framework.write_deferred_discovery(payload, dedup=False)
+
+    def test_compact_collapses_open_duplicates_first_wins(self):
+        with EphemeralHome():
+            first = self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "cascade fires on kernel state file edits",
+                "observable": "first occurrence",
+            })
+            self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "cascade fires on kernel state file edits",
+                "observable": "second — later duplicate",
+            })
+            self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "cascade fires on kernel state file edits",
+                "observable": "third — later duplicate",
+            })
+            self.assertEqual(len(_framework.list_deferred_discoveries()), 3)
+
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "compacted")
+            self.assertEqual(result.total_before, 3)
+            self.assertEqual(result.total_after, 1)
+            self.assertEqual(result.removed, 2)
+            self.assertIsNotNone(result.backup_path)
+
+            records = _framework.list_deferred_discoveries()
+            self.assertEqual(len(records), 1)
+            # First-wins: the surviving payload is the FIRST occurrence.
+            self.assertEqual(
+                records[0]["payload"]["observable"], "first occurrence"
+            )
+            # The first envelope's ts is preserved byte-stable.
+            self.assertEqual(records[0]["ts"], first["ts"])
+
+    def test_compact_preserves_chain_integrity(self):
+        with EphemeralHome():
+            for i in range(4):
+                self._seed_dup({
+                    "flaw_classification": "config-gap",
+                    "description": "identical bloated finding",
+                    "observable": f"copy {i}",
+                })
+            _framework.compact_deferred_discoveries()
+            verdict = _chain.verify_chain(self._dd_path())
+            self.assertTrue(verdict.intact)
+            self.assertIsNone(verdict.break_index)
+            self.assertEqual(verdict.total_entries, 1)
+
+    def test_compact_is_idempotent_no_new_backup(self):
+        with EphemeralHome():
+            for i in range(3):
+                self._seed_dup({
+                    "flaw_classification": "config-gap",
+                    "description": "identical bloated finding",
+                    "observable": f"copy {i}",
+                })
+            r1 = _framework.compact_deferred_discoveries()
+            self.assertEqual(r1.status, "compacted")
+            baks_after_first = sorted(self._dd_path().parent.glob("*.compact-*.bak"))
+            self.assertEqual(len(baks_after_first), 1)
+
+            r2 = _framework.compact_deferred_discoveries()
+            self.assertEqual(r2.status, "noop")
+            self.assertEqual(r2.removed, 0)
+            self.assertEqual(r2.total_before, r2.total_after)
+            self.assertIsNone(r2.backup_path)
+            # No second backup written on the noop run.
+            baks_after_second = sorted(self._dd_path().parent.glob("*.compact-*.bak"))
+            self.assertEqual(len(baks_after_second), 1)
+
+    def test_compact_preserves_distinct_findings_and_order(self):
+        with EphemeralHome():
+            self._seed_dup({"flaw_classification": "config-gap", "description": "alpha"})
+            self._seed_dup({"flaw_classification": "config-gap", "description": "alpha"})  # dup
+            self._seed_dup({"flaw_classification": "schema-drift", "description": "beta"})
+            self._seed_dup({"flaw_classification": "config-gap", "description": "gamma"})
+            self._seed_dup({"flaw_classification": "schema-drift", "description": "beta"})  # dup
+
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "compacted")
+            self.assertEqual(result.removed, 2)
+
+            records = _framework.list_deferred_discoveries()
+            descs = [r["payload"]["description"] for r in records]
+            # Distinct findings preserved in original file order, first-wins.
+            self.assertEqual(descs, ["alpha", "beta", "gamma"])
+
+    def test_compact_keeps_non_open_and_non_dd_records_verbatim(self):
+        with EphemeralHome():
+            # A non-deferred_discovery payload sharing the chain (protocols
+            # use a separate file, so seed a resolved dd + a foreign-type
+            # record directly into the dd stream to prove both are kept).
+            self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "shared key finding",
+                "status": "resolved",   # non-open — must be kept verbatim
+            })
+            self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "shared key finding",
+                "status": "pending",
+            })
+            self._seed_dup({
+                "flaw_classification": "config-gap",
+                "description": "shared key finding",
+                "status": "pending",   # open dup of the pending one — dropped
+            })
+            # A foreign-type record in the same stream (e.g. a chain_reset
+            # genesis) must be preserved regardless of dedup key.
+            _chain.append(self._dd_path(), {
+                "type": "chain_reset",
+                "reason": "x",
+            })
+
+            before = _framework.list_deferred_discoveries()
+            # 2 dd survive the dd-only listing filter (resolved + pending);
+            # the dropped one is the 2nd pending.
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "compacted")
+            # total_before counts every envelope (3 dd + 1 chain_reset).
+            self.assertEqual(result.total_before, 4)
+            # Only one open pending dup removed.
+            self.assertEqual(result.removed, 1)
+            self.assertEqual(result.total_after, 3)
+
+            # Both the resolved dd and the foreign chain_reset survive.
+            verdict = _chain.verify_chain(self._dd_path())
+            self.assertTrue(verdict.intact)
+            kept_payloads = [
+                rec["payload"]
+                for rec in _chain.iter_records(self._dd_path())
+            ]
+            statuses = [
+                p.get("status") for p in kept_payloads
+                if p.get("type") == "deferred_discovery"
+            ]
+            self.assertIn("resolved", statuses)
+            self.assertEqual(statuses.count("pending"), 1)
+            self.assertTrue(
+                any(p.get("type") == "chain_reset" for p in kept_payloads)
+            )
+            self.assertGreaterEqual(len(before), 1)
+
+    def test_compact_aborts_on_corrupt_line_leaves_file_unchanged(self):
+        with EphemeralHome():
+            self._seed_dup({"flaw_classification": "config-gap", "description": "alpha"})
+            self._seed_dup({"flaw_classification": "config-gap", "description": "alpha"})
+            path = self._dd_path()
+            # Corrupt the file with a non-JSON line.
+            original = path.read_bytes()
+            path.write_bytes(original + b"this-is-not-json\n")
+            corrupted = path.read_bytes()
+
+            with self.assertRaises(_framework.ChainError):
+                _framework.compact_deferred_discoveries()
+            # File byte-unchanged: no partial rewrite, no backup.
+            self.assertEqual(path.read_bytes(), corrupted)
+            self.assertEqual(
+                len(sorted(path.parent.glob("*.compact-*.bak"))), 0
+            )
+
+    def test_compact_empty_file_returns_empty_status(self):
+        with EphemeralHome():
+            path = self._dd_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("")
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "empty")
+            self.assertEqual(result.total_before, 0)
+            self.assertIsNone(result.backup_path)
+
+    def test_compact_missing_file_returns_missing_status(self):
+        with EphemeralHome():
+            # No file ever written.
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "missing")
+            self.assertEqual(result.total_before, 0)
+            self.assertIsNone(result.backup_path)
+
+    def test_compact_dry_run_does_not_write(self):
+        with EphemeralHome():
+            for i in range(3):
+                self._seed_dup({
+                    "flaw_classification": "config-gap",
+                    "description": "identical bloated finding",
+                    "observable": f"copy {i}",
+                })
+            path = self._dd_path()
+            before = path.read_bytes()
+            result = _framework.compact_deferred_discoveries(dry_run=True)
+            self.assertEqual(result.status, "compacted")
+            self.assertEqual(result.removed, 2)
+            self.assertIsNone(result.backup_path)
+            # File untouched + no backup on dry-run.
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(
+                len(sorted(path.parent.glob("*.compact-*.bak"))), 0
+            )
+
+    def test_compact_refuses_tampered_input_chain(self):
+        # Event 136 review must-fix: a GENESIS rebuild would silently "heal"
+        # a pre-existing break/tamper into a verified chain, laundering a
+        # quarantined record into trusted state. Compaction MUST refuse a
+        # non-intact input rather than launder it.
+        with EphemeralHome():
+            # Seed an open duplicate pair so removed > 0 (forces the rewrite
+            # path that would otherwise launder).
+            for i in range(2):
+                self._seed_dup({
+                    "flaw_classification": "config-gap",
+                    "description": "duplicate finding",
+                    "observable": f"copy {i}",
+                })
+            path = self._dd_path()
+            lines = path.read_text(encoding="utf-8").splitlines()
+            # Tamper the LAST record's payload in place, leaving its stored
+            # entry_hash stale → chain break at that index.
+            last = json.loads(lines[-1])
+            last["payload"]["observable"] = "TAMPERED — entry_hash now stale"
+            lines[-1] = json.dumps(last)
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            before = path.read_bytes()
+
+            # Confirm the input is genuinely broken first.
+            self.assertFalse(_chain.verify_chain(path).intact)
+
+            # Compaction must REFUSE (raise), not launder.
+            with self.assertRaises(_framework.ChainError):
+                _framework.compact_deferred_discoveries()
+            # Dry-run must refuse identically (cannot safely preview).
+            with self.assertRaises(_framework.ChainError):
+                _framework.compact_deferred_discoveries(dry_run=True)
+            # File untouched + no backup written on refusal.
+            self.assertEqual(path.read_bytes(), before)
+            self.assertEqual(
+                len(sorted(path.parent.glob("*.compact-*.bak"))), 0
+            )
+
 
 # ---------- Retroactive CP5 upgrade --------------------------------------
 
