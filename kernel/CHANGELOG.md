@@ -92,6 +92,20 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.6.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.5.1-rc1...episteme-v1.6.0-rc1) (2026-06-03)
+
+
+### Features
+
+* **cli:** verify-examples guard, chain compact, and the tangible episteme report ([8a18168](https://github.com/junjslee/episteme/commit/8a181680abebf35f0dc600899541682420528975))
+* **framework:** one-time deferred-discovery chain compaction (CP-DEDUP-01) ([3dc2fb2](https://github.com/junjslee/episteme/commit/3dc2fb2896e2e4e6a92dec87da8294bbc412d785))
+* **hooks:** conventional chkpt prefix + shell-aware block-dangerous matcher ([03a5afc](https://github.com/junjslee/episteme/commit/03a5afc7ab83a0b424e1a7dea55020a70da08825))
+
+
+### Bug Fixes
+
+* **tests:** skip verify-examples parity tests when canonical profiles absent ([2117ad6](https://github.com/junjslee/episteme/commit/2117ad6b90adb5d4b5926fd27a0b1deb34d45df6))
+
 ## [1.5.1-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.5.0-rc1...episteme-v1.5.1-rc1) (2026-05-23)
 
 
