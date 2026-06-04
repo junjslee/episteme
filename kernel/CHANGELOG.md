@@ -92,6 +92,13 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.6.1-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.6.0-rc1...episteme-v1.6.1-rc1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **report:** align failure-mode column, de-duplicate progress labels, label health ([e45e666](https://github.com/junjslee/episteme/commit/e45e666917cf0d09c7f5ea706b0c6a1bfb7ed9cf))
+
 ## [1.6.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.5.1-rc1...episteme-v1.6.0-rc1) (2026-06-03)
 
 
