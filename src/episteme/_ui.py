@@ -316,8 +316,12 @@ def sparkline(values: Iterable[float], *, width: Optional[int] = None) -> str:
 # ─── Progress indicator ──────────────────────────────────────────────────
 
 
-def progress(current: int, total: int, *, label: str = "", width: int = 30) -> str:
-    """Render a one-line progress indicator: [████░░░░░░] 4/10 label"""
+def progress(current: float, total: float, *, label: str = "", width: int = 30) -> str:
+    """Render a one-line progress indicator: [████░░░░░░] 4/10 label
+
+    `current`/`total` accept floats so a fractional metric (e.g. 5.2 of 7
+    soak days) renders without losing its decimal; ints render as ints.
+    """
     if total <= 0:
         return label
     filled = int((current / total) * width)

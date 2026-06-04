@@ -427,6 +427,16 @@ def _fmt_pct(value: Optional[float]) -> str:
     return f"{value:.1%}" if value is not None else "n/a"
 
 
+def _health_word(value: float, *, good: float, warn: float) -> str:
+    """Plain-text health label paired with the colored glyph so the signal
+    survives color-stripping (good / watch / low)."""
+    if value >= good:
+        return "good"
+    if value >= warn:
+        return "watch"
+    return "low"
+
+
 def _render(data: ReportData, renderer: _ui.Renderer) -> str:
     """Render `data` into the full multi-section report string.
 
@@ -459,7 +469,9 @@ def _render(data: ReportData, renderer: _ui.Renderer) -> str:
     ]
     if rate is not None:
         ind = _ui.health_indicator(rate, good_threshold=0.80, warn_threshold=0.50)
-        surface_rows.append(("Health", ind))
+        # Append a word so the signal survives color-stripping (PRs, Slack,
+        # piped output) — a bare colored dot collapses to an ambiguous glyph.
+        surface_rows.append(("Health", f"{ind} {_health_word(rate, good=0.80, warn=0.50)}"))
     parts.append(_ui.kv_table(surface_rows))
     if data.surface_total > 0:
         parts.append(
@@ -476,24 +488,30 @@ def _render(data: ReportData, renderer: _ui.Renderer) -> str:
         count = data.failure_modes.get(bucket_id, 0)
         fm_rows.append((label, str(count)))
     fm_rows.append(("Total ops countered", str(data.failure_modes_total)))
-    parts.append(_ui.kv_table(fm_rows, key_width=46))
+    # Size the key column to the longest label so the counts stay in a
+    # single aligned column (the longest failure-mode label is ~49 chars,
+    # which overflowed the prior fixed key_width=46 and jammed its count).
+    fm_key_width = max((len(label) for label, _ in fm_rows), default=28) + 2
+    parts.append(_ui.kv_table(fm_rows, key_width=fm_key_width))
     parts.append("")
 
     # ── (3) Tier-1 Soak ───────────────────────────────────────────────────
     parts.append(_ui.header("Tier-1 Soak", level=2))
+    # The bar already prints current/total, so the label is just the noun
+    # (no redundant "(14/20)"). Days passes the float so the decimal shows
+    # once in the bar ("5.2/7") rather than as "5/7  days (5.2/7)".
     parts.append(
         _ui.progress(
             min(data.tier1_ops, data.tier1_ops_floor),
             data.tier1_ops_floor,
-            label=f"ops ({data.tier1_ops}/{data.tier1_ops_floor})",
+            label="ops",
         )
     )
-    days_current = int(min(data.tier1_days, data.tier1_days_floor))
     parts.append(
         _ui.progress(
-            days_current,
+            min(data.tier1_days, data.tier1_days_floor),
             data.tier1_days_floor,
-            label=f"days ({data.tier1_days:.1f}/{data.tier1_days_floor})",
+            label="days",
         )
     )
     acc = data.tier1_accuracy
