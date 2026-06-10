@@ -147,6 +147,100 @@ def _framework_digest_line() -> str | None:
     )
 
 
+_E1_PROTOCOL_FLOOR = 3
+_E1_WINDOW_DAYS = 30
+
+
+def _e1_line() -> str | None:
+    """Event 137 — the kernel runs its own falsifiability condition.
+
+    `kernel/FALSIFIABILITY_CONDITIONS.md` § E1 names `< 3 protocols
+    after 30 days of normal kernel use` as a falsification condition
+    for the active-guidance claim. Until this producer existed, E1 was
+    a hand-maintained doc status: the condition fired on live state
+    and nothing surfaced it — the kernel enforced disconfirmation on
+    the operator's decisions while never evaluating its own. This line
+    closes that loop: the framework age comes from the oldest
+    framework record, so the check is mechanical, not aspirational.
+
+    Silent when the framework has no records at all (kernel not in
+    use), when fewer than 30 days of activity have accrued, or when
+    the protocol floor is met."""
+    _hooks_dir = Path(__file__).resolve().parent
+    if str(_hooks_dir) not in sys.path:
+        sys.path.insert(0, str(_hooks_dir))
+    try:
+        import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+        protocols = _framework.list_protocols(include_superseded=True)
+        deferred = _framework.list_deferred_discoveries()
+    except Exception:
+        return None
+    total = len(protocols)
+    if total >= _E1_PROTOCOL_FLOOR:
+        return None
+    earliest: datetime | None = None
+    for env in protocols + deferred:
+        ts = env.get("ts") if isinstance(env, dict) else None
+        if not isinstance(ts, str) or not ts:
+            continue
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if earliest is None or dt < earliest:
+            earliest = dt
+    if earliest is None:
+        return None
+    age_days = (datetime.now(timezone.utc) - earliest).days
+    if age_days < _E1_WINDOW_DAYS:
+        return None
+    noun = "protocol" if total == 1 else "protocols"
+    return (
+        f"falsifiability: E1 FIRED — {total} {noun} synthesized after "
+        f"{age_days} days of framework activity (floor: "
+        f"{_E1_PROTOCOL_FLOOR} per {_E1_WINDOW_DAYS}d). Active guidance "
+        f"is currently aspirational, not operational — see "
+        f"kernel/FALSIFIABILITY_CONDITIONS.md § E1."
+    )
+
+
+_NEXT_STEPS_MAX_CHARS = 8000
+
+
+def _next_steps_block(path: Path | None = None) -> str | None:
+    """Bounded NEXT_STEPS injection (Event 137).
+
+    The file's own contract is 'exact next actions, updated at every
+    handoff' with the resume-here block first — so the head of the
+    file carries the orientation value and the tail is history.
+    Unbounded injection (observed at 240KB, doubled by dual hook
+    registration) buries the resume block under stale events: WYSIATI
+    applied to the context window itself. Cap at the last newline
+    before `_NEXT_STEPS_MAX_CHARS` and say what was omitted."""
+    ns = path if path is not None else Path("docs/NEXT_STEPS.md")
+    if not ns.exists():
+        return None
+    try:
+        content = ns.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    if not content:
+        return None
+    if len(content) > _NEXT_STEPS_MAX_CHARS:
+        cut = content.rfind("\n", 0, _NEXT_STEPS_MAX_CHARS)
+        if cut <= 0:
+            cut = _NEXT_STEPS_MAX_CHARS
+        omitted = len(content) - cut
+        content = (
+            content[:cut]
+            + f"\n\n[truncated by session_context: {omitted} more "
+            f"chars of history — open docs/NEXT_STEPS.md directly]"
+        )
+    return f"\n--- docs/NEXT_STEPS.md ---\n{content}"
+
+
 def run(args: list[str]) -> str:
     r = subprocess.run(args, capture_output=True, text=True)
     return r.stdout.strip() if r.returncode == 0 else ""
@@ -371,6 +465,13 @@ def main() -> int:
     if framework_line:
         lines.append(framework_line)
 
+    # Event 137 · E1 self-check — the kernel evaluates its own
+    # falsifiability condition against live framework state instead of
+    # trusting the hand-maintained doc status.
+    e1_line = _e1_line()
+    if e1_line:
+        lines.append(e1_line)
+
     # Phase A · v1.0.1 — noise-watch advisory derived from the operator
     # profile's cognitive.noise_signature axis. Silent when the knob is
     # absent. Ordering: AFTER the framework digest so the cognitive
@@ -379,12 +480,10 @@ def main() -> int:
     if noise_line:
         lines.append(noise_line)
 
-    # NEXT_STEPS.md if present
-    ns = Path("docs/NEXT_STEPS.md")
-    if ns.exists():
-        content = ns.read_text().strip()
-        if content:
-            lines.append(f"\n--- docs/NEXT_STEPS.md ---\n{content}")
+    # NEXT_STEPS.md if present — bounded read (Event 137).
+    ns_block = _next_steps_block()
+    if ns_block:
+        lines.append(ns_block)
 
     if lines:
         separator = "─" * 60

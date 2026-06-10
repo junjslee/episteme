@@ -726,5 +726,128 @@ class SchemaExtensionDeferredDiscoveriesRelaxed(unittest.TestCase):
         self.assertEqual(verdict, "pass")
 
 
+# ---------- Read-only command exemption (Event 137) ----------------------
+
+
+class DetectorReadOnlyExemption(unittest.TestCase):
+    """Event 137 — positive-system read-only exemption ahead of Trigger 2.
+
+    Pure inspection of a sensitive path is not an architectural cascade.
+    Exemption requires EVERY pipeline segment head to be on the
+    read-only allowlist AND no write-capable shell construct anywhere
+    in the command. Anything not provably read-only stays high-impact.
+    """
+
+    # -- exempt: provably read-only shapes --------------------------------
+
+    def test_wc_on_kernel_doc_does_not_fire(self):
+        op = _bash_op("wc -l kernel/FAILURE_MODES.md")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_grep_on_hooks_path_does_not_fire(self):
+        op = _bash_op("grep -n 'def detect' core/hooks/_cascade_detector.py")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_ls_on_episteme_dir_does_not_fire(self):
+        op = _bash_op("ls -la .episteme/")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_read_only_pipeline_does_not_fire(self):
+        op = _bash_op(
+            "grep -rn pattern core/hooks/ | head -20 "
+            "&& wc -l kernel/ARCHITECTURE.md"
+        )
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_stderr_sink_redirection_stays_exempt(self):
+        op = _bash_op("cat core/schemas/something.json 2>/dev/null")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_dev_null_sink_stays_exempt(self):
+        op = _bash_op("grep -q marker pyproject.toml > /dev/null 2>&1")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_git_log_on_sensitive_path_does_not_fire(self):
+        op = _bash_op("git log --oneline -5 -- core/hooks/")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    # -- NOT exempt: write-capable or non-allowlisted shapes ---------------
+
+    def test_redirection_into_sensitive_path_fires(self):
+        op = _bash_op(
+            "grep x kernel/FAILURE_MODES.md > kernel/FAILURE_MODES.md"
+        )
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_command_substitution_disqualifies(self):
+        op = _bash_op("wc -l $(echo core/hooks/x.py)")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_backtick_substitution_disqualifies(self):
+        op = _bash_op("cat `ls core/hooks/`")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_mixed_pipeline_with_mutating_segment_fires(self):
+        op = _bash_op("cat core/hooks/foo.py; rm core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_xargs_executor_disqualifies(self):
+        op = _bash_op("ls core/hooks/ | xargs rm")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_editor_on_sensitive_path_still_fires(self):
+        op = _bash_op("vi core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_git_mutating_subcommand_still_fires(self):
+        op = _bash_op("git add core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_sed_not_allowlisted_still_fires(self):
+        op = _bash_op("sed -n '1,5p' core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_self_escalation_overrides_read_only_exemption(self):
+        # Trigger 1 is the operator explicitly asking for Blueprint D
+        # discipline; a read-only command does not opt out of it.
+        op = _bash_op("ls -la core/hooks/")
+        surface = {"flaw_classification": "config-gap"}
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op, surface=surface),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_env_assignment_prefix_disqualifies(self):
+        op = _bash_op("FOO=bar grep x core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

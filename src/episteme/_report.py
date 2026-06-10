@@ -146,6 +146,15 @@ class ReportData:
     calibration_series: tuple = ()
     calibration_paired_ops: int = 0
 
+    # (5) Protocol Synthesis — Pillar 3 store + E1 falsifiability
+    # self-check (Event 137). `framework_age_days` is days since the
+    # oldest framework record (protocols OR deferred discoveries);
+    # None when the framework has never been written to.
+    protocols_total: int = 0
+    framework_age_days: Optional[int] = None
+    e1_protocol_floor: int = 3
+    e1_window_days: int = 30
+
     @property
     def surface_rate(self) -> Optional[float]:
         if self.surface_total <= 0:
@@ -155,6 +164,17 @@ class ReportData:
     @property
     def failure_modes_total(self) -> int:
         return sum(self.failure_modes.values())
+
+    @property
+    def e1_fired(self) -> bool:
+        """kernel/FALSIFIABILITY_CONDITIONS.md § E1, evaluated against
+        live state: < floor protocols after the 30-day window of
+        framework activity falsifies the active-guidance claim."""
+        return (
+            self.framework_age_days is not None
+            and self.framework_age_days >= self.e1_window_days
+            and self.protocols_total < self.e1_protocol_floor
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +208,8 @@ def _demo_metrics() -> ReportData:
             0.85, 0.87, 0.89, 0.91, 0.92, 0.93,
         ),
         calibration_paired_ops=96,
+        protocols_total=4,
+        framework_age_days=21,
     )
 
 
@@ -200,12 +222,15 @@ def _collect_metrics(
     telemetry_dir: Path,
     audit_path: Path,
     tier1_path: Path,
+    framework_dir: Path,
 ) -> ReportData:
-    """Read the three live stores and build a real `ReportData`.
+    """Read the live stores and build a real `ReportData`.
 
     - `audit_path`     : ~/.episteme/audit.jsonl (sections 1 + 2)
     - `tier1_path`     : ~/.episteme/telemetry/tier1.jsonl (section 3)
     - `telemetry_dir`  : ~/.episteme/telemetry/ (section 4, *-audit.jsonl)
+    - `framework_dir`  : ~/.episteme/framework/ (section 5, protocols.jsonl
+                         + deferred_discoveries.jsonl)
 
     None of these need to exist — missing stores yield zero-valued metrics,
     which the caller uses to decide whether to fall through to the demo.
@@ -236,6 +261,9 @@ def _collect_metrics(
     # (4) Calibration trend.
     calibration_series, paired_ops = _collect_calibration(telemetry_dir)
 
+    # (5) Protocol synthesis + E1 self-check.
+    protocols_total, framework_age_days = _collect_framework(framework_dir)
+
     return ReportData(
         is_demo=False,
         surface_total=surface_total,
@@ -246,6 +274,8 @@ def _collect_metrics(
         tier1_accuracy=tier1_accuracy,
         tier1_gate_open=gate_open,
         tier1_gate_reason=gate_reason,
+        protocols_total=protocols_total,
+        framework_age_days=framework_age_days,
         calibration_series=tuple(calibration_series),
         calibration_paired_ops=paired_ops,
     )
@@ -373,6 +403,37 @@ def _read_jsonl(path: Path) -> list[dict]:
     return records
 
 
+def _collect_framework(framework_dir: Path) -> tuple[int, Optional[int]]:
+    """Protocol count + framework activity age in days (section 5).
+
+    Raw line reads (no chain verification), consistent with _status.py —
+    the report is read-only telemetry, not an integrity audit. Age is
+    days since the OLDEST envelope ts across protocols and deferred
+    discoveries; None when the framework holds no records at all.
+    """
+    protocols = _read_jsonl(framework_dir / "protocols.jsonl")
+    deferred = _read_jsonl(framework_dir / "deferred_discoveries.jsonl")
+    earliest: Optional[datetime] = None
+    for env in protocols + deferred:
+        ts = env.get("ts")
+        if not isinstance(ts, str) or not ts:
+            continue
+        try:
+            dt = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if earliest is None or dt < earliest:
+            earliest = dt
+    age_days: Optional[int] = None
+    if earliest is not None:
+        age_days = max(
+            0, (datetime.now(timezone.utc) - earliest).days
+        )
+    return len(protocols), age_days
+
+
 # ---------------------------------------------------------------------------
 # Verdict.
 # ---------------------------------------------------------------------------
@@ -412,6 +473,16 @@ def _verdict(data: ReportData) -> str:
 
     gate = "OPEN" if data.tier1_gate_open else "CLOSED"
     body += f" Tier-1 soak gate: {gate}."
+
+    if data.e1_fired:
+        body += (
+            f" Falsifiability: E1 FIRED — {data.protocols_total} "
+            f"protocols after {data.framework_age_days} days of "
+            f"framework activity (floor: {data.e1_protocol_floor} per "
+            f"{data.e1_window_days}d); active guidance is currently "
+            f"aspirational — see kernel/FALSIFIABILITY_CONDITIONS.md "
+            f"§ E1."
+        )
 
     if data.is_demo:
         return f"(worked example) {body}"
@@ -554,7 +625,40 @@ def _render(data: ReportData, renderer: _ui.Renderer) -> str:
         )
     parts.append("")
 
-    # ── (5) Verdict ───────────────────────────────────────────────────────
+    # ── (5) Protocol Synthesis ────────────────────────────────────────────
+    # Pillar 3's compounding loop, with the E1 falsifiability self-check
+    # evaluated against live state (Event 137). Omitting this section
+    # made the report a gate-side-only view — value claimed while the
+    # compounding half sat empty and unmentioned.
+    parts.append(_ui.header("Protocol Synthesis", level=2))
+    if data.framework_age_days is None:
+        e1_str = "n/a — no framework activity yet"
+        age_str = "n/a"
+    else:
+        age_str = f"{data.framework_age_days} days"
+        if data.e1_fired:
+            e1_str = (
+                f"FIRED — {data.protocols_total} < "
+                f"{data.e1_protocol_floor} protocols after "
+                f"{data.framework_age_days}d "
+                f"(kernel/FALSIFIABILITY_CONDITIONS.md § E1)"
+            )
+        elif data.framework_age_days < data.e1_window_days:
+            e1_str = (
+                f"window open "
+                f"({data.framework_age_days}/{data.e1_window_days}d)"
+            )
+        else:
+            e1_str = "holding"
+    syn_rows = [
+        ("Protocols synthesized", str(data.protocols_total)),
+        ("Framework activity", age_str),
+        ("E1 falsifiability", e1_str),
+    ]
+    parts.append(_ui.kv_table(syn_rows))
+    parts.append("")
+
+    # ── (6) Verdict ───────────────────────────────────────────────────────
     parts.append(_ui.header("Verdict", level=2))
     parts.append(_verdict(data))
 
@@ -616,6 +720,13 @@ def _to_json(data: ReportData) -> dict:
             "paired_ops": data.calibration_paired_ops,
             "days_tracked": len(data.calibration_series),
         },
+        "protocol_synthesis": {
+            "protocols_total": data.protocols_total,
+            "framework_age_days": data.framework_age_days,
+            "e1_floor": data.e1_protocol_floor,
+            "e1_window_days": data.e1_window_days,
+            "e1_fired": data.e1_fired,
+        },
         "verdict": _verdict(data),
     }
 
@@ -666,6 +777,15 @@ def run_report_cli(argv: list[str]) -> int:
             "(default: ~/.episteme/telemetry/tier1.jsonl)"
         ),
     )
+    parser.add_argument(
+        "--framework-dir",
+        type=Path,
+        default=None,
+        help=(
+            "Override framework directory "
+            "(default: ~/.episteme/framework/)"
+        ),
+    )
 
     args = parser.parse_args(argv)
 
@@ -673,11 +793,14 @@ def run_report_cli(argv: list[str]) -> int:
     telemetry_dir = args.telemetry_dir or (base / "telemetry")
     audit_path = args.audit_path or (base / "audit.jsonl")
     tier1_path = args.tier1_path or (base / "telemetry" / "tier1.jsonl")
+    framework_dir = args.framework_dir or (base / "framework")
 
     if args.demo:
         data = _demo_metrics()
     else:
-        data = _collect_metrics(telemetry_dir, audit_path, tier1_path)
+        data = _collect_metrics(
+            telemetry_dir, audit_path, tier1_path, framework_dir
+        )
         # Empty-state contract: on a fresh install with no telemetry in ANY
         # of the three stores, render the worked example rather than an
         # empty box. This is the load-bearing first-run behavior.
