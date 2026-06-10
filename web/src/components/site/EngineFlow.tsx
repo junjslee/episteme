@@ -148,13 +148,13 @@ export function EngineFlow() {
                     className="relative flex flex-col gap-1.5 border border-hairline bg-void/40 p-2.5"
                   >
                     <div className="flex items-center gap-1.5">
-                      <span className="font-mono text-[0.5625rem] text-muted">
+                      <span className="font-mono text-[0.6875rem] text-ash">
                         {claim.id}
                       </span>
                       <TierTag tier={claim.tier} />
                       {claim.loadBearing && (
                         <span
-                          className="font-mono text-[0.5625rem] uppercase tracking-[0.08em] text-ash"
+                          className="font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ash"
                           title="load-bearing — verified in a fresh context"
                         >
                           ● load-bearing
@@ -220,7 +220,7 @@ export function EngineFlow() {
               initial={{ opacity: 0 }}
               animate={at("seal") ? { opacity: 1 } : {}}
               transition={{ duration: 0.3, delay: 1.3, ease: EASE_ENTER }}
-              className="absolute -top-2 left-3 bg-surface px-1.5 font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-ash"
+              className="absolute -top-2 left-3 bg-surface px-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ash"
             >
               sealed
             </motion.span>
@@ -261,7 +261,7 @@ export function EngineFlow() {
                   initial={{ opacity: 0 }}
                   animate={at("ghost") ? { opacity: 1 } : {}}
                   transition={{ duration: 0.3, delay: 1.9, ease: EASE_ENTER }}
-                  className="font-mono text-[0.5625rem] uppercase tracking-[0.08em] text-muted"
+                  className="font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ash"
                 >
                   sealed out
                 </motion.span>
@@ -282,7 +282,7 @@ export function EngineFlow() {
                         delay: i * 0.95,
                         ease: EASE_ENTER,
                       }}
-                      className="text-muted"
+                      className="text-ash"
                     >
                       {claim.id}
                     </motion.span>
@@ -310,7 +310,7 @@ export function EngineFlow() {
                         ease: EASE_EXIT,
                       }}
                       className={cn(
-                        "inline-flex border px-1.5 py-px font-mono text-[0.5625rem] uppercase tracking-[0.08em]",
+                        "inline-flex border px-1.5 py-px font-mono text-[0.6875rem] uppercase tracking-[0.08em]",
                         RESULT_STYLES[claim.result],
                       )}
                     >
@@ -350,13 +350,13 @@ export function EngineFlow() {
                     {SCENARIO.opposition}
                   </p>,
                   <p key="w" className="text-ash">
-                    <span className="uppercase tracking-[0.08em] text-muted">
+                    <span className="uppercase tracking-[0.08em] text-ash">
                       weakest link
                     </span>{" "}
                     {SCENARIO.weakestLink}
                   </p>,
                   <p key="d" className="text-ash">
-                    <span className="uppercase tracking-[0.08em] text-muted">
+                    <span className="uppercase tracking-[0.08em] text-ash">
                       disconfirmation
                     </span>{" "}
                     {SCENARIO.disconfirmation}
@@ -397,7 +397,7 @@ export function EngineFlow() {
                   initial={{ opacity: 0 }}
                   animate={at("verdict") ? { opacity: 1 } : {}}
                   transition={{ duration: 0.3, delay: 1.0, ease: EASE_ENTER }}
-                  className="absolute inset-0 flex items-center justify-center font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-verified"
+                  className="absolute inset-0 flex items-center justify-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-verified"
                 >
                   open
                 </motion.span>

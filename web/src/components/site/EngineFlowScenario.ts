@@ -85,7 +85,11 @@ export const SCENARIO: EngineScenario = {
   disconfirmation: "lift disappears under length control",
   verdict: "proceed-with-revision",
   lesson: "control for response length before attributing quality lift",
-  protocolId: "lh_71f88adef21147df",
+  // Worked-example id, deliberately not a real lesson hash: lesson hashes
+  // are content-derived, and the framework's real first protocol
+  // (lh_71f88adef21147df, shown in ProofSection) carries a different
+  // lesson. One hash, two lessons would read as fabrication.
+  protocolId: "lh_worked-example",
 };
 
 /** Claims that travel into the verifier, in checking order. */

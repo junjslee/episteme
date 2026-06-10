@@ -97,10 +97,10 @@ export function Hero() {
                 { k: "claim tiers", v: "04" },
                 { k: "verdicts", v: "03" },
                 { k: "tests green", v: "1367" },
-                { k: "confident-failure rate", v: "0.60→0.14" },
+                { k: "CFR under constraint · MIRROR", v: "0.60→0.14" },
               ].map((m) => (
                 <div key={m.k} className="flex flex-col gap-1">
-                  <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-muted">
+                  <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-ash">
                     {m.k}
                   </span>
                   <span className="font-display text-[1.75rem] leading-none text-bone">

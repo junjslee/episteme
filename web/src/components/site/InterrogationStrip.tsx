@@ -32,7 +32,7 @@ export function InterrogationStrip() {
   return (
     <div className="flex max-w-2xl flex-col gap-3">
       <p className="font-mono text-[0.75rem] leading-relaxed text-ash">
-        <span className="uppercase tracking-[0.16em] text-muted">
+        <span className="uppercase tracking-[0.16em] text-ash">
           conclusion
         </span>{" "}
         &ldquo;memory system improves response quality&rdquo;
@@ -45,7 +45,7 @@ export function InterrogationStrip() {
             className={`stamp-in inline-flex items-center gap-1.5 border px-2 py-[3px] font-mono text-[0.6875rem] uppercase tracking-[0.08em] ${TONE_STYLES[chip.tone]}`}
             style={{ animationDelay: `${STAMP_BASE_MS + i * STAMP_STEP_MS}ms` }}
           >
-            <span className="text-muted">{chip.id}</span>
+            <span className="text-ash">{chip.id}</span>
             {chip.label}
           </span>
         ))}

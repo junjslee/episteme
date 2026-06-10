@@ -38,7 +38,7 @@ const satoshi = localFont({
 const SITE_URL = "https://www.epistemekernel.com";
 const SITE_TITLE = "episteme — a way to think when the model can finish your sentences";
 const SITE_DESCRIPTION =
-  "episteme is a way to think — 생각의 틀. A five-stage practice (frame, decompose, execute, verify, handoff) made mechanical at the file system level. Before any irreversible move, you write down what you know, what you don't, and what would prove you wrong; a hook refuses to proceed if that reasoning is thin. The practice is the product — the signed, hash-chained trail is what it leaves behind.";
+  "episteme is a way to think — 생각의 틀 — an epistemic engine that makes AI-assisted decisions earn their confidence before they land. A load-bearing conclusion gets decomposed into tiered claims, verified in a fresh context against external evidence, argued from the other side, and stamped with a verdict the file-system gate reads. Verified lessons become hash-chained protocols that resurface at the next matching decision.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

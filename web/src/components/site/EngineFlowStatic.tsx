@@ -34,11 +34,11 @@ export function StationLabel({
   return (
     <p
       className={cn(
-        "font-mono text-[0.625rem] uppercase tracking-[0.18em] text-muted",
+        "font-mono text-[0.625rem] uppercase tracking-[0.18em] text-ash",
         className,
       )}
     >
-      <span className="text-whisper">{index}</span> · {label}
+      <span className="text-muted">{index}</span> · {label}
     </p>
   );
 }
@@ -47,7 +47,7 @@ export function TierTag({ tier }: { tier: ClaimTier }) {
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 border px-1.5 py-px font-mono text-[0.5625rem] uppercase tracking-[0.08em]",
+        "inline-flex shrink-0 border px-1.5 py-px font-mono text-[0.6875rem] uppercase tracking-[0.08em]",
         TIER_STYLES[tier],
       )}
     >
@@ -60,7 +60,7 @@ export function EvidenceStampLabel({ result }: { result: EvidenceResult }) {
   return (
     <span
       className={cn(
-        "inline-flex -rotate-3 border px-1.5 py-px font-mono text-[0.5625rem] uppercase tracking-[0.08em]",
+        "inline-flex -rotate-3 border px-1.5 py-px font-mono text-[0.6875rem] uppercase tracking-[0.08em]",
         RESULT_STYLES[result],
       )}
     >
@@ -79,7 +79,7 @@ export function Caption({
   return (
     <p
       className={cn(
-        "font-mono text-[0.625rem] leading-relaxed text-muted",
+        "font-mono text-[0.625rem] leading-relaxed text-ash",
         className,
       )}
     >
@@ -112,13 +112,13 @@ export function EngineFlowStatic() {
                   className="relative flex flex-col gap-1.5 border border-hairline bg-void/40 p-2.5"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="font-mono text-[0.5625rem] text-muted">
+                    <span className="font-mono text-[0.6875rem] text-muted">
                       {claim.id}
                     </span>
                     <TierTag tier={claim.tier} />
                     {claim.loadBearing && (
                       <span
-                        className="font-mono text-[0.5625rem] uppercase tracking-[0.08em] text-ash"
+                        className="font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ash"
                         title="load-bearing — verified in a fresh context"
                       >
                         ● load-bearing
@@ -162,7 +162,7 @@ export function EngineFlowStatic() {
                 vectorEffect="non-scaling-stroke"
               />
             </svg>
-            <span className="absolute -top-2 left-3 bg-surface px-1.5 font-mono text-[0.5625rem] uppercase tracking-[0.12em] text-ash">
+            <span className="absolute -top-2 left-3 bg-surface px-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ash">
               sealed
             </span>
 
@@ -175,7 +175,7 @@ export function EngineFlowStatic() {
                     ✕
                   </span>
                 </span>
-                <span className="font-mono text-[0.5625rem] uppercase tracking-[0.08em] text-muted">
+                <span className="font-mono text-[0.6875rem] uppercase tracking-[0.08em] text-ash">
                   sealed out
                 </span>
               </div>
@@ -187,7 +187,7 @@ export function EngineFlowStatic() {
                     key={claim.id}
                     className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.6875rem] leading-snug"
                   >
-                    <span className="text-muted">{claim.id}</span>
+                    <span className="text-ash">{claim.id}</span>
                     <span aria-hidden className="text-whisper">
                       →
                     </span>
@@ -211,13 +211,13 @@ export function EngineFlowStatic() {
             <div className="flex flex-col gap-2 border border-hairline bg-void/40 p-3 font-mono text-[0.6875rem] leading-snug">
               <p className="text-disconfirm">{SCENARIO.opposition}</p>
               <p className="text-ash">
-                <span className="uppercase tracking-[0.08em] text-muted">
+                <span className="uppercase tracking-[0.08em] text-ash">
                   weakest link
                 </span>{" "}
                 {SCENARIO.weakestLink}
               </p>
               <p className="text-ash">
-                <span className="uppercase tracking-[0.08em] text-muted">
+                <span className="uppercase tracking-[0.08em] text-ash">
                   disconfirmation
                 </span>{" "}
                 {SCENARIO.disconfirmation}
@@ -233,7 +233,7 @@ export function EngineFlowStatic() {
               </span>
               {/* Gate at rest is CLOSED; a valid verdict opened it. */}
               <div className="relative h-7 overflow-hidden border border-line bg-void/40">
-                <span className="absolute inset-0 flex items-center justify-center font-mono text-[0.5625rem] uppercase tracking-[0.18em] text-verified">
+                <span className="absolute inset-0 flex items-center justify-center font-mono text-[0.6875rem] uppercase tracking-[0.18em] text-verified">
                   open
                 </span>
                 <span className="absolute inset-y-0 left-0 w-1/2 -translate-x-[82%] border-r border-line bg-elevated" />
@@ -276,7 +276,7 @@ export function EngineFlowStatic() {
       </div>
 
       {/* Shared footer legend — identical in both renderers. */}
-      <p className="mt-6 border-t border-hairline pt-3 font-mono text-[0.625rem] leading-relaxed text-muted">
+      <p className="mt-6 border-t border-hairline pt-3 font-mono text-[0.625rem] leading-relaxed text-ash">
         ● load-bearing claims are verified in a fresh context ·{" "}
         <span className="text-verified">supported</span> /{" "}
         <span className="text-disconfirm">refuted</span> /{" "}

@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Sectioned } from "@/components/ui/Sectioned";
 import { CornerMarkers } from "@/components/ui/CornerMarkers";
-import { LiveHashChainStream } from "@/components/viz/LiveHashChainStream";
 import { ProtocolNode } from "@/components/viz/ProtocolNode";
 import type { Protocol } from "@/lib/types/episteme";
 
@@ -81,7 +80,7 @@ export function ProofSection() {
           interrogation whose lesson survives becomes a context-scoped
           protocol. The first one landed the same night.{" "}
           <span className="text-bone">
-            It&apos;s rendered below — live, not staged.
+            It&apos;s transcribed below, exactly as sealed.
           </span>
         </p>
       </div>
@@ -146,21 +145,21 @@ export function ProofSection() {
             </Link>
           </div>
 
-          {/* Facets 1+3 — the live record: protocol №1 + the chain it's sealed in */}
+          {/* Facets 1+3 — the record: protocol №1, transcribed from the
+              chain. The animated chain stream stays on /dashboard, where
+              it reads the real store — pairing it here with fixture data
+              labeled "live" was the exact dishonesty this page argues
+              against (Event 139 review must-fix #3). */}
           <div className="flex flex-col gap-4 md:col-span-7">
-            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted">
-              live record · protocol №1 + the chain it&apos;s sealed in
+            <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ash">
+              the record · protocol №1, transcribed from the chain
             </span>
             <ProtocolNode protocol={FIRST_PROTOCOL} />
-            <p className="font-mono text-[0.6875rem] leading-relaxed text-muted">
+            <p className="font-mono text-[0.6875rem] leading-relaxed text-ash">
               №1 — synthesized 2026-06-10 from a verified interrogation ·
-              verdict: proceed · sealed against sha256:GENESIS
+              verdict: proceed · sealed against sha256:GENESIS · the live
+              chain renders in the dashboard
             </p>
-            <LiveHashChainStream
-              intervalMs={30_000}
-              limit={8}
-              className="min-h-[320px] flex-1"
-            />
           </div>
         </div>
       </div>

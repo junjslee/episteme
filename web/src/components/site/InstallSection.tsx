@@ -29,21 +29,25 @@ const INSTALL_LINES: { t: string; v: string; c?: string }[] = [
   },
 ];
 
+// Transcribed from the engine's real first interrogation
+// (.episteme/interrogation.json, 2026-06-10) — the decision that became
+// protocol №1. Not a styled mockup: counts, weakest link, and
+// disconfirmation match the artifact.
 const TERMINAL_LINES: { t: string; v: string }[] = [
-  { t: "prompt", v: "$ episteme guide" },
+  { t: "prompt", v: "# interrogation №1 — transcribed from the chain" },
   { t: "out-header", v: "EPISTEME · epistemic interrogation" },
   { t: "out", v: "" },
   { t: "mut", v: "conclusion under review" },
   { t: "out", v: '  "merge release PR #94 — cut v1.7.0-rc1"' },
   { t: "out", v: "" },
-  { t: "sig", v: "⊢ claims decomposed · 4 — load-bearing · 2" },
-  { t: "ok", v: "✓ verified in a fresh context — rc tags are the soak channel" },
-  { t: "ok", v: "✓ opposition argued — strongest case: hold the merge for morning" },
-  { t: "warn", v: "▲ weakest link — six prior rc cycles are precedent, not proof" },
-  { t: "ok", v: "✓ disconfirmation pre-committed — CI red reverts the cut" },
+  { t: "sig", v: "⊢ claims decomposed · 3 — all load-bearing" },
+  { t: "ok", v: "✓ verified against evidence — CI green ×3, release flow cited" },
+  { t: "ok", v: "✓ opposition argued — a public rc the operator hasn't read" },
+  { t: "warn", v: "▲ weakest link — ‘merge it’ may not have covered the release PR" },
+  { t: "ok", v: "✓ disconfirmation — operator reverts the tag on waking" },
   { t: "out", v: "" },
   { t: "mut", v: "verdict · proceed" },
-  { t: "chain", v: "↳ lesson lh_71f88adef21147df → protocol №1 · chained 7679d5" },
+  { t: "chain", v: "↳ lesson lh_71f88adef21147df → protocol №1 · chained" },
 ];
 
 const toneMap: Record<string, string> = {
