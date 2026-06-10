@@ -92,6 +92,14 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.7.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.6.1-rc1...episteme-v1.7.0-rc1) (2026-06-10)
+
+
+### Features
+
+* **kernel:** restore gate signal quality and mechanize E1 self-check ([f83509b](https://github.com/junjslee/episteme/commit/f83509bf389979e78080ce67e3a4baf61020c235))
+* **kernel:** v2.0 epistemic engine — interrogation verdicts, factored verification, lesson synthesis ([cbb494c](https://github.com/junjslee/episteme/commit/cbb494c5a6071a4f510c8923b9825a4317840be9))
+
 ## [1.6.1-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.6.0-rc1...episteme-v1.6.1-rc1) (2026-06-04)
 
 
