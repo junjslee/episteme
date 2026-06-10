@@ -1,22 +1,19 @@
 import Link from "next/link";
 import { SignalBadge } from "@/components/ui/SignalBadge";
 import { CornerMarkers } from "@/components/ui/CornerMarkers";
-import { FrameworkLoopDiagram } from "@/components/site/diagrams/FrameworkLoopDiagram";
+import { InterrogationStrip } from "@/components/site/InterrogationStrip";
 
-const HERO_WORDS = [
-  "A",
-  "way",
-  "to",
-  "think —",
-  "when",
-  "the",
-  "model",
-  "can",
-  "finish",
-  "your",
-  "sentences.",
-];
+const HERO_WORDS = ["Sounding", "right", "isn't", "being", "right."];
 
+/**
+ * Hero — server component, CSS-only motion.
+ *
+ * Rise stagger is class-owned (`.rise-1` … `.rise-4` in globals.css,
+ * delays 700/900/1100/1300ms) rather than inline `animation` styles, so
+ * the global prefers-reduced-motion block can force the final visible
+ * state. Inline styles on the H1 words carry only `animationDelay`; the
+ * animation itself lives on `.mask-word-inner`.
+ */
 export function Hero() {
   return (
     <section className="relative overflow-hidden border-b border-hairline">
@@ -33,17 +30,17 @@ export function Hero() {
             <div className="absolute right-[-15%] bottom-[-20%] h-[55%] w-[50%] rounded-full bg-disconfirm/[0.04] blur-[100px]" />
           </div>
 
-          <div className="relative flex flex-col gap-10 p-8 md:gap-14 md:p-14 lg:p-20">
+          <div className="relative flex flex-col gap-10 p-8 md:gap-12 md:p-14 lg:p-20">
             <div className="flex flex-wrap items-center gap-3">
               <SignalBadge signal="chain">
                 <span className="relative inline-flex size-1.5">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-chain opacity-75 status-pulse" />
                   <span className="relative inline-flex size-1.5 rounded-full bg-chain" />
                 </span>
-                substrate · v1.1.0-rc1
+                epistemic engine · v1.7.0-rc1
               </SignalBadge>
               <span className="font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-muted">
-                생각의 틀 · frame · decompose · execute · verify · handoff
+                생각의 틀 · decompose · verify · oppose · decide
               </span>
             </div>
 
@@ -60,32 +57,22 @@ export function Hero() {
               ))}
             </h1>
 
-            <p
-              className="max-w-2xl font-sans text-[1.0625rem] leading-relaxed text-ash md:text-[1.1875rem] opacity-0"
-              style={{
-                animation: "mask-word-rise 900ms var(--ease-enter) 700ms forwards",
-              }}
-            >
-              Frontier models are fluent enough now that the diff looks fine and you stop
-              reading it. Before any irreversible move, episteme makes you write down what
-              you know, what you don&apos;t, and what would prove you wrong — then a
-              file-system hook refuses to proceed if that reasoning is thin.{" "}
+            <p className="rise-1 max-w-2xl font-sans text-[1.0625rem] leading-relaxed text-ash md:text-[1.1875rem]">
+              Frontier models are fluent enough now that wrong answers arrive
+              sounding finished. episteme makes a load-bearing conclusion earn
+              its confidence before it lands —{" "}
               <span className="text-bone">
-                The practice is the product; the signed trail is what it leaves behind.
+                decomposed into claims, verified against evidence, argued from
+                the other side, stamped with a verdict.
               </span>
             </p>
 
-            <div
-              className="flex flex-wrap items-center gap-4 opacity-0"
-              style={{
-                animation: "mask-word-rise 900ms var(--ease-enter) 900ms forwards",
-              }}
-            >
+            <div className="rise-2 flex flex-wrap items-center gap-4">
               <Link
-                href="#framework"
+                href="#how-it-works"
                 className="group inline-flex items-center gap-2 border border-line bg-surface px-5 py-3 font-mono text-[0.8125rem] uppercase tracking-[0.12em] text-bone transition-colors hover:border-chain hover:text-chain"
               >
-                see the framework
+                see how it works
                 <span
                   aria-hidden
                   className="transition-transform group-hover:translate-x-0.5"
@@ -94,35 +81,23 @@ export function Hero() {
                 </span>
               </Link>
               <Link
-                href="https://github.com/junjslee/episteme"
-                target="_blank"
-                rel="noopener"
+                href="#install"
                 className="inline-flex items-center gap-2 border border-hairline px-5 py-3 font-mono text-[0.8125rem] uppercase tracking-[0.12em] text-ash transition-colors hover:border-line hover:text-bone"
               >
-                read the kernel
+                install in 60 seconds
               </Link>
             </div>
 
-            <div
-              className="mt-2 opacity-0"
-              style={{
-                animation: "mask-word-rise 900ms var(--ease-enter) 1100ms forwards",
-              }}
-            >
-              <FrameworkLoopDiagram />
+            <div className="rise-3 mt-2">
+              <InterrogationStrip />
             </div>
 
-            <div
-              className="mt-4 grid grid-cols-2 gap-6 border-t border-hairline/70 pt-8 md:grid-cols-4 opacity-0"
-              style={{
-                animation: "mask-word-rise 900ms var(--ease-enter) 1300ms forwards",
-              }}
-            >
+            <div className="rise-4 mt-4 grid grid-cols-2 gap-6 border-t border-hairline/70 pt-8 md:grid-cols-4">
               {[
-                { k: "stages", v: "05" },
-                { k: "cognitive moves", v: "21" },
-                { k: "tests green", v: "1066" },
-                { k: "signed · hash-chained", v: "live" },
+                { k: "claim tiers", v: "04" },
+                { k: "verdicts", v: "03" },
+                { k: "tests green", v: "1367" },
+                { k: "confident-failure rate", v: "0.60→0.14" },
               ].map((m) => (
                 <div key={m.k} className="flex flex-col gap-1">
                   <span className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-muted">
