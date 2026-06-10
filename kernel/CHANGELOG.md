@@ -92,6 +92,13 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.8.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.7.0-rc1...episteme-v1.8.0-rc1) (2026-06-10)
+
+
+### Features
+
+* **kernel+web:** conclusion-shape trigger + v2 landing rebuild ([bec0f31](https://github.com/junjslee/episteme/commit/bec0f31648c26afae833d20413825c0d1e5672c8))
+
 ## [1.7.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.6.1-rc1...episteme-v1.7.0-rc1) (2026-06-10)
 
 
