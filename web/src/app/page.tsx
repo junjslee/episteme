@@ -1,7 +1,7 @@
 import { Header } from "@/components/site/Header";
 import { Hero } from "@/components/site/Hero";
-import { HowItWorks } from "@/components/site/HowItWorks";
-import { ThreeLayers } from "@/components/site/ThreeLayers";
+import { Sectioned } from "@/components/ui/Sectioned";
+import { EngineFlowLoader } from "@/components/site/EngineFlowLoader";
 import { ProofSection } from "@/components/site/ProofSection";
 import { FrameworkExplainer } from "@/components/site/FrameworkExplainer";
 import { InstallSection } from "@/components/site/InstallSection";
@@ -18,8 +18,14 @@ export default function Home() {
       <main>
         <Hero />
         <span id="framework" aria-hidden />
-        <HowItWorks />
-        <ThreeLayers />
+        <Sectioned
+          id="how-it-works"
+          index="01"
+          label="how it works"
+          kicker="decision → interrogation → verdict → chain"
+        >
+          <EngineFlowLoader />
+        </Sectioned>
         <span id="surface" aria-hidden />
         <ProofSection />
         <FrameworkExplainer />
