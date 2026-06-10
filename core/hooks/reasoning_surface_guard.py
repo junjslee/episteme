@@ -904,7 +904,10 @@ def _surface_status(cwd: Path) -> tuple[str, str]:
     return "ok", ""
 
 
-def _write_audit(tool: str, op: str, cwd: Path, status: str, action: str, mode: str) -> None:
+def _write_audit(
+    tool: str, op: str, cwd: Path, status: str, action: str, mode: str,
+    source: str = "surface",
+) -> None:
     audit_path = Path.home() / ".episteme" / "audit.jsonl"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
     entry = {
@@ -915,6 +918,10 @@ def _write_audit(tool: str, op: str, cwd: Path, status: str, action: str, mode: 
         "status": status,
         "action": action,
         "mode": mode,
+        # Event 138 — which artifact satisfied (or failed) the gate:
+        # "surface" (v1 Reasoning Surface) or "interrogation" (v2
+        # verdict). E3 falsifiability measurement reads this field.
+        "source": source,
     }
     try:
         with open(audit_path, "a", encoding="utf-8") as f:
@@ -1246,6 +1253,33 @@ def main() -> int:
     # here so CP8's prediction-record extension can always read it.
     blueprint_name = "generic"
 
+    # Event 138 · v2.0 Epistemic Engine — a fresh interrogation verdict
+    # (.episteme/interrogation.json, produced by the epistemic-
+    # interrogation skill) is an alternative satisfier to the Reasoning
+    # Surface. The verdict artifact records decomposed claims with
+    # factored external verification, an argued opposition, and a
+    # pre-committed disconfirmation — substance the surface's form
+    # contract cannot see. `stop` verdicts and structural-floor
+    # failures fall through to the v1 path unchanged (fails closed).
+    # Spec: docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md § 7.
+    interrogation_admitted = False
+    interrogation_detail = ""
+    if status != "ok":
+        try:
+            import _interrogation  # type: ignore  # pyright: ignore[reportMissingImports]
+            i_status, i_detail = _interrogation.artifact_status(cwd)
+        except Exception:
+            i_status, i_detail = "missing", ""
+        if i_status == "ok":
+            status = "ok"
+            interrogation_admitted = True
+            sys.stderr.write(
+                f"[episteme] high-impact op `{label}` admitted via "
+                f"interrogation verdict — {i_detail}\n"
+            )
+        elif i_status != "missing":
+            interrogation_detail = i_detail
+
     # Layer 2 · v1.0 RC CP3 — runs only after Layer 1 passes. A Layer-2
     # rejection downgrades status from "ok" to "incomplete" so the
     # existing block path handles it; an absence-advisory emits a
@@ -1258,7 +1292,7 @@ def main() -> int:
     # they exist in the project working tree. FP-averse gate per spec
     # § Layer 3. Graceful degrade: any exception yields "pass" with a
     # one-line stderr fallback — Layers 1 & 2 stay enforced.
-    if status == "ok":
+    if status == "ok" and not interrogation_admitted:
         layer2_surface = _read_surface(cwd)
         if layer2_surface is not None:
             l2_verdict, l2_detail = _layer2_classify_blueprint_fields(
@@ -1513,7 +1547,10 @@ def main() -> int:
                                 pass
 
     if status == "ok":
-        _write_audit(tool_name, label, cwd, status, "passed", mode)
+        _write_audit(
+            tool_name, label, cwd, status, "passed", mode,
+            source="interrogation" if interrogation_admitted else "surface",
+        )
         # Calibration telemetry: record the prediction so a PostToolUse hook
         # can pair it with the observed exit_code. Only fires for Bash, since
         # only Bash calls have a meaningful "outcome" against a prediction.
@@ -1527,15 +1564,29 @@ def main() -> int:
         return 0
 
     header = f"REASONING SURFACE {status.upper()}: high-impact op `{label}` with {detail}."
-    instruction = _surface_template()
+    if interrogation_detail:
+        header += f" Interrogation artifact: {interrogation_detail}."
+    # Event 138 — factual statements, two satisfier paths. The hooks
+    # doctrine reserves imperatives for the model's own instructions;
+    # out-of-band context states what exists and what would satisfy.
+    instruction = (
+        "Two artifacts satisfy this gate: (1) a fresh interrogation "
+        "verdict at .episteme/interrogation.json, produced by the "
+        "epistemic-interrogation skill — the decision decomposed into "
+        "tiered claims, load-bearing claims verified in a fresh context "
+        "against external evidence, an argued opposition, a weakest "
+        "link, and a pre-committed disconfirmation; or (2) a Reasoning "
+        f"Surface at .episteme/reasoning-surface.json: {_surface_template()}"
+    )
 
     if not advisory_only:
         _write_audit(tool_name, label, cwd, status, "blocked", mode)
         sys.stderr.write(
-            "Execution blocked by Episteme Strict Mode. "
-            "Missing or invalid Reasoning Surface.\n"
+            "Execution blocked by Episteme Strict Mode: no valid "
+            "Reasoning Surface or interrogation verdict exists for this "
+            "high-impact op.\n"
             f"{header}\n{instruction}\n"
-            "Opt out per-project (not recommended): "
+            "Per-project advisory mode (not recommended) is enabled by "
             "`touch .episteme/advisory-surface`.\n"
         )
         return 2
@@ -1545,8 +1596,9 @@ def main() -> int:
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
             "additionalContext": (
-                f"{header} Advisory mode is active (.episteme/advisory-surface present). "
-                f"Declare a Reasoning Surface before proceeding. {instruction}"
+                f"{header} Advisory mode is active (.episteme/advisory-surface "
+                f"present); the op proceeds unblocked and this gap is "
+                f"recorded in the audit trail. {instruction}"
             ),
         }
     }

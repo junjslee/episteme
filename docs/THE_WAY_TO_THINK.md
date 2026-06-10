@@ -121,9 +121,15 @@ The surface schema makes each of these violations a structural failure — hidde
 
 ## 5. Why the practice has to be mechanical (not procedural)
 
-Asking the model to be careful does not work — proven by MIRROR. Asking the model to evaluate itself does not work — proven by MIRROR. Asking the operator to be careful does not work either, at frontier model strength — willpower-as-vigilance fails when the model is fluent and the deadline is close. The constraint must be a wall, not advice.
+Asking the model to be careful does not work — proven by MIRROR. Asking the model to evaluate itself does not work — proven by MIRROR, and worse: intrinsic self-correction without an external signal measurably *degrades* accuracy ([arXiv 2310.01798](https://arxiv.org/abs/2310.01798)). Asking the operator to be careful does not work either, at frontier model strength — willpower-as-vigilance fails when the model is fluent and the deadline is close. The constraint must be a wall, not advice.
 
-This is why the artifacts under `core/` and `src/episteme/` exist. They are not the product; they are the wall.
+But a wall has a precise limit the v1 kernel under-weighted: **a wall can guarantee that the epistemic work happened; it cannot tell thinking from theater.** Form-checks — field presence, minimum lengths, lazy-token lists — are satisfiable by reasoning-shaped tokens ([arXiv 2410.07137](https://arxiv.org/abs/2410.07137)), and rigid schemas measurably degrade the reasoning they are meant to capture ([arXiv 2408.02442](https://arxiv.org/abs/2408.02442)). The v2.0 division of labor (see [`DESIGN_V2_0_EPISTEMIC_ENGINE.md`](DESIGN_V2_0_EPISTEMIC_ENGINE.md)):
+
+- **The wall** (deterministic): routes decision shapes, validates artifact contracts (exists, fresh, non-vacuous, verdict-consistent), hard-blocks only destructive operations, and chains every record. MIRROR's lesson stands — this layer is why the practice survives deadline pressure.
+- **The judge** (model, factored): substance is checked by a fresh context that never sees the draft — decomposed claims verified against external evidence (file reads, execution, search), an assigned opposition rather than a neutral review. Independence of the checking signal is the load-bearing property ([arXiv 2309.11495](https://arxiv.org/abs/2309.11495)); a verifier that reads the reasoning it checks inherits its errors.
+- **Neither does the other's job.** A wall that tries to judge substance becomes a Goodhart target; a judge with no wall gets skipped at deadline.
+
+This is why the artifacts under `core/` and `src/episteme/` exist. They are not the product; they are the wall — and, as of v2.0, the dispatcher for the judge.
 
 ### 5.1 The mental models that justify the mechanical posture
 
@@ -230,7 +236,7 @@ The practice this document operationalizes is **already authored** in operator-c
 
 ## 11. The one-line, and the longer line
 
-**One line:** *episteme is a way to think — 생각의 틀 — with mechanical teeth at the gates of irreversible AI-assisted decisions.*
+**One line:** *episteme is a way to think — 생각의 틀 — an epistemic engine that makes AI-assisted decisions earn their confidence: structure guarantees the thinking happens; factored verification checks it was real.*
 
 **Longer line:** Frontier models are now fluent enough that the diff *looks fine* and the conclusions *sound right* and the operator stops actually thinking at the moment of decision. For everyday work this is fine. For decisions that cannot be taken back, it is the failure mode the cognitive-governance literature has been warning about. episteme is the structural counter — a five-stage cognitive practice (Frame → Decompose → Execute → Verify → Handoff) made mechanical at the file system level. The practice is the product. The signed Reasoning Surface, the typed PTSP ledgers, the pre-tool-use gate, the standalone verifier, the regulator evidence packet — these are scaffolding for the practice and residue from it. Without the practice they are theater. With the practice they are how the practice survives at frontier model strength, when willpower-as-vigilance does not.
 

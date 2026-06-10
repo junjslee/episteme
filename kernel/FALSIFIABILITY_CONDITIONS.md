@@ -149,6 +149,30 @@ A row whose action-on-disconfirmation is empty or generic is ceremonial. Either 
 - **Status.** **FIRED — criterion (a), measured 2026-06-10 (Event 137).** ~49 days after the framework's first record, `~/.episteme/framework/protocols.jsonl` holds 0 protocols (< 3 floor). Mechanism: the only implemented synthesis emit path is Fence Reconstruction (`core/hooks/_fence_synthesis.py`), an op class real usage rarely produces; Blueprint D's spec'd synthesis arm (`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md` § Blueprint D, Pillar 3 arm) is unimplemented, so the dominant blueprint cannot compound. Event 137 mechanized this check — the SessionStart digest (`session_context._e1_line`) and `episteme report` § Protocol Synthesis now evaluate E1 against live framework state, so this doc's hand-maintained status is no longer the only sensor. Per the action below, README marks active guidance as aspirational until first protocols land.
 - **Action on disconfirmation.** Audit the synthesis emit path in `core/hooks/_fence_synthesis.py` + the trigger conditions; redesign the Pillar 3 invocation logic; if criterion (a) fails, the "active guidance" claim is currently aspirational rather than operational and the kernel must say so in README. Cross-references CP-FENCE-02 (Event 50) which closed the immediate emit-path bug.
 
+### E3 · The interrogation path is used (v2.0, Event 138)
+
+- **Claim.** The epistemic-interrogation verdict artifact is a live satisfier: agents run the protocol and the gate admits ops on it. ([`docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md`](../docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md) § 7)
+- **Falsification condition.** After 30 days of normal kernel use: fewer than 5 audit records with `"source": "interrogation"` and `"action": "passed"`.
+- **Measurement method.** `grep '"source": "interrogation"' ~/.episteme/audit.jsonl | grep '"passed"' | wc -l`.
+- **Status.** **SCHEDULED** — mechanism shipped 2026-06-10; first 30-day window opens at merge.
+- **Action on disconfirmation.** The mechanism is not in use: either the trigger surface is wrong (decision shapes too narrow / too noisy) or the protocol's cost exceeds its perceived value. Interview the lived friction before redesigning; DESIGN_V2_0 reverts to proposal status.
+
+### E4 · Lesson-sourced protocols accumulate and bind (v2.0, Event 138)
+
+- **Claim.** Interrogation lessons are a real synthesis source: protocols with `"source": "interrogation"` accumulate and resurface at matching decisions. This is E1's claim with a live emit path.
+- **Falsification condition.** After 30 days of E3 holding: fewer than 3 protocols with `"source": "interrogation"` in `~/.episteme/framework/protocols.jsonl`; or after 60 days, zero guidance advisories fired from a lesson-sourced protocol.
+- **Measurement method.** Protocol store grep + the Event 137 E1 self-check (SessionStart digest, `episteme report` § Protocol Synthesis) which now monitors the store mechanically.
+- **Status.** **SCHEDULED.**
+- **Action on disconfirmation.** If lessons don't accumulate: most interrogations honestly carry null lessons and the compounding claim must be re-scoped to decision-quality (E2/E5), not knowledge accumulation. If they accumulate but never bind: the generic-plane signature shape is mis-tuned — revisit overlap fields before loosening the threshold.
+
+### E5 · Interrogation substance survives spot-check (v2.0, Event 138)
+
+- **Claim.** Structural floors + factored verification produce real epistemic engagement, not a new theater shape — the central bet of v2.0 against the form-gaming record (arXiv 2410.07137, 2507.08794).
+- **Falsification condition.** An operator spot-check of ≥ 10 interrogation verdicts finds < 70% judged real-engagement (claims genuinely decomposed, verifications genuinely external, opposition genuinely argued).
+- **Measurement method.** Layer 8 spot-check resampled over interrogation verdicts (Event 138 archived the per-Bash-call queue); operator verdicts via `episteme review`.
+- **Status.** **SCHEDULED** — requires E3 volume first.
+- **Action on disconfirmation.** The floors are being gamed at the substance layer determinism cannot see. Escalation path: factored re-verification of sampled artifacts by an independent judge context with the two-experts rubric — and if that also fails, the claim that structure-plus-factored-verification beats form-checking is falsified at this granularity and the kernel must say so here.
+
 ### E2 · Protocol synthesis improves operator decision quality
 
 - **Claim.** The kernel's value is not just auditability — it produces measurably better operator decisions in the contexts it covers, vs the same operator without the kernel. ([README § Protocol Synthesis](../README.md); implicit in the kernel's positioning)
