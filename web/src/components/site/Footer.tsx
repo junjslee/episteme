@@ -21,8 +21,18 @@ export function Footer() {
               </Link>
             </li>
             <li>
-              <Link href="#framework" className="hover:text-bone">
-                framework
+              <Link href="/#how-it-works" className="hover:text-bone">
+                how it works
+              </Link>
+            </li>
+            <li>
+              <Link href="/#proof" className="hover:text-bone">
+                proof
+              </Link>
+            </li>
+            <li>
+              <Link href="/#install" className="hover:text-bone">
+                install
               </Link>
             </li>
             <li>
@@ -35,7 +45,7 @@ export function Footer() {
       </div>
       <div className="mx-auto max-w-7xl border-t border-hairline px-6 py-4 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-muted md:px-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span>1066 tests green · hash-chain verified</span>
+          <span>1367 tests green · hash-chain verified</span>
           <span>© 2026 · built on the practice it describes</span>
         </div>
       </div>
