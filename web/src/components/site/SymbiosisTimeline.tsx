@@ -41,7 +41,7 @@ const ACTS: Act[] = [
     n: "02",
     title: "The Reasoning Surface forces adversarial review",
     narration:
-      "Before any high-impact tool runs, the file-system hook demands a Reasoning Surface. The act of writing the fields surfaces what the bundle was hiding — the IP-leakage premise that nothing has measured.",
+      "At the time (v1), the file-system hook demanded a Reasoning Surface before high-impact tools ran. The act of writing the fields surfaces what the bundle was hiding — the IP-leakage premise that nothing has measured.",
     artifact_kind: "rs-json",
     artifact: `{
   "core_question": "Is the IP-leakage premise driving Path A supported by current evidence — or is it a noise-signature artifact (status-pressure + false-urgency)?",
@@ -190,7 +190,7 @@ export function SymbiosisTimeline() {
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
           On 2026-04-27 (v1.0.0 RC soak Day 3.15) the operator proposed an
           anxiety-driven irreversible bundle. The kernel intercepted; the
-          operator's own profile-audit drift independently corroborated; Path
+          operator&apos;s own profile-audit drift independently corroborated; Path
           C decomposed the bundle. Three loops in 24 hours. The protocol that
           resolved Round 1 is now constitutional in <code className="text-bone">AGENTS.md</code>.
           Audit trail: <code className="text-bone">demos/04_symbiosis/</code>.

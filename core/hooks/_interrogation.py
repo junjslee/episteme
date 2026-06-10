@@ -250,6 +250,58 @@ def artifact_status(cwd: Path) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# E5 · verdict spot-check enqueue (Layer 8 leg)
+# ---------------------------------------------------------------------------
+
+
+def enqueue_verdict_spot_check(cwd: Path, *, op_label: str) -> bool:
+    """Enqueue the current verdict artifact into the Layer 8 spot-check
+    queue, sample-all (E5: the operator judges substance vs theater).
+
+    Sample-all is affordable by construction: verdicts attach to
+    decision shapes, not per-command noise — the Event 137 exemption
+    holds the base volume down, and Event 138 retired the per-Bash-call
+    sampling that made the old queue unreviewable. Idempotent per
+    artifact content (correlation id is the artifact hash), so one
+    verdict consumed by several ops enqueues once. Never raises."""
+    try:
+        artifact = read_artifact(cwd)
+        if artifact is None:
+            return False
+        import _spot_check  # type: ignore  # pyright: ignore[reportMissingImports]
+        canon = json.dumps(
+            artifact, sort_keys=True, ensure_ascii=False
+        ).encode("utf-8", errors="replace")
+        cid = "iv_" + hashlib.sha256(canon).hexdigest()[:16]
+        if _spot_check._correlation_already_queued(cid):
+            return False
+        try:
+            import _context_signature  # type: ignore  # pyright: ignore[reportMissingImports]
+            sig = _context_signature.build(
+                _canonical_project_root(cwd),
+                blueprint_name="interrogation",
+                op_class=op_label,
+            ).as_dict()
+        except Exception:
+            sig = {}
+        payload = {
+            "type": _spot_check.ENTRY_TYPE,
+            "correlation_id": cid,
+            "queued_at": datetime.now(timezone.utc).isoformat(),
+            "op_label": op_label,
+            "blueprint": "interrogation",
+            "context_signature": sig,
+            "surface_snapshot": {"interrogation": artifact},
+            "multipliers_applied": ["interrogation_verdict"],
+            "effective_rate_at_sample": 1.0,
+        }
+        _spot_check._chain_append(_spot_check._queue_path(), payload)
+        return True
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Lesson synthesis (PostToolUse arm)
 # ---------------------------------------------------------------------------
 

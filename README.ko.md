@@ -20,9 +20,9 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme는 사고법입니다 — 생각의 틀 — 되돌릴 수 없는 AI 보조 의사결정의 관문에 기계적 이빨을 단.**
+> **episteme는 사고법입니다 — 생각의 틀 — AI 보조 의사결정이 실행되기 전에 자신의 확신을 스스로 증명하게 만드는 인식 엔진(epistemic engine).**
 >
-> 다섯 단계의 인지 실천 — **Frame(틀잡기) → Decompose(분해) → Execute(실행) → Verify(검증) → Handoff(인계)** — Kahneman의 System-2 강제, Dalio의 Radical Transparency, Boyd의 OODA Orientation, Munger의 Latticework of Mental Models에 닻을 둡니다. 이를 파일시스템 수준에서 *구조적으로* 강제합니다. 모든 고위험 액션 — `git push`, `npm publish`, `terraform apply`, DB 마이그레이션, lockfile 편집 — 이전에, 운영자는 자신의 추론을 타입화된 Reasoning Surface 위에 외화합니다: **Core Question · Knowns · Unknowns · Assumptions · Disconfirmation.** 표면은 운영자 본인의 Ed25519 키로 서명됩니다. PreToolUse 훅은 표면이 비어 있거나, 오래되었거나, 공허하면 진행을 거부합니다 — 운영자가 직접 요청한 경우라도. 서명 키는 구조적으로 에이전트의 손이 닿지 않는 곳에 있습니다. 모델은 당신을 대신해 실천을 작성할 수 없습니다.
+> 다섯 단계의 인지 실천 — **Frame(틀잡기) → Decompose(분해) → Execute(실행) → Verify(검증) → Handoff(인계)** — Kahneman의 System-2 강제, Dalio의 Radical Transparency, Boyd의 OODA Orientation, Munger의 Latticework of Mental Models에 닻을 둡니다. v2.0은 이를 세 개의 층으로 전달합니다. **인지(Cognition)** — 시니어 연구자의 심문(interrogation): 하중을 받는 결정을 등급화된 주장들로 분해하고(`measured / cited / inferred / assumed`), 하중을 받는 주장들을 *초안을 본 적 없는 새로운 컨텍스트에서 외부 증거에 대해* 검증하고, 가장 강한 반론을 논증하고, 가장 약한 고리를 지목하고, 반증 조건을 사전에 약속합니다. **구조(Structure)** — 결정의 형태를 라우팅하고, 평결 아티팩트를 검증하며(`stop` 평결은 닫힌 채로 실패), 진짜 파괴적인 작업만 하드 블록하는 결정론적 훅들; 운영자가 서명한 Reasoning Surface(Ed25519, 구조적으로 에이전트의 손이 닿지 않는)는 운영자 측 프레이밍 아티팩트로 남습니다. **기억(Memory)** — 검증된 심문에서 나온 교훈이 해시 체인으로 연결된 컨텍스트 범위의 프로토콜이 되어, 다음 일치하는 결정에서 다시 떠오릅니다. 이 분업은 우리가 아니라 연구 기록이 정한 것입니다: 자기 초안을 스스로 판정하는 모델은 *더 나빠지고*, 형식 검사는 추론 모양의 토큰에 뚫리며, 오직 아키텍처적 제약만이 인식적 자각을 행동으로 바꿉니다.
 >
 > MIRROR 벤치마크([arXiv 2604.19809](https://arxiv.org/abs/2604.19809))가 경험적 질문을 결론지었습니다: 8개 랩 16개 모델, 약 250,000개 인스턴스에서 *"모델에게 자신의 캘리브레이션 점수를 제공하는 것은 유의미한 개선을 주지 않는다; 오직 아키텍처적 제약만이 효과적이다."* Confident Failure Rate는 외부 아키텍처적 제약 하에서 0.60에서 0.14로 떨어집니다. **실천 자체가 제품입니다.** `core/`와 `src/episteme/` 아래의 산물들은, 프론티어 모델 강도에서 *의지력으로서의 경계심* 이 무너질 때 실천이 살아남도록 하는 강제 기하학(enforcement geometry)입니다.
 >

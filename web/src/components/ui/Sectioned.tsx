@@ -33,7 +33,7 @@ export function Sectioned({
     >
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 flex items-baseline gap-6 md:mb-16">
-          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-muted">
+          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.2em] text-ash">
             {index} / {label}
           </span>
           {kicker && (

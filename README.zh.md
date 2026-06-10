@@ -20,9 +20,9 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme 是一种思考方式 —— 생각의 틀 —— 为不可逆的 AI 辅助决策之门装上机械牙齿。**
+> **episteme 是一种思考方式 —— 생각의 틀 —— 一台让 AI 辅助决策在落地之前先挣得自身置信度的认识引擎（epistemic engine）。**
 >
-> 一套五阶段的认知实践 —— **Frame（立框）→ Decompose（分解）→ Execute（执行）→ Verify（验证）→ Handoff（交接）** —— 锚定于 Kahneman 的 System-2 强制、Dalio 的 Radical Transparency、Boyd 的 OODA Orientation、Munger 的 Latticework of Mental Models。episteme 在文件系统层面*结构性地*强制它。在任何高风险动作 —— `git push`、`npm publish`、`terraform apply`、数据库迁移、lockfile 编辑 —— 之前，操作者把自己的推理外化到一个带类型的 Reasoning Surface 上：**Core Question · Knowns · Unknowns · Assumptions · Disconfirmation。** 该表面由操作者本人的 Ed25519 密钥签名。PreToolUse hook 在表面缺失、过期或空泛时拒绝继续 —— 即使是操作者本人请求的动作。签名密钥在结构上位于代理无法触及之处。模型无法替你撰写这套实践。
+> 一套五阶段的认知实践 —— **Frame（立框）→ Decompose（分解）→ Execute（执行）→ Verify（验证）→ Handoff（交接）** —— 锚定于 Kahneman 的 System-2 强制、Dalio 的 Radical Transparency、Boyd 的 OODA Orientation、Munger 的 Latticework of Mental Models。v2.0 把它交付为三层。**认知（Cognition）** —— 资深研究者式的审问（interrogation）：把承重决策分解为分级的主张（`measured / cited / inferred / assumed`），在*从未见过草稿的全新上下文中、针对外部证据*验证承重主张，论证最强的反方立场，指出最薄弱的一环，并预先承诺一个反证条件。**结构（Structure）** —— 确定性 hooks：路由决策形态、校验裁决工件（`stop` 裁决以关闭状态失败）、只对真正破坏性的操作硬阻断；由操作者签名的 Reasoning Surface（Ed25519，在结构上位于代理无法触及之处）仍是操作者侧的立框工件。**记忆（Memory）** —— 来自已验证审问的经验教训成为哈希链接、按上下文限定的协议，在下一个匹配的决策处重新浮现。这套分工不是我们定的，而是研究记录定的：评判自己草稿的模型会*变得更差*，形式检查会被推理形状的 token 攻破，只有架构性约束能把认识上的自觉转化为行为。
 >
 > MIRROR 基准（[arXiv 2604.19809](https://arxiv.org/abs/2604.19809)）了结了这个经验问题：在 8 个实验室的 16 个模型、约 250,000 个实例上，*"向模型提供其自身的校准分数不会带来显著改善；只有架构性约束才有效。"* 在外部架构性约束下，Confident Failure Rate 从 0.60 降到 0.14。**实践本身就是产品。** `core/` 与 `src/episteme/` 之下的产物，是让实践在前沿模型强度下、当*作为意志力的警惕*崩溃时仍能存活的强制几何（enforcement geometry）。
 >

@@ -45,6 +45,8 @@ The Claude adapter deploys lifecycle hooks that run on every session:
 | `format.py` | `PostToolUse Write\|Edit` | Auto-runs ruff / prettier |
 | `checkpoint.py` | `Stop` | Auto-commits as `chore(chkpt):` after every turn |
 | `quality_gate.py` | `Stop` | Blocks completion if tests fail (opt-in) |
+| `conclusion_guard.py` | `UserPromptSubmit` | Detects conclusion-class prompts; sets marker + one factual context line |
+| `conclusion_gate.py` | `Stop` | One-shot nudge when a conclusion lands without a fresh interrogation verdict |
 
 ## Files managed
 

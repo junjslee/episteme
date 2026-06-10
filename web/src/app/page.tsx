@@ -1,14 +1,16 @@
 import { Header } from "@/components/site/Header";
 import { Hero } from "@/components/site/Hero";
-import { ReasoningSurfaceShowcase } from "@/components/site/ReasoningSurfaceShowcase";
-import { PillarsGrid } from "@/components/site/PillarsGrid";
-import { LiveExhibit } from "@/components/site/LiveExhibit";
+import { Sectioned } from "@/components/ui/Sectioned";
+import { EngineFlowLoader } from "@/components/site/EngineFlowLoader";
+import { ThreeLayers } from "@/components/site/ThreeLayers";
+import { ProofSection } from "@/components/site/ProofSection";
 import { FrameworkExplainer } from "@/components/site/FrameworkExplainer";
-import { ProtocolsSection } from "@/components/site/ProtocolsSection";
-import { CodeSample } from "@/components/site/CodeSample";
-import { SymbiosisTimeline } from "@/components/site/SymbiosisTimeline";
-import { CTASection } from "@/components/site/CTASection";
+import { InstallSection } from "@/components/site/InstallSection";
 import { Footer } from "@/components/site/Footer";
+
+// Five-beat one-scroll arc: WHAT IS THIS → HOW DOES IT WORK → WHERE IT RUNS
+// → IS IT REAL → HOW DO I GET IT. Empty legacy anchors keep old deep links
+// (/#framework, /#surface, /#protocols) scrolling to the nearest successor.
 
 export default function Home() {
   return (
@@ -16,14 +18,21 @@ export default function Home() {
       <Header />
       <main>
         <Hero />
-        <ReasoningSurfaceShowcase />
-        <PillarsGrid />
-        <LiveExhibit />
+        <span id="framework" aria-hidden />
+        <Sectioned
+          id="how-it-works"
+          index="01"
+          label="how it works"
+          kicker="decision → interrogation → verdict → chain"
+        >
+          <EngineFlowLoader />
+        </Sectioned>
+        <ThreeLayers />
+        <span id="surface" aria-hidden />
+        <ProofSection />
         <FrameworkExplainer />
-        <ProtocolsSection />
-        <CodeSample />
-        <SymbiosisTimeline />
-        <CTASection />
+        <span id="protocols" aria-hidden />
+        <InstallSection />
       </main>
       <Footer />
     </>

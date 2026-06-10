@@ -87,9 +87,9 @@ export default async function Image() {
                 background: "#4ea6ff",
               }}
             />
-            substrate · v1.0 rc
+            epistemic engine · v1.7.0-rc1
           </span>
-          <span>causal-consequence scaffolding</span>
+          <span>decompose · verify · oppose · decide</span>
         </div>
 
         {/* Spacer */}
