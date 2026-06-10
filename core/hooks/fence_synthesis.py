@@ -171,6 +171,24 @@ def main() -> int:
         )
         if envelope is not None:
             _hook_log(f"synthesized protocol: correlation={correlation[:16]}")
+        # Event 138 · v2.0 — lesson synthesis from a fresh interrogation
+        # verdict. A successful op whose verdict carries a non-null
+        # lesson emits a context-scoped protocol (deduped by lesson
+        # hash). Graceful degrade: bookkeeping never blocks PostToolUse.
+        try:
+            import _interrogation  # type: ignore  # pyright: ignore[reportMissingImports]
+            lesson_protocol = _interrogation.maybe_synthesize_lesson(
+                payload, _extract_exit_code(payload)
+            )
+            if lesson_protocol is not None:
+                _hook_log(
+                    "synthesized interrogation-lesson protocol: "
+                    f"{lesson_protocol.get('lesson_hash')}"
+                )
+        except Exception as lesson_exc:
+            _hook_log(
+                f"lesson synthesis skipped: {type(lesson_exc).__name__}"
+            )
         try:
             ctx = _spot_check.build_post_context(correlation)
             if ctx is not None:

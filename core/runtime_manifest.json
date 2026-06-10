@@ -15,6 +15,7 @@
     "release-notes"
   ],
   "custom_skills": [
+    "epistemic-interrogation",
     "repo-bootstrap",
     "requirements-to-plan",
     "progress-handoff",

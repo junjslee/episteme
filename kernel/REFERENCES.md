@@ -751,6 +751,59 @@ boundary: a plan that cannot be falsified is not admitted to execution.
 
 ---
 
+## Factored verification & the v2.0 division of labor (Event 138)
+
+The v2.0 Epistemic Engine (`docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md`,
+`skills/custom/epistemic-interrogation/`, `core/hooks/_interrogation.py`)
+borrows its load-bearing mechanisms from the 2023–2026 empirical record.
+Each entry below is Primary for v2.0 kernel wording.
+
+**arXiv:2309.11495 — *Chain-of-Verification* (Dhuliawala et al.).**
+The interrogation's factored-verification step: load-bearing claims are
+verified by a fresh context that never sees the draft reasoning, because
+verification conditioned on the draft inherits its hallucinations
+(factored variant: list precision 0.17→0.36). Kernel wording: "verify in
+a fresh context against external evidence."
+
+**arXiv:2310.01798 — *Large Language Models Cannot Self-Correct
+Reasoning Yet* (Huang et al.).** Why no kernel mechanism asks the model
+to re-review its own output without a new signal (GPT-4 GSM8K
+95.5→89.0 under self-correction). Grounds the external-evidence floor in
+`_interrogation.artifact_status` — a verification with `method: none`
+on every load-bearing claim is rejected as a null op.
+
+**arXiv:2305.14251 (FActScore) + arXiv:2403.18802 (SAFE).** Atomic claim
+decomposition with per-claim evidence beats holistic judgment; a
+tool-equipped verifier exceeds human raters at 1/20 cost. Grounds the
+claims[] schema and its tier vocabulary.
+
+**arXiv:2402.06782 (Khan et al.) + arXiv:2311.08702 (Michael et al.).**
+Assigned opposition beats neutral review (judge accuracy 76% vs 48%);
+the single-consultant configuration is the worst because it can hide
+evidence. Grounds the `opposition` field's argued-advocate framing.
+
+**arXiv:2305.04388 — *Language Models Don't Always Say What They Think*
+(Turpin et al.).** Fluent reasoning text systematically misrepresents
+the real cause of an answer. Why neither regex nor a judge reading the
+draft can be the substance check — behavioral verification only.
+
+**arXiv:2410.07137 (null-model judge gaming) + arXiv:2408.02442 (format
+constraints degrade reasoning, Tam et al.).** The two results that
+demoted v1's form-validation from judge to floor: reasoning-shaped
+tokens satisfy form-checks, and rigid schemas lower reasoning quality —
+so the artifact is extracted after free-form reasoning, and its
+validation claims to be nothing more than a floor.
+
+| v2.0 mechanism | Kernel implementation |
+|---|---|
+| Factored verification | `epistemic-interrogation` SKILL § 4 — fresh subagent, claim-only context |
+| External-evidence floor | `core/hooks/_interrogation.py` — EXTERNAL_METHODS requirement |
+| Assigned opposition | artifact `opposition` field + argued-advocate floor |
+| Verdict consistency | refuted load-bearing claim + `proceed` → rejected contradiction |
+| Lesson compounding | `maybe_synthesize_lesson` → CP7 `write_protocol` |
+
+---
+
 # Regulator-recognizable standards — 2025–2026
 
 These are standards bodies whose published guidance is what regulators

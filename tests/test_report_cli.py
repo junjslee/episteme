@@ -108,7 +108,37 @@ def _empty_args(tmp_path: Path) -> list[str]:
         "--telemetry-dir", str(tmp_path / "telemetry"),
         "--audit-path", str(tmp_path / "audit.jsonl"),
         "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+        "--framework-dir", str(tmp_path / "framework"),
     ]
+
+
+def _seed_framework(
+    directory: Path,
+    *,
+    protocols: int = 0,
+    deferred: int = 0,
+    age_days: int = 0,
+) -> None:
+    """Seed framework-store-shaped envelopes ({"ts", "payload"}) with the
+    oldest record `age_days` back, matching _collect_framework's raw read."""
+    directory.mkdir(parents=True, exist_ok=True)
+    ts = (
+        datetime.now(timezone.utc) - timedelta(days=age_days)
+    ).isoformat()
+    if protocols:
+        with open(directory / "protocols.jsonl", "a", encoding="utf-8") as f:
+            for _ in range(protocols):
+                f.write(json.dumps(
+                    {"ts": ts, "payload": {"type": "synthesized_protocol"}}
+                ) + "\n")
+    if deferred:
+        with open(
+            directory / "deferred_discoveries.jsonl", "a", encoding="utf-8"
+        ) as f:
+            for _ in range(deferred):
+                f.write(json.dumps(
+                    {"ts": ts, "payload": {"type": "deferred_discovery"}}
+                ) + "\n")
 
 
 class TestReportEmptyState:
@@ -140,7 +170,7 @@ class TestReportEmptyState:
 
 
 class TestReportDemoFlag:
-    def test_demo_renders_all_five_section_headers(
+    def test_demo_renders_all_six_section_headers(
         self, cli_module, tmp_path, capsys
     ):
         result = cli_module.run_report_cli(["--demo", *_empty_args(tmp_path)])
@@ -151,6 +181,7 @@ class TestReportDemoFlag:
             "Failure Modes Countered",
             "Tier-1 Soak",
             "Calibration Trend",
+            "Protocol Synthesis",
             "Verdict",
         ):
             assert header in out, f"missing section: {header}"
@@ -184,6 +215,7 @@ class TestReportPopulatedState:
             "--telemetry-dir", str(tmp_path / "telemetry"),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         data = json.loads(capsys.readouterr().out)
@@ -208,6 +240,7 @@ class TestReportPopulatedState:
             "--telemetry-dir", str(tmp_path / "telemetry"),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         fm = json.loads(capsys.readouterr().out)["failure_modes"]
@@ -230,6 +263,7 @@ class TestReportPopulatedState:
             "--telemetry-dir", str(tel),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tel / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         cal = json.loads(capsys.readouterr().out)["calibration"]
@@ -252,6 +286,7 @@ class TestReportPopulatedState:
             "--telemetry-dir", str(tel),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tel / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         cal = json.loads(capsys.readouterr().out)["calibration"]
@@ -274,6 +309,7 @@ class TestReportTier1:
             "--telemetry-dir", str(tel),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tier1_path),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         tier1 = json.loads(capsys.readouterr().out)["tier1"]
@@ -292,6 +328,7 @@ class TestReportTier1:
             "--telemetry-dir", str(tel),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tier1_path),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         tier1 = json.loads(capsys.readouterr().out)["tier1"]
@@ -313,8 +350,92 @@ class TestReportJsonPurity:
             "--telemetry-dir", str(tmp_path / "telemetry"),
             "--audit-path", str(audit_path),
             "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
         ])
         assert result == 0
         out = capsys.readouterr().out
         assert "\033" not in out
         json.loads(out)  # must parse cleanly
+
+
+class TestReportE1SelfCheck:
+    """Event 137 — the report evaluates FALSIFIABILITY_CONDITIONS § E1
+    against live framework state instead of a hand-maintained doc status.
+    The live failure this guards: E1 fired (0 protocols, 49 days of
+    framework activity) and no surface anywhere said so."""
+
+    def _run_json(self, cli_module, tmp_path, capsys, audit_path):
+        result = cli_module.run_report_cli([
+            "--json",
+            "--telemetry-dir", str(tmp_path / "telemetry"),
+            "--audit-path", str(audit_path),
+            "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
+        ])
+        assert result == 0
+        return json.loads(capsys.readouterr().out)
+
+    def _seed_minimal_audit(self, tmp_path) -> Path:
+        audit_path = tmp_path / "audit.jsonl"
+        _seed_audit(audit_path, [("git push origin feat", "passed")])
+        return audit_path
+
+    def test_e1_fires_on_aged_framework_without_protocols(
+        self, cli_module, tmp_path, capsys
+    ):
+        audit_path = self._seed_minimal_audit(tmp_path)
+        _seed_framework(
+            tmp_path / "framework", protocols=0, deferred=5, age_days=49
+        )
+        data = self._run_json(cli_module, tmp_path, capsys, audit_path)
+        syn = data["protocol_synthesis"]
+        assert syn["protocols_total"] == 0
+        assert syn["framework_age_days"] == 49
+        assert syn["e1_fired"] is True
+        assert "E1 FIRED" in data["verdict"]
+        assert "FALSIFIABILITY_CONDITIONS" in data["verdict"]
+
+    def test_e1_silent_when_floor_met(self, cli_module, tmp_path, capsys):
+        audit_path = self._seed_minimal_audit(tmp_path)
+        _seed_framework(
+            tmp_path / "framework", protocols=3, deferred=5, age_days=49
+        )
+        data = self._run_json(cli_module, tmp_path, capsys, audit_path)
+        assert data["protocol_synthesis"]["e1_fired"] is False
+        assert "E1 FIRED" not in data["verdict"]
+
+    def test_e1_silent_inside_window(self, cli_module, tmp_path, capsys):
+        audit_path = self._seed_minimal_audit(tmp_path)
+        _seed_framework(
+            tmp_path / "framework", protocols=0, deferred=5, age_days=10
+        )
+        data = self._run_json(cli_module, tmp_path, capsys, audit_path)
+        assert data["protocol_synthesis"]["e1_fired"] is False
+        assert "E1 FIRED" not in data["verdict"]
+
+    def test_e1_na_when_framework_never_written(
+        self, cli_module, tmp_path, capsys
+    ):
+        audit_path = self._seed_minimal_audit(tmp_path)
+        data = self._run_json(cli_module, tmp_path, capsys, audit_path)
+        syn = data["protocol_synthesis"]
+        assert syn["framework_age_days"] is None
+        assert syn["e1_fired"] is False
+
+    def test_e1_rendered_section_shows_fired_state(
+        self, cli_module, tmp_path, capsys
+    ):
+        audit_path = self._seed_minimal_audit(tmp_path)
+        _seed_framework(
+            tmp_path / "framework", protocols=0, deferred=5, age_days=49
+        )
+        result = cli_module.run_report_cli([
+            "--telemetry-dir", str(tmp_path / "telemetry"),
+            "--audit-path", str(audit_path),
+            "--tier1-path", str(tmp_path / "telemetry" / "tier1.jsonl"),
+            "--framework-dir", str(tmp_path / "framework"),
+        ])
+        assert result == 0
+        out = capsys.readouterr().out
+        assert "Protocol Synthesis" in out
+        assert "FIRED" in out
