@@ -103,8 +103,16 @@ The decision-shape vocabulary **widens beyond irreversible ops** (operator's exp
 fence removal): irreversible op (kept — consequences), architectural cascade (kept —
 coherence), conflict between credible sources (kept — Blueprint A's case), constraint
 removal (kept — fences), and — new, and primary — **a load-bearing conclusion about to be
-acted on or handed to the operator.** The last shape has no v1 trigger; in v2 it is the
-skill's own primary invocation context and the Stop-adjacent surface of future work.
+acted on or handed to the operator.**
+
+The conclusion shape's live trigger shipped in Event 139: `conclusion_guard.py`
+(UserPromptSubmit) detects decision-question prompts via a conservative positive-system
+lexicon (EN + KR), writes a per-prompt marker, and injects one factual context line;
+`conclusion_gate.py` (Stop) nudges exactly once — flag written before the block, so a
+second Stop in the same prompt cycle always passes — when the turn ends with the marker
+live and no fresh verdict. A fresh `stop` verdict counts as interrogated: the protocol
+saying "don't proceed" is the protocol working. Detection here only routes; the substance
+check stays with the interrogation — the lexicon is a trigger, not a judge.
 
 ## 5. The interrogation — the senior-researcher protocol, mechanized
 

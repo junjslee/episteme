@@ -1277,6 +1277,13 @@ def main() -> int:
                 f"[episteme] high-impact op `{label}` admitted via "
                 f"interrogation verdict — {i_detail}\n"
             )
+            # Event 139 · E5 — every consumed verdict is spot-checkable.
+            # Sample-all; idempotent per artifact; never blocks.
+            try:
+                import _interrogation as _i5  # type: ignore  # pyright: ignore[reportMissingImports]
+                _i5.enqueue_verdict_spot_check(cwd, op_label=label)
+            except Exception:
+                pass
         elif i_status != "missing":
             interrogation_detail = i_detail
 
