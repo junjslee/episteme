@@ -194,6 +194,17 @@ class ResolutionTests(unittest.TestCase):
             file_as_dir = dr.Reference(raw="core/afile.py/", target="core/afile.py", kind="dir", line=1)
             self.assertFalse(dr.resolve_exists(root, file_as_dir))
 
+    def test_resolve_tries_citing_dir_relative_as_fallback(self):
+        # A README inside a subdir cites paths relative to that subdir
+        # (web/README.md -> `src/lib/x.ts` means web/src/lib/x.ts).
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "web" / "src" / "lib").mkdir(parents=True)
+            (root / "web" / "src" / "lib" / "x.ts").write_text("y\n")
+            ref = dr.Reference(raw="src/lib/x.ts", target="src/lib/x.ts", kind="file", line=1)
+            self.assertFalse(dr.resolve_exists(root, ref))  # root-relative: missing
+            self.assertTrue(dr.resolve_exists(root, ref, citing="web/README.md"))  # subdir: exists
+
     def test_symlink_target_is_followed(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
@@ -208,6 +219,17 @@ class ResolutionTests(unittest.TestCase):
 
 class FindDriftTests(unittest.TestCase):
     """find_drift flags nonexistent, non-gitignored citations; gitignore is injectable."""
+
+    def test_subdir_readme_relative_citation_is_not_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "web" / "src" / "lib").mkdir(parents=True)
+            (root / "web" / "src" / "lib" / "mode.ts").write_text("x\n")
+            (root / "web" / "README.md").write_text("config in `src/lib/mode.ts`\n")
+            findings = dr.find_drift(
+                root, doc_files=["web/README.md"], ignored_checker=lambda p: set()
+            )
+            self.assertEqual([], findings)
 
     def test_dangling_reference_is_flagged(self):
         with tempfile.TemporaryDirectory() as d:

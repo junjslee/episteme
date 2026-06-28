@@ -291,12 +291,25 @@ def _under_allowlist(path: str) -> bool:
 # --------------------------------------------------------------------------- #
 
 
-def resolve_exists(repo_root: Path, ref: Reference) -> bool:
-    """True if the reference resolves in the working tree (symlinks followed)."""
-    target = Path(repo_root) / ref.target
+def resolve_exists(repo_root: Path, ref: Reference, citing: Optional[str] = None) -> bool:
+    """True if the reference resolves in the working tree (symlinks followed).
+
+    A citation resolves if it exists relative to the repo root OR relative to the
+    citing file's directory. The second interpretation covers a README inside a
+    sub-package (web/README.md) that cites paths relative to its own directory
+    (``src/lib/x.ts`` meaning ``web/src/lib/x.ts``). The fallback only ever turns
+    a *missing* path into a *present* one, so it removes false positives without
+    masking real drift — a genuinely dead path exists under neither root.
+    """
+    root = Path(repo_root)
+    candidates = [root / ref.target]
+    if citing:
+        citing_dir = os.path.dirname(citing)
+        if citing_dir:
+            candidates.append(root / citing_dir / ref.target)
     if ref.kind == "dir":
-        return target.is_dir()
-    return target.exists()
+        return any(c.is_dir() for c in candidates)
+    return any(c.exists() for c in candidates)
 
 
 def tracked_markdown(repo_root: Path) -> List[str]:
@@ -354,7 +367,7 @@ def find_drift(
         except (OSError, UnicodeError):
             continue
         for ref in extract_references(text, rel):
-            if not resolve_exists(root, ref):
+            if not resolve_exists(root, ref, citing=rel):
                 unresolved.append((rel, ref))
 
     ignored = ignored_checker({ref.target for _, ref in unresolved})
