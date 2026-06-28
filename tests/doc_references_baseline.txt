@@ -26,6 +26,7 @@ docs/CONTRACT_GATE.md	contracts/orders.openapi.yaml
 docs/CUSTOMIZATION.md	core/memory/global/build_story.md
 docs/HOW_TO_AUTHOR_SIGNED_SURFACE.md	skills/compliance-evidence-layer
 docs/LAYER_MODEL.md	core/memory/bridges/anthropic-managed
+docs/OSF_PRE_REGISTRATION_DRAFT.md	benchmarks/cognitive-lift-baseline/phase2/TASKS.manifest
 docs/README.md	kernel/SYSTEM_1_COUNTERS.md
 kernel/CHAIN_RECOVERY_PROTOCOL.md	docs/SCHEMA_MIGRATION_v1_0_to_v1_1.md
 kernel/PHASE_12_LEXICON.md	core/memory/global/phase_12_lexicon.md

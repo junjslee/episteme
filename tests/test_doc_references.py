@@ -166,6 +166,40 @@ class ExtractionExemptsNonCitations(unittest.TestCase):
         self.assertEqual(set(), _refs("the gate reads `.episteme/reasoning-surface.json`"))
 
 
+class ExtractionRobustnessFromReview(unittest.TestCase):
+    """Fixes for false-positives / false-negatives found by adversarial review."""
+
+    def test_data_src_attribute_is_not_matched_as_src(self):
+        # the 'src=' inside 'data-src=' (or 'xlink:href') is not an asset citation
+        self.assertEqual(set(), _refs('<img data-src="docs/x.md">'))
+
+    def test_real_src_and_href_attributes_still_matched(self):
+        self.assertIn("docs/assets/a.svg", _refs('<img src="docs/assets/a.svg">'))
+        self.assertIn("docs/ARCHITECTURE.md", _refs('<a href="docs/ARCHITECTURE.md">x</a>'))
+
+    def test_stemless_dotfile_token_is_not_a_file(self):
+        # `tests/.py` is a regex/pattern (empty stem), not a real file
+        self.assertEqual(set(), _refs("matches `tests/.py` in the scanner"))
+
+    def test_path_glued_to_nonascii_text_is_still_extracted(self):
+        # operator writes mixed Korean/English; a path touching CJK must not vanish
+        self.assertIn("core/hooks/checkpoint.py", _refs("설명은core/hooks/checkpoint.py 참고"))
+
+    def test_manifest_hurl_dot_extensions_are_recognized(self):
+        self.assertIn("benchmarks/x/TASKS.manifest", _refs("the `benchmarks/x/TASKS.manifest` corpus"))
+        self.assertIn("contracts/orders.hurl", _refs("run `contracts/orders.hurl`"))
+        self.assertIn("docs/graph.dot", _refs("render `docs/graph.dot`"))
+
+
+class GitResolutionRobustness(unittest.TestCase):
+    def test_git_ignored_returns_empty_when_git_binary_missing(self):
+        from unittest import mock
+
+        with mock.patch.object(dr.subprocess, "run", side_effect=FileNotFoundError):
+            # fail toward flagging: exempt nothing rather than crash
+            self.assertEqual(set(), dr.git_ignored(Path("/nowhere"), ["a/b.py"]))
+
+
 class ResolutionTests(unittest.TestCase):
     """resolve_exists is filesystem truth (follow symlinks); dir-kind must be a dir."""
 

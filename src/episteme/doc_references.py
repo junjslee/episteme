@@ -92,6 +92,8 @@ FILE_EXTENSIONS: frozenset[str] = frozenset(
     {
         "md", "py", "json", "jsonl", "yaml", "yml", "txt", "sh", "svg",
         "gif", "png", "toml", "sha256", "cfg", "ini", "lock", "ts", "tsx", "js",
+        # artifact extensions in this repo's ARTIFACT_TAXONOMY vocabulary
+        "manifest", "hurl", "dot",
     }
 )
 
@@ -159,12 +161,19 @@ class Finding:
 
 _FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 _LINK_RE = re.compile(r"!?\[[^\]]*\]\(\s*([^)\s]+?)\s*\)")
-_HTML_SRC_RE = re.compile(r"""(?:src|href)\s*=\s*["']([^"']+)["']""")
+# Require an attribute-name boundary so `src=` inside `data-src=` / `xlink:href`
+# (typically lazy-loaded runtime paths) does not match a real src/href attribute.
+_HTML_SRC_RE = re.compile(r"""(?<![\w:-])(?:src|href)\s*=\s*["']([^"']+)["']""")
+# Matches real AND prefixed (data-src, xlink:href) attributes — used to strip
+# ALL of them from the line so a rejected attribute's value cannot fall through
+# to the bare-path scan as a phantom citation.
+_HTML_ANY_ATTR_RE = re.compile(r"""[\w:-]*(?:src|href)\s*=\s*["'][^"']*["']""")
 _INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
-# A bare prose path: a contiguous run of path characters ending in ``.ext``,
-# not starting mid-token (the lookbehind blocks matches inside URLs/identifiers).
+# A bare prose path: a contiguous run of path characters ending in ``.ext``, not
+# starting mid-token. The lookbehind is ASCII-only (not \w) so a path glued to
+# non-ASCII text — e.g. Korean prose `설명은core/x.py` — is still seen.
 _BARE_PATH_RE = re.compile(
-    r"(?<![\w./~$-])([A-Za-z0-9_.][A-Za-z0-9_./-]*\.[A-Za-z0-9]+/?)"
+    r"(?<![A-Za-z0-9_./~$-])([A-Za-z0-9_.][A-Za-z0-9_./-]*\.[A-Za-z0-9]+/?)"
 )
 _LINE_SUFFIX_RE = re.compile(r"^(.*\.[A-Za-z0-9]+):\d+(?::\d+)?$")
 _TEMPLATE_RE = re.compile(r"YYYY|(?<![A-Za-z])NN(?![A-Za-z])|MM-DD")
@@ -196,7 +205,7 @@ def _scan_line(line: str, citing: str, lineno: int, out: List[Reference]) -> Non
     residual = _LINK_RE.sub(" ", residual)
     for m in _HTML_SRC_RE.finditer(residual):
         _consider(m.group(1), citing, lineno, link=True, out=out)
-    residual = _HTML_SRC_RE.sub(" ", residual)
+    residual = _HTML_ANY_ATTR_RE.sub(" ", residual)
     # Inline code spans: only a single whitespace-free token is a citation; a
     # span with spaces is an example command/expression, not a path.
     for m in _INLINE_CODE_RE.finditer(residual):
@@ -270,8 +279,13 @@ def _classify(raw: str, citing: str, link: bool, lineno: int) -> Optional[Refere
         return Reference(raw=raw, target=norm, kind="dir", line=lineno)
 
     basename = norm.rsplit("/", 1)[-1]
-    ext = basename.rsplit(".", 1)[-1].lower() if "." in basename else ""
-    if ext not in FILE_EXTENSIONS:
+    if "." in basename:
+        stem, ext = basename.rsplit(".", 1)
+        ext = ext.lower()
+    else:
+        stem, ext = basename, ""
+    # An empty stem (`tests/.py`) is a regex/pattern, not a real file.
+    if not stem or ext not in FILE_EXTENSIONS:
         return None
     if "/" not in norm:
         if norm in BARE_WELLKNOWN:
@@ -319,12 +333,18 @@ def tracked_markdown(repo_root: Path) -> List[str]:
     excludes the gitignored private-symlink docs and any vendored markdown under
     node_modules, so the linter yields the same verdict locally and in CI.
     """
-    proc = subprocess.run(
-        ["git", "-C", str(repo_root), "ls-files", "-z", "*.md"],
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo_root), "ls-files", "-z", "*.md"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        raise RuntimeError(
+            "doc_references requires git to enumerate tracked markdown; "
+            "pass an explicit doc_files list to run without it"
+        ) from exc
     return [p for p in proc.stdout.split("\0") if p]
 
 
@@ -333,12 +353,16 @@ def git_ignored(repo_root: Path, paths: Iterable[str]) -> Set[str]:
     items = [p for p in paths]
     if not items:
         return set()
-    proc = subprocess.run(
-        ["git", "-C", str(repo_root), "check-ignore", "--stdin"],
-        input="\n".join(items),
-        capture_output=True,
-        text=True,
-    )
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(repo_root), "check-ignore", "--stdin"],
+            input="\n".join(items),
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError:
+        # git binary absent: exempt nothing (fail toward flagging, not crashing).
+        return set()
     # 0 = some ignored, 1 = none ignored; anything else is a git error, in which
     # case we exempt nothing (fail toward flagging rather than hiding drift).
     if proc.returncode not in (0, 1):
