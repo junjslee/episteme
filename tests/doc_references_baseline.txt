@@ -1,0 +1,55 @@
+# Doc-reference drift baseline
+# =============================
+# Pre-existing dangling doc->code references accepted as KNOWN DEBT at the time
+# tests/test_doc_references.py was introduced (2026-06-28). The linter enforces
+# NO NEW drift beyond this list; CI fails if an edit adds a reference not here.
+#
+# This file may only SHRINK. When a reference is fixed (doc updated or path
+# restored), delete its line — test_baseline_has_no_stale_entries will fail if a
+# baselined reference starts resolving again, forcing the cleanup.
+#
+# Format: <citing_file><TAB><target>   (line numbers omitted on purpose — they
+# drift on every edit; the (file, target) pair is the stable identity.)
+#
+# Categories below are the introducing agent's triage, pending adversarial
+# review confirmation. Burn-down is the operator's call, reference by reference.
+#
+# ── real drift: renamed/moved — fix the doc to the current path ───────────────
+kernel/DESIGN_BEHAVIOR_INVARIANTS.md	tests/test_blueprint_d.py
+#
+# ── real drift: cited path missing, no equivalent (verify: fix doc or restore) ─
+docs/ADAPTER_PORTABILITY.md	adapters/cursor
+docs/ADAPTER_PORTABILITY.md	core/schemas/canonical-event.json
+docs/ANTHROPIC_MANAGED_AGENTS_BRIDGE.md	core/memory/bridges/anthropic-managed
+docs/COMPLIANCE_CROSSWALK.md	core/manifest.py
+docs/CONTRACT_GATE.md	contracts/orders.openapi.yaml
+docs/CUSTOMIZATION.md	core/memory/global/build_story.md
+docs/HOW_TO_AUTHOR_SIGNED_SURFACE.md	skills/compliance-evidence-layer
+docs/LAYER_MODEL.md	core/memory/bridges/anthropic-managed
+docs/README.md	kernel/SYSTEM_1_COUNTERS.md
+kernel/CHAIN_RECOVERY_PROTOCOL.md	docs/SCHEMA_MIGRATION_v1_0_to_v1_1.md
+kernel/PHASE_12_LEXICON.md	core/memory/global/phase_12_lexicon.md
+kernel/README.md	kernel/core
+kernel/README.md	kernel/research
+kernel/REFERENCES.md	core/patterns
+web/README.md	src/lib/fixtures
+web/README.md	src/lib/server
+web/README.md	src/lib/server/mode.ts
+#
+# ── aspirational specs: forward-references to code not yet built ──────────────
+docs/SPEC_REASONING_SURFACE_BRANCHING.md	core/hooks/_branch.py
+docs/SPEC_RIGOR_KNOB.md	core/hooks/_rigor.py
+kernel/FALSIFIABILITY_CONDITIONS.md	benchmarks/falsifiability
+kernel/FALSIFIABILITY_CONDITIONS.md	core/hooks/_normalized_command_scanner.py
+kernel/FALSIFIABILITY_CONDITIONS.md	core/hooks/_reasoning_surface_validator.py
+#
+# ── privatized docs: moved to private staging; gitignore or republish ────────
+docs/EVALUATION_METHOD.md	docs/PRODUCTIZATION_PLAN.md
+docs/SPEC_REASONING_SURFACE_BRANCHING.md	docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md
+docs/SPEC_RIGOR_KNOB.md	docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md
+#
+# ── contract placeholders: per-project memory-contract docs, never instantiated ─
+docs/HARNESSES.md	docs/RUN_CONTEXT.md
+docs/LAYER_MODEL.md	docs/REQUIREMENTS.md
+docs/LAYER_MODEL.md	docs/RUN_CONTEXT.md
+skills/custom/requirements-to-plan/SKILL.md	docs/REQUIREMENTS.md
