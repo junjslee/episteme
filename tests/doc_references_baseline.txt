@@ -32,9 +32,6 @@ kernel/PHASE_12_LEXICON.md	core/memory/global/phase_12_lexicon.md
 kernel/README.md	kernel/core
 kernel/README.md	kernel/research
 kernel/REFERENCES.md	core/patterns
-web/README.md	src/lib/fixtures
-web/README.md	src/lib/server
-web/README.md	src/lib/server/mode.ts
 #
 # ── aspirational specs: forward-references to code not yet built ──────────────
 docs/SPEC_REASONING_SURFACE_BRANCHING.md	core/hooks/_branch.py
