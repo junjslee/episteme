@@ -122,7 +122,11 @@ def _framework_digest_line() -> str | None:
         # currently active" view; superseded entries still count as
         # synthesis activity worth reporting.
         all_protocols = _framework.list_protocols(include_superseded=True)
-        deferred = _framework.list_deferred_discoveries(status="pending")
+        # Resolution layer (2026-07-03): count OPEN (pending AND
+        # unverdicted), not raw pending — 233 permanently-pending
+        # entries made this banner an unclosable alarm because no
+        # resolve path existed. Verdicted findings stop re-firing.
+        deferred = _framework.open_deferred_discoveries()
     except Exception:
         return None
     total = len(all_protocols)

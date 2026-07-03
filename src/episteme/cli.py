@@ -4715,6 +4715,64 @@ def _chain_dispatch(args) -> int:
     return 2
 
 
+def _deferred_dispatch(args) -> int:
+    """`episteme deferred list|resolve` — the deferred-ledger drain.
+
+    Resolution is append-only (core/hooks/_framework.py § Resolution
+    layer): a verdict record references the discovery's entry_hash and
+    the chain stays intact. The SessionStart banner and
+    `episteme guide --deferred` count OPEN entries, so a verdict here
+    is what makes a finding stop re-firing every session.
+    """
+    hooks_dir = REPO_ROOT / "core" / "hooks"
+    if str(hooks_dir) not in sys.path:
+        sys.path.insert(0, str(hooks_dir))
+    import _framework  # type: ignore  # noqa: E402  # pyright: ignore[reportMissingImports]
+    from _chain import ChainError  # type: ignore  # noqa: E402  # pyright: ignore[reportMissingImports]
+
+    if args.deferred_action == "list":
+        envelopes = _framework.open_deferred_discoveries()
+        if getattr(args, "deferred_json", False):
+            print(json.dumps([
+                {
+                    "entry_hash": env.get("entry_hash"),
+                    "ts": env.get("ts"),
+                    "payload": env.get("payload"),
+                }
+                for env in envelopes
+            ], indent=2, ensure_ascii=False))
+            return 0
+        for env in envelopes:
+            payload = env.get("payload") or {}
+            desc = str(payload.get("description") or "")[:100]
+            print(f"{str(env.get('entry_hash') or '')[:12]}  "
+                  f"{str(env.get('ts') or '')[:10]}  {desc}")
+        noun = "discovery" if len(envelopes) == 1 else "discoveries"
+        print(f"\n{len(envelopes)} open deferred {noun}. Resolve with: "
+              f"episteme deferred resolve <ref> --verdict "
+              f"resolved|noise|duplicate --why '...'")
+        return 0
+
+    if args.deferred_action == "resolve":
+        try:
+            env = _framework.append_discovery_verdict(
+                args.ref, args.verdict, args.why
+            )
+        except ChainError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        payload = env.get("payload") or {}
+        print(f"[ok] verdict '{payload.get('verdict')}' chained for "
+              f"{str(payload.get('ref') or '')[:12]} "
+              f"(record {str(env.get('entry_hash') or '')[:12]})")
+        remaining = len(_framework.open_deferred_discoveries())
+        noun = "discovery" if remaining == 1 else "discoveries"
+        print(f"{remaining} open deferred {noun} remain")
+        return 0
+
+    return 1
+
+
 def _guide_dispatch(args) -> int:
     """Dispatch CP9 `episteme guide` — read-path for framework
     protocols and pending deferred_discoveries. Authoring / revision
@@ -4769,7 +4827,11 @@ def _guide_dispatch(args) -> int:
         return False
 
     if deferred:
-        envelopes = _framework.list_deferred_discoveries(status="pending")
+        # Resolution layer (2026-07-03): show OPEN entries only —
+        # verdicted discoveries are closed audit trail, not work.
+        # Include the entry_hash so the operator can resolve by ref
+        # (`episteme deferred resolve <hash-prefix> ...`).
+        envelopes = _framework.open_deferred_discoveries()
         out_items = []
         for env in envelopes:
             if not isinstance(env, dict):
@@ -4781,7 +4843,11 @@ def _guide_dispatch(args) -> int:
                 continue
             if not _context_passes(payload):
                 continue
-            out_items.append({"ts": env.get("ts"), "payload": payload})
+            out_items.append({
+                "ts": env.get("ts"),
+                "entry_hash": env.get("entry_hash"),
+                "payload": payload,
+            })
         if want_json:
             print(json.dumps(out_items, indent=2, ensure_ascii=False))
             return 0
@@ -5716,6 +5782,38 @@ def build_parser() -> argparse.ArgumentParser:
         help="Default mode: print most-recent N observations (default 10)",
     )
 
+    # Resolution layer (2026-07-03) — the drain the deferred ledger
+    # never had: 233 entries sat permanently 'pending' because only
+    # the writer existed. Verdicts are append-only chain records.
+    deferred_cmd = sub.add_parser(
+        "deferred",
+        help="List OPEN deferred discoveries or chain an operator verdict",
+    )
+    deferred_sub = deferred_cmd.add_subparsers(
+        dest="deferred_action", required=True
+    )
+    deferred_list = deferred_sub.add_parser(
+        "list", help="OPEN (pending AND unverdicted) discoveries with refs"
+    )
+    deferred_list.add_argument(
+        "--json", dest="deferred_json", action="store_true",
+        help="Machine-readable output",
+    )
+    deferred_resolve = deferred_sub.add_parser(
+        "resolve", help="Record a verdict for an open discovery (append-only)"
+    )
+    deferred_resolve.add_argument(
+        "ref", help="entry_hash of the discovery, or a unique >= 8-char prefix",
+    )
+    deferred_resolve.add_argument(
+        "--verdict", required=True, choices=["resolved", "noise", "duplicate"],
+        help="resolved: addressed · noise: not a real finding · duplicate: covered by another entry",
+    )
+    deferred_resolve.add_argument(
+        "--why", required=True,
+        help="What was done, or why it is noise/duplicate (>= 15 chars)",
+    )
+
     # CP9 — Pillar 3 active guidance query.
     guide_cmd = sub.add_parser(
         "guide",
@@ -6386,6 +6484,8 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _review_dispatch(args)
     if args.command == "guide":
         return _guide_dispatch(args)
+    if args.command == "deferred":
+        return _deferred_dispatch(args)
     if args.command == "kernel":
         if args.kernel_action == "verify":
             return _kernel_verify()
