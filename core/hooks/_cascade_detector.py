@@ -174,10 +174,16 @@ _READ_ONLY_HEADS: frozenset[str] = frozenset({
     # disqualified separately)
     "diff", "cmp", "md5", "md5sum", "shasum", "sha256sum",
     "cut", "tr", "column", "nl", "od", "xxd",
-    "strings", "less", "more", "jq",
+    "strings", "jq",
     # git, restricted to _READ_ONLY_GIT_SUBCOMMANDS
     "git",
 })
+# NOT included (arg-dependent writers / shell-escapes, kept off after
+# two review rounds so the exemption stays provably safe rather than
+# clever): sort/uniq/tree (file-output options), less/more (`-o` logs a
+# file and `!cmd` escapes to a shell), find/sed/xargs (see below). The
+# exemption is best-effort advisory-noise reduction; when in doubt a
+# command stays high-impact.
 
 # Long-form "write output to a file" flags. No reader uses these to
 # mean "read", so their presence disqualifies a segment regardless of
