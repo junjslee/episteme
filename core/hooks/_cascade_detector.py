@@ -168,22 +168,26 @@ _READ_ONLY_HEADS: frozenset[str] = frozenset({
     "readlink", "realpath", "basename", "dirname", "pwd",
     "which", "type", "whoami", "id", "uname", "date", "printenv",
     "echo", "printf", "true",
-    # search
-    "grep", "egrep", "fgrep", "rg", "ag",
+    # search. `rg` and `ag` removed (round 3): ripgrep `--pre CMD` runs
+    # an arbitrary per-file preprocessor and ag is unaudited for the
+    # same; plain grep covers the read case.
+    "grep", "egrep", "fgrep",
     # stream filters (stdout-only without redirection, which is
-    # disqualified separately)
+    # disqualified separately). `xxd` removed (round 3): its second
+    # positional is an OUTPUT file it overwrites with no redirection.
     "diff", "cmp", "md5", "md5sum", "shasum", "sha256sum",
-    "cut", "tr", "column", "nl", "od", "xxd",
+    "cut", "tr", "column", "nl", "od",
     "strings", "jq",
     # git, restricted to _READ_ONLY_GIT_SUBCOMMANDS
     "git",
 })
-# NOT included (arg-dependent writers / shell-escapes, kept off after
-# two review rounds so the exemption stays provably safe rather than
-# clever): sort/uniq/tree (file-output options), less/more (`-o` logs a
-# file and `!cmd` escapes to a shell), find/sed/xargs (see below). The
-# exemption is best-effort advisory-noise reduction; when in doubt a
-# command stays high-impact.
+# NOT included (arg-dependent writers / executors / shell-escapes, kept
+# off across three review rounds so the exemption stays provably safe
+# rather than clever): sort/uniq/tree (file-output options), less/more
+# (`-o` logs a file, `!cmd` escapes to a shell), xxd (positional
+# outfile), rg/ag (`rg --pre CMD` executor), find/sed/xargs (see
+# below). The exemption is best-effort advisory-noise reduction; when
+# in doubt a command stays high-impact.
 
 # Long-form "write output to a file" flags. No reader uses these to
 # mean "read", so their presence disqualifies a segment regardless of
@@ -196,14 +200,19 @@ _OUTPUT_FLAG_PREFIXES: tuple[str, ...] = ("--output", "--outfile")
 
 # `git branch` / `git tag` / `git remote` are excluded: bare they list,
 # with args they mutate — head-token analysis cannot tell them apart.
+# `git grep` removed (round 3): its `-O` / `--open-files-in-pager=CMD`
+# runs CMD through a shell over the matching files — an arbitrary-exec
+# vector; plain grep covers the read case.
 _READ_ONLY_GIT_SUBCOMMANDS: frozenset[str] = frozenset({
     "status", "log", "diff", "show", "rev-parse", "ls-files",
-    "ls-tree", "blame", "grep", "shortlog", "describe",
+    "ls-tree", "blame", "shortlog", "describe",
 })
 
 # Output sinks that cannot mutate project state; stripped before the
-# write-capable check runs so `cmd 2>/dev/null` stays exempt.
-_SAFE_SINK_RE = re.compile(r"(?:2>&1|[12]?>>?\s*/dev/null)")
+# write-capable check runs so `cmd 2>/dev/null` stays exempt. The
+# trailing boundary (round 3) stops `2>>/dev/nullreal` from matching
+# `/dev/null` and leaving a live redirect to a real file `nullreal`.
+_SAFE_SINK_RE = re.compile(r"(?:2>&1|[12]?>>?\s*/dev/null(?![\w./-]))")
 
 # Read-only classification is a SINGLE-PASS shell scanner (2026-07-03,
 # rewritten after a review found the prior two-regex quote handling had

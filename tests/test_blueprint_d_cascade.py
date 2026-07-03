@@ -1051,11 +1051,44 @@ class WriterExemptionBypassRegressions(unittest.TestCase):
     def test_git_diff_output_spaced_writes(self):
         self._is_writer("git diff --output victim.txt")
 
+    # Third review round (2026-07-03) — arg-dependent executors /
+    # positional-outfile writers still on the allowlist, plus a
+    # safe-sink boundary bug.
+    def test_xxd_positional_outfile_writes(self):
+        self._is_writer("xxd -r src.hex victim.txt")
+
+    def test_xxd_forward_outfile_writes(self):
+        self._is_writer("xxd src.txt out.hex")
+
+    def test_rg_pre_executor(self):
+        self._is_writer("rg --pre ./evil.sh needle .")
+
+    def test_git_grep_dash_O_pager_exec(self):
+        self._is_writer("git grep -O'echo x >&2 ; true' cascade")
+
+    def test_git_grep_open_files_in_pager_exec(self):
+        self._is_writer('git grep --open-files-in-pager="touch /tmp/p #" needle')
+
+    def test_ag_pager_executor(self):
+        self._is_writer("ag --pager 'sh -c evil' foo")
+
+    def test_dev_null_boundary_append_writes_real_file(self):
+        self._is_writer("echo x 2>>/dev/nullreal")
+
+    def test_dev_null_boundary_truncate_writes_real_file(self):
+        self._is_writer("echo x > /dev/nullreal")
+
     # Guard against over-correction: grep -o is only-matching (a read).
     def test_grep_only_matching_stays_exempt(self):
         self.assertTrue(
             _cascade_detector._is_read_only_command("grep -o pattern file.txt"),
             "grep -o (only-matching) is a read and must stay exempt",
+        )
+
+    def test_real_dev_null_sink_stays_exempt(self):
+        self.assertTrue(
+            _cascade_detector._is_read_only_command("cat f 2>/dev/null"),
+            "a genuine /dev/null sink must still be stripped",
         )
 
 
