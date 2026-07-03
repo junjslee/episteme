@@ -1315,7 +1315,13 @@ def _init_memory() -> int:
     cwd = Path.cwd().resolve()
     memory_dir = REPO_ROOT / "core" / "memory" / "global"
     examples_dir = memory_dir / "examples"
-    names = ["overview", "operator_profile", "workflow_policy", "python_runtime_policy", "cognitive_profile"]
+    # agent_feedback belongs here too: `episteme sync` imports it into
+    # CLAUDE.md, so a fresh clone without it produced a dangling import
+    # (Event 139 carry-forward; pinned by tests/test_fresh_user_journey).
+    names = [
+        "overview", "operator_profile", "workflow_policy",
+        "python_runtime_policy", "cognitive_profile", "agent_feedback",
+    ]
 
     print(f"Seeding kernel global memory at {memory_dir}")
     print("(this command always targets the kernel install, not your current directory)")
@@ -2237,6 +2243,23 @@ def _apply_harness(harness_name: str, project_root: Path, *, force: bool = False
 
     if _apply_harness_run_context(harness, project_root):
         print(f"  - Updated docs/RUN_CONTEXT.md with {harness_name} context")
+
+    # Keep the memory index coherent when the harness is applied AFTER
+    # bootstrap: the default scaffold omits the @HARNESS.md import
+    # (dangling-@import contract), so add it once the file exists.
+    claude_md = project_root / "CLAUDE.md"
+    if claude_md.exists():
+        content = claude_md.read_text(encoding="utf-8")
+        if "@HARNESS.md" not in content:
+            anchor = "@AGENTS.md\n"
+            if anchor in content:
+                content = content.replace(
+                    anchor, anchor + "@HARNESS.md\n", 1
+                )
+            else:
+                content = "@HARNESS.md\n" + content
+            _write_text(claude_md, content)
+            print("  - Added @HARNESS.md import to CLAUDE.md")
 
     return 0
 
@@ -4260,6 +4283,11 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
     project_root.mkdir(parents=True, exist_ok=True)
     mapping = _machine_context()
     mapping["PROJECT_ROOT"] = str(project_root)
+    # The memory index may only import files this scaffold creates:
+    # HARNESS.md exists iff a harness is applied, so the import renders
+    # iff harness_name is set (dangling-@import contract, pinned by
+    # tests/test_fresh_user_journey.py).
+    mapping["HARNESS_IMPORT"] = "@HARNESS.md\n" if harness_name else ""
 
     template_files = [
         "AGENTS.md",

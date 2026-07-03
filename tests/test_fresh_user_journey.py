@@ -1,0 +1,177 @@
+"""Fresh-user onboarding journey: init → doctor → bootstrap, for real.
+
+The 2026-07-03 recon found the onboarding trio had ZERO integration
+coverage — test_profile_cognition mocks _doctor and
+_resolve_bootstrap_target — so a regression in the exact path a
+stranger walks would ship through green CI (and dead-on-arrival
+onboarding is how the project lost its one external adopter, issues
+#1/#14). This suite drives the real commands as subprocesses against a
+sandboxed working-tree copy with a sandboxed HOME: no mocks, no
+operator-machine state, no writes outside the sandbox.
+
+Also pins scaffold integrity (T5): every `@file` import in a generated
+CLAUDE.md must resolve to a file the scaffold actually created —
+templates/project/CLAUDE.md used to import @HARNESS.md
+unconditionally while bootstrap only creates HARNESS.md under
+--harness, so every default scaffold began life with a dangling
+memory-index reference.
+"""
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+_IGNORE = shutil.ignore_patterns(
+    ".git", ".venv", "node_modules", "__pycache__", ".pytest_cache",
+    "build", "dist", ".episteme", "web",
+)
+
+# The operator-instance canonicals are gitignored symlinks into
+# ~/episteme-private; a stranger's clone does not have them. Remove
+# them from the sandbox so `init` exercises its real seeding path.
+_CANONICALS = (
+    "operator_profile.md", "cognitive_profile.md",
+    "workflow_policy.md", "python_runtime_policy.md",
+    "agent_feedback.md",
+)
+
+
+class FreshUserJourney(unittest.TestCase):
+    tmp: tempfile.TemporaryDirectory
+    sandbox: Path
+    home: Path
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        root = Path(cls.tmp.name)
+        cls.sandbox = root / "episteme"
+        # Working-tree copy, not a git clone: the journey must test the
+        # tree under development (a clone would test HEAD, making a
+        # fix-then-test TDD cycle impossible).
+        shutil.copytree(
+            REPO_ROOT, cls.sandbox, ignore=_IGNORE, symlinks=True,
+        )
+        mem = cls.sandbox / "core" / "memory" / "global"
+        for name in _CANONICALS:
+            path = mem / name
+            if path.exists() or path.is_symlink():
+                path.unlink()
+        for stale in (cls.sandbox / "docs").iterdir():
+            if stale.is_symlink() and not stale.exists():
+                stale.unlink()  # dangling private-doc symlinks
+        cls.home = root / "home"
+        cls.home.mkdir()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.tmp.cleanup()
+
+    def _run(self, *args: str, cwd: Path | None = None) -> tuple[int, str]:
+        env = {
+            **os.environ,
+            "HOME": str(self.home),
+            "EPISTEME_HOME": str(self.home / ".episteme"),
+            "PYTHONPATH": str(self.sandbox / "src"),
+        }
+        proc = subprocess.run(
+            [
+                sys.executable, "-c",
+                "import sys; from episteme.cli import main; "
+                "raise SystemExit(main(sys.argv[1:]))",
+                *args,
+            ],
+            cwd=str(cwd or self.sandbox),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        return proc.returncode, proc.stdout + proc.stderr
+
+    def _assert_imports_resolve(self, project: Path):
+        claude_md = project / "CLAUDE.md"
+        self.assertTrue(claude_md.exists())
+        for line in claude_md.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("@"):
+                ref = project / line[1:]
+                self.assertTrue(
+                    ref.exists(),
+                    f"generated CLAUDE.md imports {line} but the "
+                    f"scaffold never created {ref.name} — dangling "
+                    f"memory-index reference",
+                )
+
+    def test_full_journey(self):
+        # Step 1 — init seeds the canonicals a fresh clone lacks.
+        rc, out = self._run("init")
+        self.assertEqual(rc, 0, out)
+        mem = self.sandbox / "core" / "memory" / "global"
+        for name in ("operator_profile.md", "cognitive_profile.md",
+                     "workflow_policy.md", "agent_feedback.md"):
+            with self.subTest(seeded=name):
+                self.assertTrue((mem / name).exists(), f"{name} not seeded")
+
+        # Step 1b — init is idempotent; a second run must not fail or
+        # clobber.
+        marker = "operator-edited sentinel line"
+        profile = mem / "operator_profile.md"
+        profile.write_text(
+            profile.read_text(encoding="utf-8") + f"\n{marker}\n",
+            encoding="utf-8",
+        )
+        rc, out = self._run("init")
+        self.assertEqual(rc, 0, out)
+        self.assertIn(marker, profile.read_text(encoding="utf-8"))
+
+        # Step 2 — doctor gives a verdict, exit 0, in the sandbox.
+        rc, out = self._run("doctor")
+        self.assertEqual(rc, 0, out)
+
+        # Step 3 — default bootstrap scaffolds a coherent project.
+        project = Path(self.tmp.name) / "proj"
+        rc, out = self._run("bootstrap", str(project))
+        self.assertEqual(rc, 0, out)
+        for rel in ("AGENTS.md", "CLAUDE.md", "docs/REQUIREMENTS.md",
+                    "docs/PLAN.md", "docs/PROGRESS.md",
+                    "docs/RUN_CONTEXT.md", "docs/NEXT_STEPS.md",
+                    ".claude/settings.json"):
+            with self.subTest(scaffold=rel):
+                self.assertTrue((project / rel).exists(), f"{rel} missing")
+        json.loads((project / ".claude" / "settings.json").read_text())
+        # T5 contract: no dangling @imports in the default scaffold.
+        self._assert_imports_resolve(project)
+
+        # Step 4 — bootstrap --harness creates HARNESS.md AND imports it.
+        project_h = Path(self.tmp.name) / "proj-harness"
+        rc, out = self._run("bootstrap", str(project_h), "--harness", "auto")
+        self.assertEqual(rc, 0, out)
+        self.assertTrue((project_h / "HARNESS.md").exists(), out)
+        self.assertIn(
+            "@HARNESS.md",
+            (project_h / "CLAUDE.md").read_text(encoding="utf-8"),
+            "harnessed scaffold must import the HARNESS.md it created",
+        )
+        self._assert_imports_resolve(project_h)
+
+        # Step 5 — nothing leaked outside the sandbox HOME: the state
+        # dir the hooks write to exists under the sandboxed HOME (or
+        # not at all), never under the operator's real one (guarded by
+        # env, asserted for the audit trail).
+        self.assertFalse(
+            (Path(self.tmp.name) / ".episteme").exists(),
+            "state written outside the sandboxed HOME",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()
