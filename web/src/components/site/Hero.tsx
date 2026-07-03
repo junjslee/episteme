@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SignalBadge } from "@/components/ui/SignalBadge";
 import { CornerMarkers } from "@/components/ui/CornerMarkers";
 import { InterrogationStrip } from "@/components/site/InterrogationStrip";
+import { RELEASE_FACTS } from "@/lib/release-facts";
 
 const HERO_WORDS = ["Sounding", "right", "isn't", "being", "right."];
 
@@ -37,7 +38,7 @@ export function Hero() {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-chain opacity-75 status-pulse" />
                   <span className="relative inline-flex size-1.5 rounded-full bg-chain" />
                 </span>
-                epistemic engine · v1.7.0-rc1
+                epistemic engine · {RELEASE_FACTS.version}
               </SignalBadge>
               <span className="font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-muted">
                 생각의 틀 · decompose · verify · oppose · decide
@@ -96,7 +97,7 @@ export function Hero() {
               {[
                 { k: "claim tiers", v: "04" },
                 { k: "verdicts", v: "03" },
-                { k: "tests green", v: "1367" },
+                { k: "tests green", v: String(RELEASE_FACTS.testsGreen) },
                 { k: "CFR under constraint · MIRROR", v: "0.60→0.14" },
               ].map((m) => (
                 <div key={m.k} className="flex flex-col gap-1">

@@ -11,6 +11,9 @@ dist/
 # Local iteration state for the ralph-loop plugin; never commit.
 .claude/ralph-loop.local.md
 
+# ─── Playwright MCP session artifacts (snapshots/screenshots) ─────────────────
+.playwright-mcp/
+
 # ─── Labs / experimental run artifacts ───────────────────────────────────────
 # Skill candidate runs, scratch outputs, temp files under labs/.
 # These are local-only by design — do not commit.

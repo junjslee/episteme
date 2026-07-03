@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { RELEASE_FACTS } from "@/lib/release-facts";
 
 // OpenGraph / Twitter social-share card for episteme.
 //
@@ -87,7 +88,7 @@ export default async function Image() {
                 background: "#4ea6ff",
               }}
             />
-            epistemic engine · v1.7.0-rc1
+            epistemic engine · {RELEASE_FACTS.version}
           </span>
           <span>decompose · verify · oppose · decide</span>
         </div>
