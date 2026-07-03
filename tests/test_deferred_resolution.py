@@ -155,6 +155,69 @@ class ResolutionSemantics(unittest.TestCase):
                 _framework.DEFERRED_DISCOVERY_TYPE,
             )
 
+    def test_verdicts_survive_compaction(self):
+        # Review finding: `episteme chain compact` rebuilds the chain
+        # from GENESIS, recomputing every entry_hash. Without ref
+        # remapping + verdict-aware dedup, a resolved discovery re-opens
+        # and its verdict ref dangles. Build a chain with duplicate
+        # pending findings (so compaction actually removes something)
+        # plus a verdict, compact, and assert the resolved one stays
+        # resolved and the chain verifies.
+        # write_deferred_discovery dedups at write time (Event 49), so
+        # reproduce the pre-Event-49 bloat by appending duplicates
+        # directly to the chain.
+        from core.hooks._chain import append as chain_append
+        for _ in range(3):
+            chain_append(self.path, {
+                "type": _framework.DEFERRED_DISCOVERY_TYPE,
+                "description": "dup finding",
+                "observable": "if dup finding recurs the linter flags it",
+                "log_only_rationale": "test fixture",
+                "status": "pending",
+            })
+        keep = _write_discovery(self.path, "unique finding")
+        _framework.append_discovery_verdict(
+            keep["entry_hash"], "resolved",
+            "addressed; must not re-open after compaction",
+            path=self.path,
+        )
+        before_open = {
+            e["payload"]["description"]
+            for e in _framework.open_deferred_discoveries(path=self.path)
+        }
+        # 'unique finding' is verdicted -> not open; 'dup finding' open.
+        self.assertNotIn("unique finding", before_open)
+
+        result = _framework.compact_deferred_discoveries(path=self.path)
+        self.assertEqual(result.status, "compacted")
+        self.assertGreater(result.removed, 0)
+
+        verdict = _framework.verify_chains(
+            deferred_discoveries_path=self.path,
+            protocols_path=self.path.with_name("protocols.jsonl"),
+        )["deferred_discoveries"]
+        self.assertTrue(verdict.intact, f"chain broken after compaction: {verdict}")
+
+        after_open = {
+            e["payload"]["description"]
+            for e in _framework.open_deferred_discoveries(path=self.path)
+        }
+        # The verdicted discovery must NOT have re-opened.
+        self.assertNotIn("unique finding", after_open)
+        # And the verdict must still reject a contradictory second one
+        # (ref resolves to the surviving, remapped entry_hash).
+        surviving = [
+            e for e in _framework.list_deferred_discoveries(path=self.path)
+            if e["payload"]["description"] == "unique finding"
+        ]
+        self.assertEqual(len(surviving), 1)
+        with self.assertRaises(ChainError):
+            _framework.append_discovery_verdict(
+                surviving[0]["entry_hash"], "noise",
+                "contradictory verdict after compaction must be rejected",
+                path=self.path,
+            )
+
 
 class CliDrain(unittest.TestCase):
     """episteme deferred list|resolve against a sandboxed HOME."""

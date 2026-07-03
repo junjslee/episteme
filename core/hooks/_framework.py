@@ -885,8 +885,23 @@ def compact_deferred_discoveries(
             f"before compaction."
         )
 
+    # Verdicts couple to discoveries by entry_hash (see § Resolution
+    # layer). A GENESIS rebuild recomputes every entry_hash, so any
+    # verdict ref would dangle and a resolved discovery would re-open —
+    # unless we (1) never drop a verdicted discovery as a duplicate, and
+    # (2) remap verdict refs old->new during the rebuild. Collect the
+    # referenced hashes first.
+    verdict_refs: set[str] = set()
+    for rec in parsed:
+        payload = rec.get("payload")
+        if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                verdict_refs.add(ref)
+
     # Walk in file order; keep the first open deferred_discovery per
-    # dedup key, drop later open duplicates, keep everything else.
+    # dedup key, drop later open duplicates, keep everything else. A
+    # verdicted discovery is NEVER dropped (its verdict references it).
     seen_keys: set[tuple[str, str]] = set()
     kept: list[dict] = []
     for rec in parsed:
@@ -895,10 +910,11 @@ def compact_deferred_discoveries(
             isinstance(payload, dict)
             and payload.get("type") == DEFERRED_DISCOVERY_TYPE
             and str(payload.get("status", "pending")) in OPEN_STATUSES
+            and str(rec.get("entry_hash") or "") not in verdict_refs
         ):
             key = _dedup_key(payload, dedup_desc_prefix)
             if key in seen_keys:
-                continue  # later open duplicate — drop
+                continue  # later open, unverdicted duplicate — drop
             seen_keys.add(key)
         kept.append(rec)
 
@@ -925,6 +941,11 @@ def compact_deferred_discoveries(
     new_lines: list[str] = []
     expected_prev = GENESIS_PREV_HASH
     head_hash = expected_prev
+    # old entry_hash -> new entry_hash, so a verdict's `ref` (which
+    # points at a discovery's OLD hash) can be rewritten to the new one.
+    # A discovery always precedes its verdict in append order, so the
+    # map entry exists by the time the verdict is rebuilt.
+    hash_remap: dict[str, str] = {}
     for rec in kept:
         payload = rec.get("payload")
         ts = rec.get("ts")
@@ -933,7 +954,14 @@ def compact_deferred_discoveries(
                 f"{target}: kept record missing payload / ts during rebuild "
                 f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
             )
+        if payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            old_ref = payload.get("ref")
+            if isinstance(old_ref, str) and old_ref in hash_remap:
+                payload = {**payload, "ref": hash_remap[old_ref]}
+        old_entry_hash = str(rec.get("entry_hash") or "")
         entry_hash = compute_entry_hash(expected_prev, ts, payload)
+        if old_entry_hash:
+            hash_remap[old_entry_hash] = entry_hash
         envelope = {
             "schema_version": UPGRADED_FORMAT_MARKER,
             "ts": ts,
