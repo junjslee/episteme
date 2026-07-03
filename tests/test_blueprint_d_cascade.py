@@ -771,6 +771,53 @@ class DetectorReadOnlyExemption(unittest.TestCase):
         op = _bash_op("git log --oneline -5 -- core/hooks/")
         self.assertIsNone(_cascade_detector.detect_cascade(op))
 
+    # -- 2026-07-03 false-positive corpus (observed live: every one of
+    # -- these read-only recon commands drew a cascade advisory) -------
+
+    def test_quoted_pipe_in_grep_pattern_stays_exempt(self):
+        # `|` inside a double-quoted pattern is data, not a pipe; the
+        # raw-text segment splitter used to shear the quote in half.
+        op = _bash_op(
+            'grep -n "def \\|SENSITIVE" core/hooks/_cascade_detector.py'
+            " | head -30"
+        )
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_quoted_redirect_arrow_in_grep_stays_exempt(self):
+        # `->` inside quotes used to trip the write-capable regex.
+        op = _bash_op('ls -la core/ | grep "\\->" | head -20')
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_sed_range_print_read_mode_stays_exempt(self):
+        # Fence reconstruction (was test_sed_not_allowlisted_still_fires,
+        # Event 137): the original exclusion existed because head-token
+        # analysis cannot tell sed readers from writers. The finer
+        # mechanism inspects flags (-i/--in-place/-f disqualify) and the
+        # script argument (any `w` disqualifies) — the fence's purpose
+        # (never exempt a writer) is preserved by the counter-tests
+        # below.
+        op = _bash_op("sed -n '1,5p' core/hooks/foo.py")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_sed_range_print_pipeline_corpus_shape_stays_exempt(self):
+        op = _bash_op(
+            "sed -n '565,640p' core/hooks/reasoning_surface_guard.py; "
+            'echo "==="; '
+            "sed -n '1570,1600p' core/hooks/reasoning_surface_guard.py"
+        )
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_find_type_filter_pipeline_stays_exempt(self):
+        op = _bash_op(
+            "ls -la && find src core kernel -maxdepth 2 -type d | head -40"
+            " && cat pyproject.toml | head -50"
+        )
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
+    def test_xargs_with_read_only_child_stays_exempt(self):
+        op = _bash_op("git ls-files build | xargs wc -l")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
+
     # -- NOT exempt: write-capable or non-allowlisted shapes ---------------
 
     def test_redirection_into_sensitive_path_fires(self):
@@ -824,8 +871,64 @@ class DetectorReadOnlyExemption(unittest.TestCase):
             _cascade_detector.ARCHITECTURAL_CASCADE,
         )
 
-    def test_sed_not_allowlisted_still_fires(self):
-        op = _bash_op("sed -n '1,5p' core/hooks/foo.py")
+    def test_sed_in_place_still_fires(self):
+        op = _bash_op("sed -i 's/a/b/' core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_sed_in_place_with_suffix_still_fires(self):
+        op = _bash_op("sed -i.bak 's/a/b/' core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_sed_script_write_command_still_fires(self):
+        # `w` inside the script writes a file even without -i.
+        op = _bash_op("sed -n 's/x/y/w out.txt' core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_sed_script_file_still_fires(self):
+        # -f loads the script from a file we cannot inspect.
+        op = _bash_op("sed -f script.sed core/hooks/foo.py")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_find_delete_still_fires(self):
+        op = _bash_op("find core/hooks/ -name '*.pyc' -delete")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_find_exec_still_fires(self):
+        op = _bash_op("find core/hooks/ -name '*.py' -exec rm {} \\;")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_substitution_inside_double_quotes_still_fires(self):
+        # $() expands inside double quotes — the masked span must be
+        # scanned before it is masked away.
+        op = _bash_op('echo "$(rm core/hooks/foo.py)"')
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
+
+    def test_awk_stays_unexempt_by_conservatism(self):
+        # awk comparisons (NR>=x) are lexically indistinguishable from
+        # redirects inside the program without a real parser — the
+        # conservative direction keeps awk off the allowlist.
+        op = _bash_op("awk 'NR>=10' core/hooks/foo.py")
         self.assertEqual(
             _cascade_detector.detect_cascade(op),
             _cascade_detector.ARCHITECTURAL_CASCADE,
