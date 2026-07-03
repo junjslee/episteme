@@ -4732,27 +4732,13 @@ def _deferred_dispatch(args) -> int:
 
     if args.deferred_action == "list":
         envelopes = _framework.open_deferred_discoveries()
-        if getattr(args, "deferred_json", False):
-            print(json.dumps([
-                {
-                    "entry_hash": env.get("entry_hash"),
-                    "ts": env.get("ts"),
-                    "payload": env.get("payload"),
-                }
-                for env in envelopes
-            ], indent=2, ensure_ascii=False))
+        # Piping into head is the expected drain workflow; a closed
+        # stdout must not stack-trace (observed via a commit-hook
+        # pipeline on 2026-07-03).
+        try:
+            return _deferred_print_list(args, envelopes)
+        except BrokenPipeError:
             return 0
-        for env in envelopes:
-            payload = env.get("payload") or {}
-            desc = str(payload.get("description") or "")[:100]
-            print(f"{str(env.get('entry_hash') or '')[:12]}  "
-                  f"{str(env.get('ts') or '')[:10]}  {desc}")
-        noun = "discovery" if len(envelopes) == 1 else "discoveries"
-        print(f"\n{len(envelopes)} open deferred {noun}. Resolve with: "
-              f"episteme deferred resolve <ref> --verdict "
-              f"resolved|noise|duplicate --why '...'")
-        return 0
-
     if args.deferred_action == "resolve":
         try:
             env = _framework.append_discovery_verdict(
@@ -4771,6 +4757,29 @@ def _deferred_dispatch(args) -> int:
         return 0
 
     return 1
+
+
+def _deferred_print_list(args, envelopes: list) -> int:
+    if getattr(args, "deferred_json", False):
+        print(json.dumps([
+            {
+                "entry_hash": env.get("entry_hash"),
+                "ts": env.get("ts"),
+                "payload": env.get("payload"),
+            }
+            for env in envelopes
+        ], indent=2, ensure_ascii=False))
+        return 0
+    for env in envelopes:
+        payload = env.get("payload") or {}
+        desc = str(payload.get("description") or "")[:100]
+        print(f"{str(env.get('entry_hash') or '')[:12]}  "
+              f"{str(env.get('ts') or '')[:10]}  {desc}")
+    noun = "discovery" if len(envelopes) == 1 else "discoveries"
+    print(f"\n{len(envelopes)} open deferred {noun}. Resolve with: "
+          f"episteme deferred resolve <ref> --verdict "
+          f"resolved OR noise OR duplicate --why '...'")
+    return 0
 
 
 def _guide_dispatch(args) -> int:
