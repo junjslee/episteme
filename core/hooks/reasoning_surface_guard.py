@@ -940,7 +940,7 @@ def _write_audit(
 ) -> None:
     audit_path = Path.home() / ".episteme" / "audit.jsonl"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
-    entry = {
+    entry: dict[str, object] = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "tool": tool,
         "op": op,
@@ -953,6 +953,16 @@ def _write_audit(
         # verdict). E3 falsifiability measurement reads this field.
         "source": source,
     }
+    # Honest environment tagging (E3 measurement integrity,
+    # 2026-07-03): 38 of the first 50 interrogation-source audit
+    # records were pytest fixtures, indistinguishable from lived use —
+    # the E3 grep would have "passed" on test-suite noise alone. Tag
+    # records written under a test runner so the measurement (kernel/
+    # FALSIFIABILITY_CONDITIONS.md § E3) can exclude them. Tag, don't
+    # drop: users may legitimately work under /tmp, and dropped
+    # records would hide real gate activity.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        entry["test_env"] = True
     try:
         with open(audit_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
