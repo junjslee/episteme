@@ -125,248 +125,26 @@ def _sensitive_path_hit(text: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Read-only command exemption (Event 137)
+# ---------------------------------------------------------------------------
+# Read-only command exemption — REMOVED 2026-07-03
 # ---------------------------------------------------------------------------
 #
-# Trigger 2 originally fired on ANY Bash command whose text contained a
-# sensitive path — including pure inspection (`wc -l kernel/FOO.md`,
-# `grep -n x core/hooks/y.py`). Live telemetry showed the consequence:
-# the audit stream classified 18k+ ops as high-impact, the operator
-# downgraded the gate to advisory mode on the kernel's own repo, and
-# the advisory became noise — alarm fatigue defeating the gate, the
-# exact regime KERNEL_LIMITS § 1 names. Reading a sensitive file cannot
-# cascade; only mutation can.
-#
-# Rule shape, named consciously per the rule-shape discipline in
-# `core/memory/global/agent_feedback.md`: POSITIVE SYSTEM. A command is
-# exempt only when EVERY pipeline segment's head is on the read-only
-# allowlist below AND no write-capable shell construct survives
-# safe-sink stripping (output redirection, command / process
-# substitution). Anything not provably read-only stays high-impact:
-# a false negative (failing to exempt a read) costs one advisory;
-# a false positive (exempting a write) costs gate coverage.
-#
-# Trigger 1 (self-escalation) is checked BEFORE this exemption — a
-# surface that declares `flaw_classification` keeps Blueprint D
-# discipline on read-only ops too. Triggers 3/4 are mutating-verb
-# anchored and unreachable for an all-read-only command, so the Bash
-# branch short-circuits entirely when the exemption holds.
-
-
-# Reader heads must be readers in EVERY form. A second adversarial
-# review (2026-07-03) found `sort -o FILE`, `uniq IN OUT`, and
-# `tree -o/--outfile FILE` write files with NO shell redirection, so
-# they were removed from this set — same arg-dependent-writer class the
-# module already excludes find/sed/xargs for. Any command with a
-# file-output option or output positional stays OFF this list; the
-# `--output`/`--outfile` guard in `_segment_head_is_read_only` is a
-# second net for the long-form convention (also catches
-# `git diff --output=FILE`).
-_READ_ONLY_HEADS: frozenset[str] = frozenset({
-    # file inspection
-    "ls", "cat", "head", "tail", "wc", "stat", "file", "du", "df",
-    "readlink", "realpath", "basename", "dirname", "pwd",
-    "which", "type", "whoami", "id", "uname", "date", "printenv",
-    "echo", "printf", "true",
-    # search. `rg` and `ag` removed (round 3): ripgrep `--pre CMD` runs
-    # an arbitrary per-file preprocessor and ag is unaudited for the
-    # same; plain grep covers the read case.
-    "grep", "egrep", "fgrep",
-    # stream filters (stdout-only without redirection, which is
-    # disqualified separately). `xxd` removed (round 3): its second
-    # positional is an OUTPUT file it overwrites with no redirection.
-    "diff", "cmp", "md5", "md5sum", "shasum", "sha256sum",
-    "cut", "tr", "column", "nl", "od",
-    "strings", "jq",
-    # git, restricted to _READ_ONLY_GIT_SUBCOMMANDS
-    "git",
-})
-# NOT included (arg-dependent writers / executors / shell-escapes, kept
-# off across three review rounds so the exemption stays provably safe
-# rather than clever): sort/uniq/tree (file-output options), less/more
-# (`-o` logs a file, `!cmd` escapes to a shell), xxd (positional
-# outfile), rg/ag (`rg --pre CMD` executor), find/sed/xargs (see
-# below). The exemption is best-effort advisory-noise reduction; when
-# in doubt a command stays high-impact.
-
-# Long-form "write output to a file" flags. No reader uses these to
-# mean "read", so their presence disqualifies a segment regardless of
-# head — a cheap net against arg-dependent writers slipping onto the
-# reader allowlist (`git diff --output=FILE` in particular). The short
-# `-o` is intentionally NOT here: among the remaining reader heads it
-# means only-matching (`grep -o`), a read; short-form `-o` WRITERS
-# (sort, tree) are handled by keeping them off _READ_ONLY_HEADS.
-_OUTPUT_FLAG_PREFIXES: tuple[str, ...] = ("--output", "--outfile")
-
-# `git branch` / `git tag` / `git remote` are excluded: bare they list,
-# with args they mutate — head-token analysis cannot tell them apart.
-# `git grep` removed (round 3): its `-O` / `--open-files-in-pager=CMD`
-# runs CMD through a shell over the matching files — an arbitrary-exec
-# vector; plain grep covers the read case.
-_READ_ONLY_GIT_SUBCOMMANDS: frozenset[str] = frozenset({
-    "status", "log", "diff", "show", "rev-parse", "ls-files",
-    "ls-tree", "blame", "shortlog", "describe",
-})
-
-# Output sinks that cannot mutate project state; stripped before the
-# write-capable check runs so `cmd 2>/dev/null` stays exempt. The
-# trailing boundary (round 3) stops `2>>/dev/nullreal` from matching
-# `/dev/null` and leaving a live redirect to a real file `nullreal`.
-_SAFE_SINK_RE = re.compile(r"(?:2>&1|[12]?>>?\s*/dev/null(?![\w./-]))")
-
-# Read-only classification is a SINGLE-PASS shell scanner (2026-07-03,
-# rewritten after a review found the prior two-regex quote handling had
-# 9 writer-exemption bypasses — CONFIRMED by execution). Two independent
-# regexes cannot track interleaved single/double/escape quote state, so
-# metacharacters inside one quote context shifted the pairing of another
-# and let real writers through. The scanner below walks the string once,
-# quote- and escape-aware, and treats a construct as write-capable ONLY
-# when it is shell-active in its actual context.
-#
-# Asymmetry (module invariant): a false positive — exempting a WRITER —
-# costs gate coverage and must never happen; a false negative — failing
-# to exempt a read — costs one advisory line. On any unrecognized active
-# metacharacter the scanner defaults to NOT read-only.
-#
-# find / sed / xargs are DELIBERATELY not exempted (they are not in
-# _READ_ONLY_HEADS): reader-vs-writer for them turns on argument details
-# (bundled `-ni`, BSD `-I`, `--expression=…w`, `-fscript`, quoted
-# `-delete`, `xargs sort -o`) that head+arg heuristics cannot safely
-# decide — the review confirmed 7 distinct bypasses down that path. They
-# stay categorically high-impact, as on master. Exempting their genuine
-# read forms safely needs a real shell parser (deferred).
-
-# Shell-active metacharacters recognized by the scanner, by context.
-_SEGMENT_SEPARATORS = frozenset({"|", "&", ";", "\n"})
-
-
-def _scan_command(cmd: str) -> tuple[list[list[str]], bool]:
-    """Single-pass, quote/escape-aware tokenizer.
-
-    Returns ``(segments, write_capable)`` where ``segments`` is a list
-    of pipeline/list segments, each a list of quote-stripped tokens,
-    and ``write_capable`` is True if any redirection, command/process
-    substitution, subshell, or backtick is shell-active in its context.
-    """
-    segments: list[list[str]] = []
-    seg: list[str] = []
-    tok: list[str] = []
-    in_single = in_double = False
-    write_capable = False
-    i, n = 0, len(cmd)
-
-    def _end_tok() -> None:
-        if tok:
-            seg.append("".join(tok))
-            tok.clear()
-
-    def _end_seg() -> None:
-        _end_tok()
-        if seg:
-            segments.append(list(seg))
-            seg.clear()
-
-    while i < n:
-        c = cmd[i]
-        if in_single:
-            if c == "'":
-                in_single = False
-            else:
-                tok.append(c)
-            i += 1
-            continue
-        if in_double:
-            # Only $ and backtick are shell-active inside double quotes;
-            # a backslash escapes just $ ` " \ and newline.
-            if c == "\\" and i + 1 < n and cmd[i + 1] in '$`"\\\n':
-                tok.append(cmd[i + 1])
-                i += 2
-                continue
-            if c == '"':
-                in_double = False
-            elif c == "`":
-                write_capable = True
-            elif c == "$" and i + 1 < n and cmd[i + 1] == "(":
-                write_capable = True
-            else:
-                tok.append(c)
-            i += 1
-            continue
-        # Unquoted context.
-        if c == "\\":
-            if i + 1 < n:
-                tok.append(cmd[i + 1])
-                i += 2
-            else:
-                i += 1
-            continue
-        if c == "'":
-            in_single = True
-            i += 1
-            continue
-        if c == '"':
-            in_double = True
-            i += 1
-            continue
-        if c.isspace():
-            _end_tok()
-            if c == "\n":
-                _end_seg()
-            i += 1
-            continue
-        if c in _SEGMENT_SEPARATORS:
-            _end_seg()
-            i += 1
-            continue
-        if c == ">" or c == "<":
-            # Redirection (write) or process substitution `<(` `>(`
-            # (executes). Either way not a plain read.
-            write_capable = True
-            i += 1
-            continue
-        if c == "`" or c == "(" or c == ")":
-            # Backtick substitution or a subshell — both execute.
-            write_capable = True
-            i += 1
-            continue
-        if c == "$" and i + 1 < n and cmd[i + 1] == "(":
-            write_capable = True
-            i += 2
-            continue
-        tok.append(c)
-        i += 1
-
-    _end_seg()
-    return segments, write_capable
-
-
-def _segment_head_is_read_only(tokens: list[str]) -> bool:
-    if not tokens:
-        return False
-    # A file-output flag disqualifies regardless of head (git diff
-    # --output=FILE, and any reader that grows one).
-    if any(
-        t.startswith(_OUTPUT_FLAG_PREFIXES) for t in tokens[1:]
-    ):
-        return False
-    head = tokens[0].rsplit("/", 1)[-1]
-    # Env-assignment prefixes (`FOO=bar cmd`) are not in the reader set,
-    # so they conservatively disqualify.
-    if head == "git":
-        sub = next((t for t in tokens[1:] if not t.startswith("-")), "")
-        return sub in _READ_ONLY_GIT_SUBCOMMANDS
-    return head in _READ_ONLY_HEADS
-
-
-def _is_read_only_command(cmd: str) -> bool:
-    """True iff ``cmd`` is provably a composition of read-only segments
-    with no shell-active write construct. Conservative by construction:
-    anything the scanner cannot prove read-only stays high-impact."""
-    stripped = _SAFE_SINK_RE.sub(" ", cmd)
-    segments, write_capable = _scan_command(stripped)
-    if write_capable or not segments:
-        return False
-    return all(_segment_head_is_read_only(seg) for seg in segments)
+# The Event-137 read-only exemption (an allowlist of reader command
+# heads + a hand-rolled shell scanner that classified a Bash command as
+# read-only and short-circuited Trigger 2) has been deleted. Four
+# adversarial review rounds (2026-07-03) proved it cannot be made safe
+# with zero dependencies: writers/executors slipped through both the
+# allowlist (sort -o, uniq OUT, tree -o, xxd positional, rg --pre,
+# git grep -O, file -C) and the scanner itself (ANSI-C $'...' quote
+# desync hid `;` separators and `>` redirects). A safe parsing-based
+# exemption needs a real bash parser (bashlex), which the
+# zero-dependency kernel forbids. So every Bash command now flows
+# through the sensitive-path / refactor-lexicon / generated-artifact
+# triggers with no exemption to bypass. Cost: reads on sensitive paths
+# draw an advisory (M4 alarm-fatigue) — the loss-averse direction, and
+# advisory mode already absorbs it on the kernel's own repo. A future
+# safe exemption is a deliberate design pass (real parser or a narrower
+# sensitive-path set), not a scanner patch.
 
 
 # ---------------------------------------------------------------------------
@@ -605,11 +383,19 @@ def detect_cascade(
             cmd = _bash_command(pending_op)
             if not cmd:
                 return None
-            # Event 137 — read-only exemption (see module § Read-only
-            # command exemption). Runs after Trigger 1 so declared
-            # self-escalation still wins.
-            if _is_read_only_command(cmd):
-                return None
+            # The Event-137 read-only exemption was REMOVED (2026-07-03).
+            # Four adversarial review rounds proved it cannot be made
+            # safe with zero dependencies: writers/executors kept
+            # slipping through both the command allowlist (sort -o,
+            # tree -o, xxd positional, rg --pre, git grep -O, file -C)
+            # and the hand-rolled shell scanner itself (ANSI-C $'...'
+            # quote-parity desync hid `;` separators and `>` redirects).
+            # A safe parsing-based exemption needs a real bash parser
+            # (bashlex), which the zero-dependency kernel forbids. So
+            # reads on sensitive paths now flow through the triggers and
+            # draw an advisory — the loss-averse direction: exempting a
+            # writer must never happen; over-warning on a read costs one
+            # advisory line.
             # Trigger 2 — sensitive path in command.
             if _sensitive_path_hit(cmd):
                 return ARCHITECTURAL_CASCADE

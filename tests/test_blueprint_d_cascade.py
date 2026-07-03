@@ -729,223 +729,87 @@ class SchemaExtensionDeferredDiscoveriesRelaxed(unittest.TestCase):
 # ---------- Read-only command exemption (Event 137) ----------------------
 
 
-class DetectorReadOnlyExemption(unittest.TestCase):
-    """Event 137 — positive-system read-only exemption ahead of Trigger 2.
-
-    Pure inspection of a sensitive path is not an architectural cascade.
-    Exemption requires EVERY pipeline segment head to be on the
-    read-only allowlist AND no write-capable shell construct anywhere
-    in the command. Anything not provably read-only stays high-impact.
+class ReadOnlyExemptionRemoved(unittest.TestCase):
+    """The Event-137 read-only exemption was REMOVED 2026-07-03 after
+    four adversarial rounds proved it unsalvageable with zero deps
+    (writers/executors leaked through the allowlist AND the hand-rolled
+    scanner's ANSI-C quote handling). There is now NO parsing-based
+    exemption: every Bash command touching a sensitive path is
+    high-impact, so no bypass exists. Cost: reads on sensitive paths
+    draw an advisory (M4 alarm-fatigue), the loss-averse direction.
     """
 
-    # -- exempt: provably read-only shapes --------------------------------
-
-    def test_wc_on_kernel_doc_does_not_fire(self):
-        op = _bash_op("wc -l kernel/FAILURE_MODES.md")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_grep_on_hooks_path_does_not_fire(self):
-        op = _bash_op("grep -n 'def detect' core/hooks/_cascade_detector.py")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_ls_on_episteme_dir_does_not_fire(self):
-        op = _bash_op("ls -la .episteme/")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_read_only_pipeline_does_not_fire(self):
-        op = _bash_op(
-            "grep -rn pattern core/hooks/ | head -20 "
-            "&& wc -l kernel/ARCHITECTURE.md"
-        )
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_stderr_sink_redirection_stays_exempt(self):
-        op = _bash_op("cat core/schemas/something.json 2>/dev/null")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_dev_null_sink_stays_exempt(self):
-        op = _bash_op("grep -q marker pyproject.toml > /dev/null 2>&1")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_git_log_on_sensitive_path_does_not_fire(self):
-        op = _bash_op("git log --oneline -5 -- core/hooks/")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    # -- 2026-07-03 false-positive corpus (observed live: every one of
-    # -- these read-only recon commands drew a cascade advisory) -------
-
-    def test_quoted_pipe_in_grep_pattern_stays_exempt(self):
-        # `|` inside a double-quoted pattern is data, not a pipe; the
-        # raw-text segment splitter used to shear the quote in half.
-        op = _bash_op(
-            'grep -n "def \\|SENSITIVE" core/hooks/_cascade_detector.py'
-            " | head -30"
-        )
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_quoted_redirect_arrow_in_grep_stays_exempt(self):
-        # `->` inside quotes used to trip the write-capable regex.
-        op = _bash_op('ls -la core/ | grep "\\->" | head -20')
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    # sed / find / xargs are DELIBERATELY not exempted (2026-07-03
-    # security review): reader-vs-writer for them turns on argument
-    # detail that head+arg heuristics cannot safely decide (7 confirmed
-    # bypasses down that path — see WriterExemptionBypassRegressions).
-    # A read-only sed/find/xargs pipeline now draws a (cheap) advisory
-    # rather than risk exempting a writer. Their exempting is deferred
-    # to a real shell parser.
-    def test_sed_read_pipeline_is_conservatively_flagged(self):
-        op = _bash_op(
-            "sed -n '565,640p' core/hooks/reasoning_surface_guard.py; "
-            'echo "==="; '
-            "sed -n '1570,1600p' core/hooks/reasoning_surface_guard.py"
-        )
+    def _fires(self, command: str) -> None:
         self.assertEqual(
-            _cascade_detector.detect_cascade(op),
+            _cascade_detector.detect_cascade(_bash_op(command)),
             _cascade_detector.ARCHITECTURAL_CASCADE,
+            f"sensitive-path op not flagged high-impact: {command!r}",
         )
 
-    def test_find_read_pipeline_is_conservatively_flagged(self):
-        op = _bash_op(
-            "ls -la && find src core kernel -maxdepth 2 -type d | head -40"
-            " && cat pyproject.toml | head -50"
-        )
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
+    # -- reads on sensitive paths NOW fire (the exemption is gone) --------
+
+    def test_wc_on_kernel_doc_now_fires(self):
+        self._fires("wc -l kernel/FAILURE_MODES.md")
+
+    def test_grep_on_hooks_path_now_fires(self):
+        self._fires("grep -n 'def detect' core/hooks/_cascade_detector.py")
+
+    def test_read_pipeline_on_sensitive_path_now_fires(self):
+        self._fires("grep -rn pattern core/hooks/ | head -20")
+
+    # -- non-sensitive reads are still NOT flagged (no global over-block) --
+
+    def test_non_sensitive_read_still_does_not_fire(self):
+        self.assertIsNone(
+            _cascade_detector.detect_cascade(_bash_op("grep foo README.md"))
         )
 
-    def test_xargs_read_pipeline_is_conservatively_flagged(self):
-        # xargs is no longer read-only-exempted; on a sensitive path the
-        # cascade trigger then fires. (A non-sensitive xargs read
-        # pipeline correctly yields None — no trigger — verified by
-        # _is_read_only_command staying False in the bypass regressions.)
-        op = _bash_op("git ls-files core/hooks/ | xargs wc -l")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
+    def test_bare_ls_still_does_not_fire(self):
+        self.assertIsNone(
+            _cascade_detector.detect_cascade(_bash_op("ls -la"))
         )
 
-    # -- NOT exempt: write-capable or non-allowlisted shapes ---------------
+    # -- the full 4-round writer/executor bypass corpus, each on a
+    # -- sensitive path, now fires: there is no exemption to slip past ----
 
-    def test_redirection_into_sensitive_path_fires(self):
-        op = _bash_op(
-            "grep x kernel/FAILURE_MODES.md > kernel/FAILURE_MODES.md"
-        )
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_sort_output_flag_fires(self):
+        self._fires("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
 
-    def test_command_substitution_disqualifies(self):
-        op = _bash_op("wc -l $(echo core/hooks/x.py)")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_uniq_output_positional_fires(self):
+        self._fires("uniq in.txt core/hooks/victim.py")
 
-    def test_backtick_substitution_disqualifies(self):
-        op = _bash_op("cat `ls core/hooks/`")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_tree_output_fires(self):
+        self._fires("tree -o core/schemas/out.html .")
 
-    def test_mixed_pipeline_with_mutating_segment_fires(self):
-        op = _bash_op("cat core/hooks/foo.py; rm core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_xxd_positional_outfile_fires(self):
+        self._fires("xxd -r a.hex core/hooks/victim.py")
 
-    def test_xargs_executor_disqualifies(self):
-        op = _bash_op("ls core/hooks/ | xargs rm")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_rg_pre_executor_fires(self):
+        self._fires("rg --pre ./evil.sh needle core/hooks/")
 
-    def test_editor_on_sensitive_path_still_fires(self):
-        op = _bash_op("vi core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_git_grep_pager_exec_fires(self):
+        self._fires("git grep -O'sh -c evil' needle core/hooks/")
 
-    def test_git_mutating_subcommand_still_fires(self):
-        op = _bash_op("git add core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_file_compile_writer_fires(self):
+        self._fires("file -C -m core/hooks/foo")
 
-    def test_sed_in_place_still_fires(self):
-        op = _bash_op("sed -i 's/a/b/' core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_sed_in_place_on_kernel_fires(self):
+        self._fires("sed -ni 's/a/b/p' kernel/CONSTITUTION.md")
 
-    def test_sed_in_place_with_suffix_still_fires(self):
-        op = _bash_op("sed -i.bak 's/a/b/' core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_find_delete_on_hooks_fires(self):
+        self._fires("find core/hooks/ -name '*.pyc' '-delete'")
 
-    def test_sed_script_write_command_still_fires(self):
-        # `w` inside the script writes a file even without -i.
-        op = _bash_op("sed -n 's/x/y/w out.txt' core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_ansi_c_quote_exec_on_sensitive_path_fires(self):
+        # The scanner bug is moot: no exemption means the sensitive path
+        # alone fires it, regardless of quote parsing.
+        self._fires("cat $'\\'' > kernel/CONSTITUTION.md")
 
-    def test_sed_script_file_still_fires(self):
-        # -f loads the script from a file we cannot inspect.
-        op = _bash_op("sed -f script.sed core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_dev_null_lookalike_redirect_to_hooks_fires(self):
+        self._fires("echo x 2>>core/hooks/nullreal")
 
-    def test_find_delete_still_fires(self):
-        op = _bash_op("find core/hooks/ -name '*.pyc' -delete")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    # -- untouched sibling exemptions still hold -------------------------
 
-    def test_find_exec_still_fires(self):
-        op = _bash_op("find core/hooks/ -name '*.py' -exec rm {} \\;")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
-
-    def test_substitution_inside_double_quotes_still_fires(self):
-        # $() expands inside double quotes — the masked span must be
-        # scanned before it is masked away.
-        op = _bash_op('echo "$(rm core/hooks/foo.py)"')
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
-
-    def test_awk_stays_unexempt_by_conservatism(self):
-        # awk comparisons (NR>=x) are lexically indistinguishable from
-        # redirects inside the program without a real parser — the
-        # conservative direction keeps awk off the allowlist.
-        op = _bash_op("awk 'NR>=10' core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
-
-    def test_self_escalation_overrides_read_only_exemption(self):
-        # Trigger 1 is the operator explicitly asking for Blueprint D
-        # discipline; a read-only command does not opt out of it.
+    def test_self_escalation_still_fires(self):
         op = _bash_op("ls -la core/hooks/")
         surface = {"flaw_classification": "config-gap"}
         self.assertEqual(
@@ -953,169 +817,11 @@ class DetectorReadOnlyExemption(unittest.TestCase):
             _cascade_detector.ARCHITECTURAL_CASCADE,
         )
 
-    def test_env_assignment_prefix_disqualifies(self):
-        op = _bash_op("FOO=bar grep x core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
-
-
-class WriterExemptionBypassRegressions(unittest.TestCase):
-    """Every command a 2026-07-03 security review CONFIRMED (by
-    executing the branch module) as a writer that the read-only
-    exemption wrongly classified read-only. The precise invariant the
-    review found violated is `_is_read_only_command(writer) is False`;
-    it is path-independent (detect_cascade adds sensitive-path scoping
-    on top, which can mask the effect for non-sensitive targets). A
-    regression on any of these is a gate bypass — the most severe
-    defect class the kernel exists to prevent.
-    """
-
-    def _is_writer(self, command: str) -> None:
-        self.assertFalse(
-            _cascade_detector._is_read_only_command(command),
-            f"WRITER classified read-only (gate bypass): {command!r}",
-        )
-
-    # Findings 1-2 — quote-parser bugs (embedded / escaped quotes).
-    def test_double_quote_inside_single_quote_hiding_subst(self):
-        self._is_writer('grep \'x"y\' file "$(rm -rf kernel)"')
-
-    def test_escaped_double_quotes_hiding_redirect(self):
-        self._is_writer('grep foo \\" bar > out \\"')
-
-    # Findings 3-4 — bundled / BSD sed in-place spellings.
-    def test_sed_bundled_ni_in_place(self):
-        self._is_writer("sed -ni 's/foo/bar/p' file.txt")
-
-    def test_sed_bundled_Eni_in_place(self):
-        self._is_writer("sed -Eni 's/a/b/p' f")
-
-    def test_sed_bundled_Ei_in_place(self):
-        self._is_writer("sed -Ei 's/foo/bar/' kernel/FAILURE_MODES.md")
-
-    def test_sed_bsd_uppercase_I_in_place(self):
-        self._is_writer("sed -I '' 's/a/b/' kernel/CONSTITUTION.md")
-
-    def test_sed_quoted_i_flag_in_place(self):
-        self._is_writer("sed '-i' 's/x/y/' kernel/CONSTITUTION.md")
-
-    # Findings 5,9 — attached script forms that hide a w-command.
-    def test_sed_long_expression_write_flag(self):
-        self._is_writer("sed --expression='s/a/b/w evil.txt' input.txt")
-
-    def test_sed_attached_script_file(self):
-        self._is_writer("sed -fscript.sed kernel/CONSTITUTION.md")
-
-    def test_sed_script_from_file_short(self):
-        self._is_writer("sed -nf script.sed file.txt")
-
-    # Findings 6,8 — quoted find mutating action.
-    def test_find_quoted_delete_action(self):
-        self._is_writer('find . -name "*.py" "-delete"')
-
-    def test_find_quoted_delete_on_sensitive_dir(self):
-        self._is_writer("find core/hooks/ -name '*.pyc' '-delete'")
-
-    # Finding 10 — xargs child with an uninspected write flag.
-    def test_xargs_child_write_flag(self):
-        self._is_writer("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
-
-    # Second review round (2026-07-03) — reader-allowlist commands with
-    # arg-dependent file-output forms and no shell redirection.
-    def test_sort_dash_o_writes(self):
-        self._is_writer("sort -o victim.txt input.txt")
-
-    def test_sort_dash_o_attached_writes(self):
-        self._is_writer("sort -oVICTIM in.txt")
-
-    def test_sort_long_output_writes(self):
-        self._is_writer("sort --output=victim.txt in.txt")
-
-    def test_sort_with_path_prefix_writes(self):
-        self._is_writer("/bin/sort -o victim.txt in.txt")
-
-    def test_uniq_output_positional_writes(self):
-        self._is_writer("uniq input.txt victim.txt")
-
-    def test_tree_dash_o_writes(self):
-        self._is_writer("tree -o victim.html /some/dir")
-
-    def test_tree_long_outfile_writes(self):
-        self._is_writer("tree --outfile=x.txt .")
-
-    def test_git_diff_output_writes(self):
-        self._is_writer("git diff --output=victim.txt HEAD")
-
-    def test_git_diff_output_spaced_writes(self):
-        self._is_writer("git diff --output victim.txt")
-
-    # Third review round (2026-07-03) — arg-dependent executors /
-    # positional-outfile writers still on the allowlist, plus a
-    # safe-sink boundary bug.
-    def test_xxd_positional_outfile_writes(self):
-        self._is_writer("xxd -r src.hex victim.txt")
-
-    def test_xxd_forward_outfile_writes(self):
-        self._is_writer("xxd src.txt out.hex")
-
-    def test_rg_pre_executor(self):
-        self._is_writer("rg --pre ./evil.sh needle .")
-
-    def test_git_grep_dash_O_pager_exec(self):
-        self._is_writer("git grep -O'echo x >&2 ; true' cascade")
-
-    def test_git_grep_open_files_in_pager_exec(self):
-        self._is_writer('git grep --open-files-in-pager="touch /tmp/p #" needle')
-
-    def test_ag_pager_executor(self):
-        self._is_writer("ag --pager 'sh -c evil' foo")
-
-    def test_dev_null_boundary_append_writes_real_file(self):
-        self._is_writer("echo x 2>>/dev/nullreal")
-
-    def test_dev_null_boundary_truncate_writes_real_file(self):
-        self._is_writer("echo x > /dev/nullreal")
-
-    # Guard against over-correction: grep -o is only-matching (a read).
-    def test_grep_only_matching_stays_exempt(self):
-        self.assertTrue(
-            _cascade_detector._is_read_only_command("grep -o pattern file.txt"),
-            "grep -o (only-matching) is a read and must stay exempt",
-        )
-
-    def test_real_dev_null_sink_stays_exempt(self):
-        self.assertTrue(
-            _cascade_detector._is_read_only_command("cat f 2>/dev/null"),
-            "a genuine /dev/null sink must still be stripped",
-        )
-
-
-class WriterOnSensitivePathFiresEndToEnd(unittest.TestCase):
-    """End-to-end proof that once a writer is no longer wrongly
-    exempted, the sensitive-path trigger fires it. On the pre-fix
-    branch each of these returned None (read-only short-circuit); on
-    master they fired; the fix restores the master behavior."""
-
-    def _fires(self, command: str) -> None:
-        self.assertEqual(
-            _cascade_detector.detect_cascade(_bash_op(command)),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-            f"writer on sensitive path not flagged: {command!r}",
-        )
-
-    def test_sed_bundled_in_place_on_kernel_doc(self):
-        self._fires("sed -ni 's/a/b/p' kernel/CONSTITUTION.md")
-
-    def test_sed_bsd_in_place_on_kernel_doc(self):
-        self._fires("sed -I '' 's/a/b/' kernel/CONSTITUTION.md")
-
-    def test_find_quoted_delete_on_core_hooks(self):
-        self._fires("find core/hooks/ -name '*.pyc' '-delete'")
-
-    def test_xargs_write_flag_on_kernel_doc(self):
-        self._fires("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
+    def test_kernel_state_edit_still_exempt(self):
+        # .episteme/ metadata edits use a SEPARATE exemption
+        # (_op_targets_kernel_state) that was NOT removed.
+        op = _bash_op("cat .episteme/reasoning-surface.json")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
 
 
 if __name__ == "__main__":
