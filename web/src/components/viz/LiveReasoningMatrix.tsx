@@ -50,7 +50,7 @@ export function LiveReasoningMatrix({
     return (
       <EmptyState
         title={loading ? "Reading reasoning surface…" : "No active reasoning surface"}
-        hint="Run `episteme init` in your project root, then write a Reasoning Surface for your current core question. The kernel's guard creates .episteme/reasoning-surface.json on the next high-impact op."
+        hint="Work in any repo with the kernel installed — the guard fires on the first high-impact op and prints the exact surface template for it. Fill those fields into .episteme/reasoning-surface.json and the retry passes."
         className={className}
       />
     );
