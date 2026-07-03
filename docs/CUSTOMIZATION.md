@@ -16,7 +16,7 @@ To keep your system explainable in your own head (and to teammates), add:
 - **Project:** `docs/DECISION_STORY.md` — what/why/how trace for major decisions in a specific repository.
 
 ```bash
-cp core/memory/global/build_story.example.md core/memory/global/build_story.md
+cp core/memory/global/examples/build_story.example.md core/memory/global/build_story.md
 ```
 
 Why this matters:
