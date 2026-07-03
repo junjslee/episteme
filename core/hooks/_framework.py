@@ -900,8 +900,13 @@ def compact_deferred_discoveries(
                 verdict_refs.add(ref)
 
     # Walk in file order; keep the first open deferred_discovery per
-    # dedup key, drop later open duplicates, keep everything else. A
-    # verdicted discovery is NEVER dropped (its verdict references it).
+    # dedup key, drop later open UNVERDICTED duplicates, keep everything
+    # else. A verdicted discovery is never dropped (its verdict refs it)
+    # but its key is still recorded as seen — otherwise a later
+    # unverdicted duplicate of a resolved finding would survive as
+    # "first" and keep re-firing the banner (adversarial finding
+    # 2026-07-03: verdicting the first member must not defeat dedup of
+    # the rest).
     seen_keys: set[tuple[str, str]] = set()
     kept: list[dict] = []
     for rec in parsed:
@@ -910,10 +915,10 @@ def compact_deferred_discoveries(
             isinstance(payload, dict)
             and payload.get("type") == DEFERRED_DISCOVERY_TYPE
             and str(payload.get("status", "pending")) in OPEN_STATUSES
-            and str(rec.get("entry_hash") or "") not in verdict_refs
         ):
             key = _dedup_key(payload, dedup_desc_prefix)
-            if key in seen_keys:
+            verdicted = str(rec.get("entry_hash") or "") in verdict_refs
+            if key in seen_keys and not verdicted:
                 continue  # later open, unverdicted duplicate — drop
             seen_keys.add(key)
         kept.append(rec)

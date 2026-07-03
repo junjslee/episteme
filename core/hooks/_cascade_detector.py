@@ -153,10 +153,19 @@ def _sensitive_path_hit(text: str) -> bool:
 # branch short-circuits entirely when the exemption holds.
 
 
+# Reader heads must be readers in EVERY form. A second adversarial
+# review (2026-07-03) found `sort -o FILE`, `uniq IN OUT`, and
+# `tree -o/--outfile FILE` write files with NO shell redirection, so
+# they were removed from this set — same arg-dependent-writer class the
+# module already excludes find/sed/xargs for. Any command with a
+# file-output option or output positional stays OFF this list; the
+# `--output`/`--outfile` guard in `_segment_head_is_read_only` is a
+# second net for the long-form convention (also catches
+# `git diff --output=FILE`).
 _READ_ONLY_HEADS: frozenset[str] = frozenset({
     # file inspection
     "ls", "cat", "head", "tail", "wc", "stat", "file", "du", "df",
-    "tree", "readlink", "realpath", "basename", "dirname", "pwd",
+    "readlink", "realpath", "basename", "dirname", "pwd",
     "which", "type", "whoami", "id", "uname", "date", "printenv",
     "echo", "printf", "true",
     # search
@@ -164,11 +173,20 @@ _READ_ONLY_HEADS: frozenset[str] = frozenset({
     # stream filters (stdout-only without redirection, which is
     # disqualified separately)
     "diff", "cmp", "md5", "md5sum", "shasum", "sha256sum",
-    "sort", "uniq", "cut", "tr", "column", "nl", "od", "xxd",
+    "cut", "tr", "column", "nl", "od", "xxd",
     "strings", "less", "more", "jq",
     # git, restricted to _READ_ONLY_GIT_SUBCOMMANDS
     "git",
 })
+
+# Long-form "write output to a file" flags. No reader uses these to
+# mean "read", so their presence disqualifies a segment regardless of
+# head — a cheap net against arg-dependent writers slipping onto the
+# reader allowlist (`git diff --output=FILE` in particular). The short
+# `-o` is intentionally NOT here: among the remaining reader heads it
+# means only-matching (`grep -o`), a read; short-form `-o` WRITERS
+# (sort, tree) are handled by keeping them off _READ_ONLY_HEADS.
+_OUTPUT_FLAG_PREFIXES: tuple[str, ...] = ("--output", "--outfile")
 
 # `git branch` / `git tag` / `git remote` are excluded: bare they list,
 # with args they mutate — head-token analysis cannot tell them apart.
@@ -309,6 +327,12 @@ def _scan_command(cmd: str) -> tuple[list[list[str]], bool]:
 
 def _segment_head_is_read_only(tokens: list[str]) -> bool:
     if not tokens:
+        return False
+    # A file-output flag disqualifies regardless of head (git diff
+    # --output=FILE, and any reader that grows one).
+    if any(
+        t.startswith(_OUTPUT_FLAG_PREFIXES) for t in tokens[1:]
+    ):
         return False
     head = tokens[0].rsplit("/", 1)[-1]
     # Env-assignment prefixes (`FOO=bar cmd`) are not in the reader set,

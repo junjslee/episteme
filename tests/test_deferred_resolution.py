@@ -218,6 +218,38 @@ class ResolutionSemantics(unittest.TestCase):
                 path=self.path,
             )
 
+    def test_verdicting_first_member_still_dedups_the_rest(self):
+        # Second review round: verdicting the FIRST of an open
+        # duplicate-set must NOT keep its later unverdicted duplicates
+        # alive. Two identical open findings; verdict the first; compact
+        # must still drop the second, leaving zero open.
+        from core.hooks._chain import append as chain_append
+        payload = {
+            "type": _framework.DEFERRED_DISCOVERY_TYPE,
+            "description": "identical finding",
+            "observable": "if identical finding recurs the linter flags it",
+            "log_only_rationale": "test fixture",
+            "status": "pending",
+        }
+        e1 = chain_append(self.path, dict(payload))
+        chain_append(self.path, dict(payload))  # exact duplicate
+        _framework.append_discovery_verdict(
+            e1["entry_hash"], "resolved",
+            "resolved; its duplicate must not survive compaction",
+            path=self.path,
+        )
+        result = _framework.compact_deferred_discoveries(path=self.path)
+        self.assertEqual(result.status, "compacted")
+        self.assertEqual(result.removed, 1)
+        self.assertEqual(
+            _framework.open_deferred_discoveries(path=self.path), []
+        )
+        verdict = _framework.verify_chains(
+            deferred_discoveries_path=self.path,
+            protocols_path=self.path.with_name("protocols.jsonl"),
+        )["deferred_discoveries"]
+        self.assertTrue(verdict.intact)
+
 
 class CliDrain(unittest.TestCase):
     """episteme deferred list|resolve against a sandboxed HOME."""
