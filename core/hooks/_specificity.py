@@ -173,18 +173,35 @@ def _classify_disconfirmation(text: Any) -> DisconfirmationClass:
     - everything else → `tautological` (pattern-matches the 'restates
       the knowns' case without a false-positive risk).
     """
+    return classify_disconfirmation_parts(text)[0]
+
+
+def classify_disconfirmation_parts(
+    text: Any,
+) -> tuple[DisconfirmationClass, bool, bool]:
+    """Classify and report which half of the fire-shape contract is
+    present: ``(verdict, has_trigger, has_observable)``.
+
+    A ``tautological`` verdict alone cannot produce an accurate
+    remediation message — the field may carry a trigger without an
+    observable OR an observable without a trigger, and telling the
+    author to add the half they already have sends them in circles
+    (observed in the 2026-07-03 fresh-user recon: 3 of 5 failed
+    attempts). Callers building user-facing rejections consume the
+    booleans to name the missing half.
+    """
     if not isinstance(text, str):
-        return "unknown"
+        return ("unknown", False, False)
     stripped = text.strip()
     if len(stripped) < 10:
-        return "unknown"
+        return ("unknown", False, False)
 
     low = stripped.lower()
-    if any(pat.search(low) for pat in _ABSENCE_PATTERNS):
-        return "absence"
-
     has_trigger = any(pat.search(low) for pat in _CONDITIONAL_TRIGGER_PATTERNS)
     has_observable = any(pat.search(low) for pat in _OBSERVABLE_PATTERNS)
+
+    if any(pat.search(low) for pat in _ABSENCE_PATTERNS):
+        return ("absence", has_trigger, has_observable)
     if has_trigger and has_observable:
-        return "fire"
-    return "tautological"
+        return ("fire", has_trigger, has_observable)
+    return ("tautological", has_trigger, has_observable)
