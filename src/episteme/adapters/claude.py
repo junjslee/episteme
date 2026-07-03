@@ -104,6 +104,15 @@ def build_settings(governance_mode: str = "balanced") -> dict:
         },
         "hooks": {
             "SessionStart": [{"hooks": [hook_cmd("session_context.py")]}],
+            # v2.0 Epistemic Engine conclusion pair (Event 139). Was
+            # registered only in the operator's live settings.json and
+            # the plugin's hooks.json — `episteme sync` users never got
+            # the engine's primary decision trigger (found by the
+            # 2026-07-03 registration-parity recon; pinned by
+            # tests/test_registration_parity.py). Mode-independent:
+            # the guard emits factual context lines and the gate is a
+            # one-shot livelock-proof nudge, both advisory-shaped.
+            "UserPromptSubmit": [{"hooks": [hook_cmd("conclusion_guard.py")]}],
             "PreToolUse": pretool_entries,
             "PostToolUse": posttool_entries,
             "PermissionRequest": [
@@ -115,6 +124,10 @@ def build_settings(governance_mode: str = "balanced") -> dict:
             "PreCompact": [{"hooks": [hook_cmd("precompact_backup.py", async_=True)]}],
             "Stop": [
                 {"hooks": [hook_cmd("quality_gate.py")]},
+                # conclusion_gate before checkpoint: the one-shot nudge
+                # must fire before checkpoint's tree-commit bookkeeping
+                # (matches the live settings.json ordering).
+                {"hooks": [hook_cmd("conclusion_gate.py")]},
                 {"hooks": [{"type": "command", "command": checkpoint_cmd}]},
             ],
             "SubagentStop": [{"hooks": [{"type": "command", "command": checkpoint_cmd}]}],
