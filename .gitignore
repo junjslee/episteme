@@ -4,6 +4,12 @@ __pycache__/
 *.pyc
 .DS_Store
 *.egg-info/
+build/
+dist/
+
+# ─── Ralph loop session state ─────────────────────────────────────────────────
+# Local iteration state for the ralph-loop plugin; never commit.
+.claude/ralph-loop.local.md
 
 # ─── Labs / experimental run artifacts ───────────────────────────────────────
 # Skill candidate runs, scratch outputs, temp files under labs/.
