@@ -788,35 +788,44 @@ class DetectorReadOnlyExemption(unittest.TestCase):
         op = _bash_op('ls -la core/ | grep "\\->" | head -20')
         self.assertIsNone(_cascade_detector.detect_cascade(op))
 
-    def test_sed_range_print_read_mode_stays_exempt(self):
-        # Fence reconstruction (was test_sed_not_allowlisted_still_fires,
-        # Event 137): the original exclusion existed because head-token
-        # analysis cannot tell sed readers from writers. The finer
-        # mechanism inspects flags (-i/--in-place/-f disqualify) and the
-        # script argument (any `w` disqualifies) — the fence's purpose
-        # (never exempt a writer) is preserved by the counter-tests
-        # below.
-        op = _bash_op("sed -n '1,5p' core/hooks/foo.py")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_sed_range_print_pipeline_corpus_shape_stays_exempt(self):
+    # sed / find / xargs are DELIBERATELY not exempted (2026-07-03
+    # security review): reader-vs-writer for them turns on argument
+    # detail that head+arg heuristics cannot safely decide (7 confirmed
+    # bypasses down that path — see WriterExemptionBypassRegressions).
+    # A read-only sed/find/xargs pipeline now draws a (cheap) advisory
+    # rather than risk exempting a writer. Their exempting is deferred
+    # to a real shell parser.
+    def test_sed_read_pipeline_is_conservatively_flagged(self):
         op = _bash_op(
             "sed -n '565,640p' core/hooks/reasoning_surface_guard.py; "
             'echo "==="; '
             "sed -n '1570,1600p' core/hooks/reasoning_surface_guard.py"
         )
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
 
-    def test_find_type_filter_pipeline_stays_exempt(self):
+    def test_find_read_pipeline_is_conservatively_flagged(self):
         op = _bash_op(
             "ls -la && find src core kernel -maxdepth 2 -type d | head -40"
             " && cat pyproject.toml | head -50"
         )
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
 
-    def test_xargs_with_read_only_child_stays_exempt(self):
-        op = _bash_op("git ls-files build | xargs wc -l")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
+    def test_xargs_read_pipeline_is_conservatively_flagged(self):
+        # xargs is no longer read-only-exempted; on a sensitive path the
+        # cascade trigger then fires. (A non-sensitive xargs read
+        # pipeline correctly yields None — no trigger — verified by
+        # _is_read_only_command staying False in the bypass regressions.)
+        op = _bash_op("git ls-files core/hooks/ | xargs wc -l")
+        self.assertEqual(
+            _cascade_detector.detect_cascade(op),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+        )
 
     # -- NOT exempt: write-capable or non-allowlisted shapes ---------------
 
@@ -950,6 +959,94 @@ class DetectorReadOnlyExemption(unittest.TestCase):
             _cascade_detector.detect_cascade(op),
             _cascade_detector.ARCHITECTURAL_CASCADE,
         )
+
+
+class WriterExemptionBypassRegressions(unittest.TestCase):
+    """Every command a 2026-07-03 security review CONFIRMED (by
+    executing the branch module) as a writer that the read-only
+    exemption wrongly classified read-only. The precise invariant the
+    review found violated is `_is_read_only_command(writer) is False`;
+    it is path-independent (detect_cascade adds sensitive-path scoping
+    on top, which can mask the effect for non-sensitive targets). A
+    regression on any of these is a gate bypass — the most severe
+    defect class the kernel exists to prevent.
+    """
+
+    def _is_writer(self, command: str) -> None:
+        self.assertFalse(
+            _cascade_detector._is_read_only_command(command),
+            f"WRITER classified read-only (gate bypass): {command!r}",
+        )
+
+    # Findings 1-2 — quote-parser bugs (embedded / escaped quotes).
+    def test_double_quote_inside_single_quote_hiding_subst(self):
+        self._is_writer('grep \'x"y\' file "$(rm -rf kernel)"')
+
+    def test_escaped_double_quotes_hiding_redirect(self):
+        self._is_writer('grep foo \\" bar > out \\"')
+
+    # Findings 3-4 — bundled / BSD sed in-place spellings.
+    def test_sed_bundled_ni_in_place(self):
+        self._is_writer("sed -ni 's/foo/bar/p' file.txt")
+
+    def test_sed_bundled_Eni_in_place(self):
+        self._is_writer("sed -Eni 's/a/b/p' f")
+
+    def test_sed_bundled_Ei_in_place(self):
+        self._is_writer("sed -Ei 's/foo/bar/' kernel/FAILURE_MODES.md")
+
+    def test_sed_bsd_uppercase_I_in_place(self):
+        self._is_writer("sed -I '' 's/a/b/' kernel/CONSTITUTION.md")
+
+    def test_sed_quoted_i_flag_in_place(self):
+        self._is_writer("sed '-i' 's/x/y/' kernel/CONSTITUTION.md")
+
+    # Findings 5,9 — attached script forms that hide a w-command.
+    def test_sed_long_expression_write_flag(self):
+        self._is_writer("sed --expression='s/a/b/w evil.txt' input.txt")
+
+    def test_sed_attached_script_file(self):
+        self._is_writer("sed -fscript.sed kernel/CONSTITUTION.md")
+
+    def test_sed_script_from_file_short(self):
+        self._is_writer("sed -nf script.sed file.txt")
+
+    # Findings 6,8 — quoted find mutating action.
+    def test_find_quoted_delete_action(self):
+        self._is_writer('find . -name "*.py" "-delete"')
+
+    def test_find_quoted_delete_on_sensitive_dir(self):
+        self._is_writer("find core/hooks/ -name '*.pyc' '-delete'")
+
+    # Finding 10 — xargs child with an uninspected write flag.
+    def test_xargs_child_write_flag(self):
+        self._is_writer("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
+
+
+class WriterOnSensitivePathFiresEndToEnd(unittest.TestCase):
+    """End-to-end proof that once a writer is no longer wrongly
+    exempted, the sensitive-path trigger fires it. On the pre-fix
+    branch each of these returned None (read-only short-circuit); on
+    master they fired; the fix restores the master behavior."""
+
+    def _fires(self, command: str) -> None:
+        self.assertEqual(
+            _cascade_detector.detect_cascade(_bash_op(command)),
+            _cascade_detector.ARCHITECTURAL_CASCADE,
+            f"writer on sensitive path not flagged: {command!r}",
+        )
+
+    def test_sed_bundled_in_place_on_kernel_doc(self):
+        self._fires("sed -ni 's/a/b/p' kernel/CONSTITUTION.md")
+
+    def test_sed_bsd_in_place_on_kernel_doc(self):
+        self._fires("sed -I '' 's/a/b/' kernel/CONSTITUTION.md")
+
+    def test_find_quoted_delete_on_core_hooks(self):
+        self._fires("find core/hooks/ -name '*.pyc' '-delete'")
+
+    def test_xargs_write_flag_on_kernel_doc(self):
+        self._fires("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
 
 
 if __name__ == "__main__":

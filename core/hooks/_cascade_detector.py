@@ -181,133 +181,153 @@ _READ_ONLY_GIT_SUBCOMMANDS: frozenset[str] = frozenset({
 # write-capable check runs so `cmd 2>/dev/null` stays exempt.
 _SAFE_SINK_RE = re.compile(r"(?:2>&1|[12]?>>?\s*/dev/null)")
 
-# Any surviving redirection or command / process substitution makes the
-# command write-capable (or executes an unchecked inner command).
-# Runs on QUOTE-MASKED text (2026-07-03): a `>` or `|` inside a quoted
-# argument is data, not shell syntax — the raw-text scan classified
-# `grep "\->"` and `sed -n '565,640p'` pipelines as write-capable,
-# which was the dominant false-positive shape in the live advisory
-# corpus (M4 alarm fatigue, PRODUCT_MASTER_PLAN §3).
-_WRITE_CAPABLE_RE = re.compile(r"<\(|\$\(|`|>")
+# Read-only classification is a SINGLE-PASS shell scanner (2026-07-03,
+# rewritten after a review found the prior two-regex quote handling had
+# 9 writer-exemption bypasses — CONFIRMED by execution). Two independent
+# regexes cannot track interleaved single/double/escape quote state, so
+# metacharacters inside one quote context shifted the pairing of another
+# and let real writers through. The scanner below walks the string once,
+# quote- and escape-aware, and treats a construct as write-capable ONLY
+# when it is shell-active in its actual context.
+#
+# Asymmetry (module invariant): a false positive — exempting a WRITER —
+# costs gate coverage and must never happen; a false negative — failing
+# to exempt a read — costs one advisory line. On any unrecognized active
+# metacharacter the scanner defaults to NOT read-only.
+#
+# find / sed / xargs are DELIBERATELY not exempted (they are not in
+# _READ_ONLY_HEADS): reader-vs-writer for them turns on argument details
+# (bundled `-ni`, BSD `-I`, `--expression=…w`, `-fscript`, quoted
+# `-delete`, `xargs sort -o`) that head+arg heuristics cannot safely
+# decide — the review confirmed 7 distinct bypasses down that path. They
+# stay categorically high-impact, as on master. Exempting their genuine
+# read forms safely needs a real shell parser (deferred).
 
-_SEGMENT_SPLIT_RE = re.compile(r"(?:\|\||&&|[|;&\n])")
-
-# Quote handling: single-quoted spans undergo no shell expansion and
-# are masked wholesale. Double-quoted spans DO expand `$(...)` and
-# backticks — any such span disqualifies the command outright before
-# masking (test: echo "$(rm ...)" must fire).
-_QUOTED_SPAN_RE = re.compile(r"'[^']*'|\"[^\"]*\"")
-_DOUBLE_QUOTE_EXPANSION_RE = re.compile(r"\$\(|`")
-_MASK_RE = re.compile(r"\x00Q(\d+)\x00")
-
-# Conditional heads (2026-07-03, reconstructing the Event 137 sed
-# fence): `find`, `sed`, and `xargs` are readers or writers depending
-# on their arguments, which head-token analysis cannot see — the
-# original allowlist therefore excluded them, at the cost of advisory
-# noise on the most common read idioms. The finer mechanism below
-# inspects the arguments and keeps the fence's purpose: a shape that
-# is not PROVABLY read-only stays high-impact.
-_FIND_MUTATING_ACTIONS: frozenset[str] = frozenset({
-    "-delete", "-exec", "-execdir", "-ok", "-okdir",
-    "-fls", "-fprint", "-fprint0", "-fprintf",
-})
-
-_SED_INPLACE_RE = re.compile(r"^(?:-i|--in-place)")
+# Shell-active metacharacters recognized by the scanner, by context.
+_SEGMENT_SEPARATORS = frozenset({"|", "&", ";", "\n"})
 
 
-def _mask_quoted_spans(text: str) -> tuple[str, list[str]]:
-    spans: list[str] = []
+def _scan_command(cmd: str) -> tuple[list[list[str]], bool]:
+    """Single-pass, quote/escape-aware tokenizer.
 
-    def _repl(m: re.Match) -> str:
-        spans.append(m.group(0)[1:-1])
-        return f"\x00Q{len(spans) - 1}\x00"
+    Returns ``(segments, write_capable)`` where ``segments`` is a list
+    of pipeline/list segments, each a list of quote-stripped tokens,
+    and ``write_capable`` is True if any redirection, command/process
+    substitution, subshell, or backtick is shell-active in its context.
+    """
+    segments: list[list[str]] = []
+    seg: list[str] = []
+    tok: list[str] = []
+    in_single = in_double = False
+    write_capable = False
+    i, n = 0, len(cmd)
 
-    return _QUOTED_SPAN_RE.sub(_repl, text), spans
+    def _end_tok() -> None:
+        if tok:
+            seg.append("".join(tok))
+            tok.clear()
 
+    def _end_seg() -> None:
+        _end_tok()
+        if seg:
+            segments.append(list(seg))
+            seg.clear()
 
-def _unmask(token: str, spans: list[str]) -> str:
-    return _MASK_RE.sub(lambda m: spans[int(m.group(1))], token)
-
-
-def _sed_segment_is_read_only(tokens: list[str], spans: list[str]) -> bool:
-    """sed reads iff: no in-place flag, no script-from-file, and every
-    inspectable script contains no `w`/`W` (the script-level write
-    commands and the `s///w` flag all require the letter). A script
-    that merely CONTAINS `w` in a pattern (`/word/p`) is rejected too —
-    conservative false-negative in the cheap direction."""
-    scripts: list[str] = []
-    expect_script_arg = False
-    for tok in tokens[1:]:
-        if expect_script_arg:
-            scripts.append(tok)
-            expect_script_arg = False
+    while i < n:
+        c = cmd[i]
+        if in_single:
+            if c == "'":
+                in_single = False
+            else:
+                tok.append(c)
+            i += 1
             continue
-        if tok.startswith("-"):
-            if _SED_INPLACE_RE.match(tok):
-                return False
-            if tok == "-f" or tok.startswith("--file"):
-                return False
-            if tok in ("-e", "--expression"):
-                expect_script_arg = True
+        if in_double:
+            # Only $ and backtick are shell-active inside double quotes;
+            # a backslash escapes just $ ` " \ and newline.
+            if c == "\\" and i + 1 < n and cmd[i + 1] in '$`"\\\n':
+                tok.append(cmd[i + 1])
+                i += 2
                 continue
-            if tok.startswith("-e") and len(tok) > 2:
-                scripts.append(tok[2:])
-                continue
-            continue  # -n / -E / -r / --posix etc. are read-mode flags
-        if not scripts:
-            scripts.append(tok)  # first bare arg is the script
+            if c == '"':
+                in_double = False
+            elif c == "`":
+                write_capable = True
+            elif c == "$" and i + 1 < n and cmd[i + 1] == "(":
+                write_capable = True
+            else:
+                tok.append(c)
+            i += 1
             continue
-        # remaining bare tokens are input filenames — never inspected,
-        # so a `w` in a path (web/foo.py) cannot disqualify.
-    if not scripts:
-        return False  # nothing to inspect — conservative
-    for script in scripts:
-        if "w" in _unmask(script, spans).lower():
-            return False
-    return True
+        # Unquoted context.
+        if c == "\\":
+            if i + 1 < n:
+                tok.append(cmd[i + 1])
+                i += 2
+            else:
+                i += 1
+            continue
+        if c == "'":
+            in_single = True
+            i += 1
+            continue
+        if c == '"':
+            in_double = True
+            i += 1
+            continue
+        if c.isspace():
+            _end_tok()
+            if c == "\n":
+                _end_seg()
+            i += 1
+            continue
+        if c in _SEGMENT_SEPARATORS:
+            _end_seg()
+            i += 1
+            continue
+        if c == ">" or c == "<":
+            # Redirection (write) or process substitution `<(` `>(`
+            # (executes). Either way not a plain read.
+            write_capable = True
+            i += 1
+            continue
+        if c == "`" or c == "(" or c == ")":
+            # Backtick substitution or a subshell — both execute.
+            write_capable = True
+            i += 1
+            continue
+        if c == "$" and i + 1 < n and cmd[i + 1] == "(":
+            write_capable = True
+            i += 2
+            continue
+        tok.append(c)
+        i += 1
+
+    _end_seg()
+    return segments, write_capable
 
 
-def _segment_is_read_only(seg: str, spans: list[str]) -> bool:
-    tokens = seg.split()
+def _segment_head_is_read_only(tokens: list[str]) -> bool:
     if not tokens:
-        return True
+        return False
     head = tokens[0].rsplit("/", 1)[-1]
-    # Env-assignment prefixes (`FOO=bar cmd`) are not unwrapped —
-    # conservative disqualify.
+    # Env-assignment prefixes (`FOO=bar cmd`) are not in the reader set,
+    # so they conservatively disqualify.
     if head == "git":
         sub = next((t for t in tokens[1:] if not t.startswith("-")), "")
         return sub in _READ_ONLY_GIT_SUBCOMMANDS
-    if head == "find":
-        return not any(t in _FIND_MUTATING_ACTIONS for t in tokens[1:])
-    if head == "sed":
-        return _sed_segment_is_read_only(tokens, spans)
-    if head == "xargs":
-        child = next((t for t in tokens[1:] if not t.startswith("-")), "")
-        # Child must itself be a simple allowlisted reader; git/xargs/
-        # sed/find children would need argument analysis of text xargs
-        # rewrites at runtime — conservative disqualify.
-        return (
-            child in _READ_ONLY_HEADS
-            and child not in ("git", "xargs")
-            and not _MASK_RE.search(child)
-        )
     return head in _READ_ONLY_HEADS
 
 
 def _is_read_only_command(cmd: str) -> bool:
-    """True iff every segment of ``cmd`` is provably read-only."""
+    """True iff ``cmd`` is provably a composition of read-only segments
+    with no shell-active write construct. Conservative by construction:
+    anything the scanner cannot prove read-only stays high-impact."""
     stripped = _SAFE_SINK_RE.sub(" ", cmd)
-    for span in re.findall(r'"[^"]*"', stripped):
-        if _DOUBLE_QUOTE_EXPANSION_RE.search(span):
-            return False  # $()/backtick expand inside double quotes
-    masked, spans = _mask_quoted_spans(stripped)
-    if _WRITE_CAPABLE_RE.search(masked):
+    segments, write_capable = _scan_command(stripped)
+    if write_capable or not segments:
         return False
-    segments = [s.strip() for s in _SEGMENT_SPLIT_RE.split(masked)]
-    segments = [s for s in segments if s]
-    if not segments:
-        return False
-    return all(_segment_is_read_only(seg, spans) for seg in segments)
+    return all(_segment_head_is_read_only(seg) for seg in segments)
 
 
 # ---------------------------------------------------------------------------
