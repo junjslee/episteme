@@ -47,7 +47,42 @@ REQUIRE_CONDA = os.environ.get("EPISTEME_REQUIRE_CONDA", "").lower() in {"1", "t
 # Backward-compat aliases — older code paths still reference CONDA_ROOT.
 CONDA_ROOT = PYTHON_PREFIX
 EXPECTED_BASE_PREFIX = str(PYTHON_PREFIX)
-RUNTIME_MANIFEST = json.loads((REPO_ROOT / "core" / "runtime_manifest.json").read_text(encoding="utf-8"))
+
+# The runtime manifest lives in the kernel source tree, which does NOT
+# ship in a wheel (pyproject packages src/ only). Loading it at import
+# time made `import episteme.cli` — and therefore even `episteme
+# --help` — crash with a raw FileNotFoundError on any non-editable
+# install (2026-07-03 recon, empirical). Lazy-load instead: --help and
+# manifest-free commands work everywhere; commands that need kernel
+# assets fail with a message that names the supported install paths.
+_RUNTIME_MANIFEST_CACHE: dict | None = None
+
+
+def _load_runtime_manifest() -> dict:
+    global _RUNTIME_MANIFEST_CACHE
+    if _RUNTIME_MANIFEST_CACHE is not None:
+        return _RUNTIME_MANIFEST_CACHE
+    path = REPO_ROOT / "core" / "runtime_manifest.json"
+    try:
+        loaded: dict = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, NotADirectoryError):
+        raise SystemExit(
+            "episteme: this command needs the kernel source tree, "
+            f"but {path} does not exist.\n"
+            "A bare `pip install` ships only the Python package — "
+            "the kernel (core/, kernel/, skills/) is not in the "
+            "wheel.\n"
+            "Supported installs (see INSTALL.md):\n"
+            "  1. Claude Code plugin:  /plugin marketplace add "
+            "junjslee/episteme\n"
+            "  2. Source checkout:     git clone "
+            "https://github.com/junjslee/episteme && "
+            "pip install -e ./episteme"
+        )
+    _RUNTIME_MANIFEST_CACHE = loaded
+    return loaded
+
+
 HARNESSES_DIR = REPO_ROOT / "core" / "harnesses"
 GLOBAL_MEMORY_DIR = REPO_ROOT / "core" / "memory" / "global"
 GENERATED_PROFILE_DIR = GLOBAL_MEMORY_DIR / ".generated"
@@ -1276,7 +1311,8 @@ def _load_template(rel_path: str) -> str:
 
 
 def _managed_skills() -> list[Path]:
-    selected = set(RUNTIME_MANIFEST["vendor_skills"] + RUNTIME_MANIFEST["custom_skills"])
+    manifest = _load_runtime_manifest()
+    selected = set(manifest["vendor_skills"] + manifest["custom_skills"])
     candidates = list((REPO_ROOT / "skills" / "vendor").glob("*/SKILL.md")) + list(
         (REPO_ROOT / "skills" / "custom").glob("*/SKILL.md")
     )
@@ -1958,11 +1994,12 @@ def _validate_manifest() -> int:
         if "Curated vendor skills are sourced from" not in sources_text:
             warnings.append("skills/vendor/SOURCES.md missing required source heading")
 
-    all_declared = RUNTIME_MANIFEST["vendor_skills"] + RUNTIME_MANIFEST["custom_skills"]
+    manifest = _load_runtime_manifest()
+    all_declared = manifest["vendor_skills"] + manifest["custom_skills"]
 
     for bucket in ("vendor", "custom"):
         key = f"{bucket}_skills"
-        for name in RUNTIME_MANIFEST[key]:
+        for name in manifest[key]:
             skill_md = REPO_ROOT / "skills" / bucket / name / "SKILL.md"
             if not skill_md.exists():
                 failures.append(f"[{bucket}] '{name}' declared in manifest but SKILL.md not found at {skill_md}")
