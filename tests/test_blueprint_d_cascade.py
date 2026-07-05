@@ -729,111 +729,87 @@ class SchemaExtensionDeferredDiscoveriesRelaxed(unittest.TestCase):
 # ---------- Read-only command exemption (Event 137) ----------------------
 
 
-class DetectorReadOnlyExemption(unittest.TestCase):
-    """Event 137 — positive-system read-only exemption ahead of Trigger 2.
-
-    Pure inspection of a sensitive path is not an architectural cascade.
-    Exemption requires EVERY pipeline segment head to be on the
-    read-only allowlist AND no write-capable shell construct anywhere
-    in the command. Anything not provably read-only stays high-impact.
+class ReadOnlyExemptionRemoved(unittest.TestCase):
+    """The Event-137 read-only exemption was REMOVED 2026-07-03 after
+    four adversarial rounds proved it unsalvageable with zero deps
+    (writers/executors leaked through the allowlist AND the hand-rolled
+    scanner's ANSI-C quote handling). There is now NO parsing-based
+    exemption: every Bash command touching a sensitive path is
+    high-impact, so no bypass exists. Cost: reads on sensitive paths
+    draw an advisory (M4 alarm-fatigue), the loss-averse direction.
     """
 
-    # -- exempt: provably read-only shapes --------------------------------
-
-    def test_wc_on_kernel_doc_does_not_fire(self):
-        op = _bash_op("wc -l kernel/FAILURE_MODES.md")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_grep_on_hooks_path_does_not_fire(self):
-        op = _bash_op("grep -n 'def detect' core/hooks/_cascade_detector.py")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_ls_on_episteme_dir_does_not_fire(self):
-        op = _bash_op("ls -la .episteme/")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_read_only_pipeline_does_not_fire(self):
-        op = _bash_op(
-            "grep -rn pattern core/hooks/ | head -20 "
-            "&& wc -l kernel/ARCHITECTURE.md"
-        )
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_stderr_sink_redirection_stays_exempt(self):
-        op = _bash_op("cat core/schemas/something.json 2>/dev/null")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_dev_null_sink_stays_exempt(self):
-        op = _bash_op("grep -q marker pyproject.toml > /dev/null 2>&1")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    def test_git_log_on_sensitive_path_does_not_fire(self):
-        op = _bash_op("git log --oneline -5 -- core/hooks/")
-        self.assertIsNone(_cascade_detector.detect_cascade(op))
-
-    # -- NOT exempt: write-capable or non-allowlisted shapes ---------------
-
-    def test_redirection_into_sensitive_path_fires(self):
-        op = _bash_op(
-            "grep x kernel/FAILURE_MODES.md > kernel/FAILURE_MODES.md"
-        )
+    def _fires(self, command: str) -> None:
         self.assertEqual(
-            _cascade_detector.detect_cascade(op),
+            _cascade_detector.detect_cascade(_bash_op(command)),
             _cascade_detector.ARCHITECTURAL_CASCADE,
+            f"sensitive-path op not flagged high-impact: {command!r}",
         )
 
-    def test_command_substitution_disqualifies(self):
-        op = _bash_op("wc -l $(echo core/hooks/x.py)")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
+    # -- reads on sensitive paths NOW fire (the exemption is gone) --------
+
+    def test_wc_on_kernel_doc_now_fires(self):
+        self._fires("wc -l kernel/FAILURE_MODES.md")
+
+    def test_grep_on_hooks_path_now_fires(self):
+        self._fires("grep -n 'def detect' core/hooks/_cascade_detector.py")
+
+    def test_read_pipeline_on_sensitive_path_now_fires(self):
+        self._fires("grep -rn pattern core/hooks/ | head -20")
+
+    # -- non-sensitive reads are still NOT flagged (no global over-block) --
+
+    def test_non_sensitive_read_still_does_not_fire(self):
+        self.assertIsNone(
+            _cascade_detector.detect_cascade(_bash_op("grep foo README.md"))
         )
 
-    def test_backtick_substitution_disqualifies(self):
-        op = _bash_op("cat `ls core/hooks/`")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
+    def test_bare_ls_still_does_not_fire(self):
+        self.assertIsNone(
+            _cascade_detector.detect_cascade(_bash_op("ls -la"))
         )
 
-    def test_mixed_pipeline_with_mutating_segment_fires(self):
-        op = _bash_op("cat core/hooks/foo.py; rm core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    # -- the full 4-round writer/executor bypass corpus, each on a
+    # -- sensitive path, now fires: there is no exemption to slip past ----
 
-    def test_xargs_executor_disqualifies(self):
-        op = _bash_op("ls core/hooks/ | xargs rm")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_sort_output_flag_fires(self):
+        self._fires("git ls-files | xargs sort -o kernel/CONSTITUTION.md")
 
-    def test_editor_on_sensitive_path_still_fires(self):
-        op = _bash_op("vi core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_uniq_output_positional_fires(self):
+        self._fires("uniq in.txt core/hooks/victim.py")
 
-    def test_git_mutating_subcommand_still_fires(self):
-        op = _bash_op("git add core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_tree_output_fires(self):
+        self._fires("tree -o core/schemas/out.html .")
 
-    def test_sed_not_allowlisted_still_fires(self):
-        op = _bash_op("sed -n '1,5p' core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_xxd_positional_outfile_fires(self):
+        self._fires("xxd -r a.hex core/hooks/victim.py")
 
-    def test_self_escalation_overrides_read_only_exemption(self):
-        # Trigger 1 is the operator explicitly asking for Blueprint D
-        # discipline; a read-only command does not opt out of it.
+    def test_rg_pre_executor_fires(self):
+        self._fires("rg --pre ./evil.sh needle core/hooks/")
+
+    def test_git_grep_pager_exec_fires(self):
+        self._fires("git grep -O'sh -c evil' needle core/hooks/")
+
+    def test_file_compile_writer_fires(self):
+        self._fires("file -C -m core/hooks/foo")
+
+    def test_sed_in_place_on_kernel_fires(self):
+        self._fires("sed -ni 's/a/b/p' kernel/CONSTITUTION.md")
+
+    def test_find_delete_on_hooks_fires(self):
+        self._fires("find core/hooks/ -name '*.pyc' '-delete'")
+
+    def test_ansi_c_quote_exec_on_sensitive_path_fires(self):
+        # The scanner bug is moot: no exemption means the sensitive path
+        # alone fires it, regardless of quote parsing.
+        self._fires("cat $'\\'' > kernel/CONSTITUTION.md")
+
+    def test_dev_null_lookalike_redirect_to_hooks_fires(self):
+        self._fires("echo x 2>>core/hooks/nullreal")
+
+    # -- untouched sibling exemptions still hold -------------------------
+
+    def test_self_escalation_still_fires(self):
         op = _bash_op("ls -la core/hooks/")
         surface = {"flaw_classification": "config-gap"}
         self.assertEqual(
@@ -841,12 +817,11 @@ class DetectorReadOnlyExemption(unittest.TestCase):
             _cascade_detector.ARCHITECTURAL_CASCADE,
         )
 
-    def test_env_assignment_prefix_disqualifies(self):
-        op = _bash_op("FOO=bar grep x core/hooks/foo.py")
-        self.assertEqual(
-            _cascade_detector.detect_cascade(op),
-            _cascade_detector.ARCHITECTURAL_CASCADE,
-        )
+    def test_kernel_state_edit_still_exempt(self):
+        # .episteme/ metadata edits use a SEPARATE exemption
+        # (_op_targets_kernel_state) that was NOT removed.
+        op = _bash_op("cat .episteme/reasoning-surface.json")
+        self.assertIsNone(_cascade_detector.detect_cascade(op))
 
 
 if __name__ == "__main__":

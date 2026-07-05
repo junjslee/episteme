@@ -60,7 +60,7 @@ Rounding ASPIRATIONAL → RUNNING is confirmation theater. The honest 4-tier enu
 ### B1 · Blueprint D blast_radius_map status enum is closed
 
 - **Invariant.** *Every entry in `blast_radius_map[]` carries a `status` value drawn from the enum {`needs_update`, `not-applicable`}. Other strings reject in the validator.*
-- **Status.** **RUNNING.** Validator in `core/hooks/_blueprint_d.py`; tests in `tests/test_blueprint_d.py`. The current session has hit this gate multiple times (e.g., Event 72 RS schema violation when `"deferred"` was used — caught and corrected).
+- **Status.** **RUNNING.** Validator in `core/hooks/_blueprint_d.py`; tests in `tests/test_blueprint_d_cascade.py`. The current session has hit this gate multiple times (e.g., Event 72 RS schema violation when `"deferred"` was used — caught and corrected).
 - **Action on drift.** If ops bypass with non-enum statuses, the validator has regressed; tighten the enum check.
 
 ### B2 · Blueprint D sync_plan covers all blast_radius_map needs_update surfaces

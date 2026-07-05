@@ -17,7 +17,7 @@ What lands in your Claude Code session:
 
 - **Skills** — every reusable skill under [`skills/custom/`](./skills/custom/) and [`skills/vendor/`](./skills/vendor/).
 - **Agents** — every operator persona from [`core/agents/`](./core/agents/) (`planner`, `researcher`, `implementer`, `reviewer`, `test-runner`, `docs-handoff`, `domain-architect`, `reasoning-auditor`, `governance-safety`, `orchestrator`, `domain-owner`).
-- **Safety + workflow hooks** — `block_dangerous`, `reasoning_surface_guard`, `workflow_guard`, `format`, `precompact_backup`, `quality_gate`, `session_context`. Hook paths use `${CLAUDE_PLUGIN_ROOT}` so they work from any install location.
+- **Safety + workflow hooks** — the gate layer (`block_dangerous`, `reasoning_surface_guard`, `workflow_guard`), the v2.0 engine pair (`conclusion_guard` on prompt submit, `conclusion_gate` on stop), the telemetry writers (`state_tracker`, `calibration_telemetry`, `episodic_writer`, `fence_synthesis`), plus `session_context`, `format`, `precompact_backup`, and `quality_gate`. Hook paths use `${CLAUDE_PLUGIN_ROOT}` so they work from any install location; the full wiring is [`hooks/hooks.json`](./hooks/hooks.json), and its parity with the CLI's sync route is test-enforced (`tests/test_registration_parity.py`).
 
 Plugin manifest: [`.claude-plugin/plugin.json`](./.claude-plugin/plugin.json). Marketplace manifest: [`.claude-plugin/marketplace.json`](./.claude-plugin/marketplace.json).
 
@@ -74,14 +74,16 @@ Here is what to expect on a fresh repo, the first time:
 
 1. Open Claude Code in the project directory you actually want governed.
 2. Ask the agent to do a high-impact op — for example, *"push this branch to the remote."* (Do not approve any action the kernel has not yet authorized.)
-3. The hook fires. Claude Code's tool execution stops with a non-zero exit. The error names the missing precondition — typically:
+3. The hook fires. Claude Code's tool execution stops with a non-zero exit. The error names the missing precondition and prints the exact surface template for the blueprint that will validate your retry — for a generic high-impact op:
 
    ```
-   REASONING SURFACE MISSING: high-impact op `git:push` requires
-   .episteme/reasoning-surface.json
-   Write the surface with: { core_question, knowns, unknowns,
-                              assumptions, disconfirmation }
+   REASONING SURFACE MISSING: high-impact op `git:push` with no surface on disk.
+   ...Write .episteme/reasoning-surface.json with:
+   { "timestamp", "core_question", "knowns", "unknowns",
+     "assumptions", "disconfirmation", "verification_trace": {...} }
    ```
+
+   A surface built by filling exactly the fields the template names passes validation in one attempt — that round-trip is test-enforced (`tests/test_surface_template_roundtrip.py`).
 
 That is the kernel attaching to your project. The hook walked up from the agent's working directory looking for `.git/` or `.episteme/`, found your repo root, and refused the op because the precondition (a Reasoning Surface) was not in place.
 
@@ -89,7 +91,7 @@ You now have three valid responses, and the choice is per-repo.
 
 ### Strict (the production posture)
 
-Have the agent author a Reasoning Surface — `.episteme/reasoning-surface.json` containing `core_question`, `knowns`, `unknowns`, `assumptions`, `disconfirmation`. Once it exists and validates, the next attempt at the op proceeds. The kernel stamps a `correlation_id` at PASS, the op runs, and a hash-chained record lands under `~/.episteme/framework/`. This is the default.
+Have the agent author a Reasoning Surface — `.episteme/reasoning-surface.json`, filling exactly the fields the block message's template names. Once it exists and validates, the next attempt at the op proceeds. The kernel stamps a `correlation_id` at PASS, the op runs, and the decision is recorded in `~/.episteme/audit.jsonl` (with a prediction/outcome pair under `~/.episteme/telemetry/`). This is the default.
 
 ### Advisory (recommended for the first day on a new repo)
 
@@ -113,8 +115,11 @@ After the first block (or first advisory warning), check:
 
 ```bash
 ls .episteme/                  # advisory-surface OR reasoning-surface.json
-ls ~/.episteme/framework/      # global hash chain — protocols.jsonl + audit/*
+ls ~/.episteme/                # audit.jsonl — one line per gate decision
+ls ~/.episteme/telemetry/      # YYYY-MM-DD-audit.jsonl prediction/outcome records
 ```
+
+(`~/.episteme/framework/` — `protocols.jsonl`, the compounding layer — appears later; it is written by the synthesis paths, not by your first gate decision.)
 
 Hook exit traces appear in your Claude Code session output, not in a separate log file — the visible-evidence channel is the session itself.
 
@@ -124,7 +129,7 @@ For the runtime architecture — see [`docs/ARCHITECTURE.md`](./docs/ARCHITECTUR
 
 ## Verify
 
-After any of the three paths:
+After path 2 — the only path that installs the `episteme` shell CLI:
 
 ```bash
 episteme doctor                 # runtime wiring
@@ -133,6 +138,8 @@ episteme bridge substrate verify noop  # substrate bridge contract
 ```
 
 All three should exit 0.
+
+Paths 1 and 3 install no shell CLI, so their verification is behavioral: in a repo with no `.episteme/` signal, ask the agent to run a high-impact op (e.g. *"push this branch"*) — the reasoning-surface block appearing in the session output, naming the missing surface and printing the fill-in template, IS the verification.
 
 ---
 

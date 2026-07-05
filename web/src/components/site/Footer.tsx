@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RELEASE_FACTS } from "@/lib/release-facts";
 
 export function Footer() {
   return (
@@ -45,7 +46,7 @@ export function Footer() {
       </div>
       <div className="mx-auto max-w-7xl border-t border-hairline px-6 py-4 font-mono text-[0.625rem] uppercase tracking-[0.16em] text-muted md:px-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span>1367 tests green · hash-chain verified</span>
+          <span>{RELEASE_FACTS.testsGreen} tests green · hash-chain verified</span>
           <span>© 2026 · built on the practice it describes</span>
         </div>
       </div>

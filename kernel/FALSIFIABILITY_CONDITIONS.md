@@ -153,7 +153,7 @@ A row whose action-on-disconfirmation is empty or generic is ceremonial. Either 
 
 - **Claim.** The epistemic-interrogation verdict artifact is a live satisfier: agents run the protocol and the gate admits ops on it. ([`docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md`](../docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md) § 7)
 - **Falsification condition.** After 30 days of normal kernel use: fewer than 5 audit records with `"source": "interrogation"` and `"action": "passed"`.
-- **Measurement method.** `grep '"source": "interrogation"' ~/.episteme/audit.jsonl | grep '"passed"' | wc -l`.
+- **Measurement method.** `grep '"source": "interrogation"' ~/.episteme/audit.jsonl | grep '"passed"' | grep -v '"test_env": true' | wc -l`. Records written under a test runner carry `"test_env": true` (the guard tags on `PYTEST_CURRENT_TEST`, 2026-07-03): the first 50 interrogation records were 38-parts pytest fixtures, which would have satisfied E3 on suite noise alone. Pre-tag records are excluded by their fixture cwd (`grep -v '/var/folders'`).
 - **Status.** **SCHEDULED** — mechanism shipped 2026-06-10; first 30-day window opens at merge.
 - **Action on disconfirmation.** The mechanism is not in use: either the trigger surface is wrong (decision shapes too narrow / too noisy) or the protocol's cost exceeds its perceived value. Interview the lived friction before redesigning; DESIGN_V2_0 reverts to proposal status.
 

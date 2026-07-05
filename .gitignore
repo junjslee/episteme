@@ -4,6 +4,15 @@ __pycache__/
 *.pyc
 .DS_Store
 *.egg-info/
+build/
+dist/
+
+# ─── Ralph loop session state ─────────────────────────────────────────────────
+# Local iteration state for the ralph-loop plugin; never commit.
+.claude/ralph-loop.local.md
+
+# ─── Playwright MCP session artifacts (snapshots/screenshots) ─────────────────
+.playwright-mcp/
 
 # ─── Labs / experimental run artifacts ───────────────────────────────────────
 # Skill candidate runs, scratch outputs, temp files under labs/.
@@ -104,6 +113,9 @@ docs/POSTURE.md
 docs/NARRATIVE.md
 docs/COGNITIVE_SYSTEM_PLAYBOOK.md
 docs/DECISION_STORY.md
+docs/PRODUCT_MASTER_PLAN.md
+docs/PRODUCTIZATION_PLAN.md
+docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md
 
 # ─── Privatized operator-profile canonicals (Event 71) ───────────────────────
 # Maintainer's lived profile content lives at ~/episteme-private/core/memory/global/.

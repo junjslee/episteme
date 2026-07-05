@@ -4,9 +4,14 @@ import Link from "next/link";
  * InstallSection — the closing beat: how do I get it, in ~60 seconds.
  *
  * Renamed from CTASection. Install commands are the REAL quick start from
- * the repo README (Claude Code plugin marketplace — two commands — then
- * seed + verify from any shell). The old `pipx install episteme` line was
- * fabricated: the package is not published to PyPI.
+ * the repo README (Claude Code plugin marketplace — two commands, and the
+ * plugin is complete by itself). The old `pipx install episteme` line was
+ * fabricated: the package is not published to PyPI. The old third step
+ * (`episteme init && episteme doctor` "from any shell") was equally
+ * broken for this audience: a marketplace install never runs pip, so
+ * plugin-only users have no shell CLI — that dead-end is what lost the
+ * project's first external adopter (issue #1). The CLI belongs to the
+ * clone path, which the link below owns.
  *
  * The terminal preview absorbs the killed CodeSample with v2 vocabulary:
  * a real interrogation verdict — every line traces to the chain's actual
@@ -21,11 +26,10 @@ const INSTALL_LINES: { t: string; v: string; c?: string }[] = [
   { t: "comment", v: "# inside claude code" },
   { t: "cmd", v: "/plugin marketplace add junjslee/episteme" },
   { t: "cmd", v: "/plugin install episteme@episteme" },
-  { t: "comment", v: "# then, from any shell" },
+  { t: "comment", v: "# done — hooks, agents, and skills are live" },
   {
-    t: "shell",
-    v: "episteme init && episteme doctor",
-    c: "# seed memory · verify wiring",
+    t: "comment",
+    v: "# (the episteme shell CLI ships with the source checkout, not the plugin)",
   },
 ];
 

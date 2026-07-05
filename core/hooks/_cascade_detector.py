@@ -125,92 +125,26 @@ def _sensitive_path_hit(text: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Read-only command exemption (Event 137)
+# ---------------------------------------------------------------------------
+# Read-only command exemption — REMOVED 2026-07-03
 # ---------------------------------------------------------------------------
 #
-# Trigger 2 originally fired on ANY Bash command whose text contained a
-# sensitive path — including pure inspection (`wc -l kernel/FOO.md`,
-# `grep -n x core/hooks/y.py`). Live telemetry showed the consequence:
-# the audit stream classified 18k+ ops as high-impact, the operator
-# downgraded the gate to advisory mode on the kernel's own repo, and
-# the advisory became noise — alarm fatigue defeating the gate, the
-# exact regime KERNEL_LIMITS § 1 names. Reading a sensitive file cannot
-# cascade; only mutation can.
-#
-# Rule shape, named consciously per the rule-shape discipline in
-# `core/memory/global/agent_feedback.md`: POSITIVE SYSTEM. A command is
-# exempt only when EVERY pipeline segment's head is on the read-only
-# allowlist below AND no write-capable shell construct survives
-# safe-sink stripping (output redirection, command / process
-# substitution). Anything not provably read-only stays high-impact:
-# a false negative (failing to exempt a read) costs one advisory;
-# a false positive (exempting a write) costs gate coverage.
-#
-# Trigger 1 (self-escalation) is checked BEFORE this exemption — a
-# surface that declares `flaw_classification` keeps Blueprint D
-# discipline on read-only ops too. Triggers 3/4 are mutating-verb
-# anchored and unreachable for an all-read-only command, so the Bash
-# branch short-circuits entirely when the exemption holds.
-
-
-_READ_ONLY_HEADS: frozenset[str] = frozenset({
-    # file inspection
-    "ls", "cat", "head", "tail", "wc", "stat", "file", "du", "df",
-    "tree", "readlink", "realpath", "basename", "dirname", "pwd",
-    "which", "type", "whoami", "id", "uname", "date", "printenv",
-    "echo", "printf", "true",
-    # search
-    "grep", "egrep", "fgrep", "rg", "ag",
-    # stream filters (stdout-only without redirection, which is
-    # disqualified separately)
-    "diff", "cmp", "md5", "md5sum", "shasum", "sha256sum",
-    "sort", "uniq", "cut", "tr", "column", "nl", "od", "xxd",
-    "strings", "less", "more", "jq",
-    # git, restricted to _READ_ONLY_GIT_SUBCOMMANDS
-    "git",
-})
-
-# `git branch` / `git tag` / `git remote` are excluded: bare they list,
-# with args they mutate — head-token analysis cannot tell them apart.
-_READ_ONLY_GIT_SUBCOMMANDS: frozenset[str] = frozenset({
-    "status", "log", "diff", "show", "rev-parse", "ls-files",
-    "ls-tree", "blame", "grep", "shortlog", "describe",
-})
-
-# Output sinks that cannot mutate project state; stripped before the
-# write-capable check runs so `cmd 2>/dev/null` stays exempt.
-_SAFE_SINK_RE = re.compile(r"(?:2>&1|[12]?>>?\s*/dev/null)")
-
-# Any surviving redirection or command / process substitution makes the
-# command write-capable (or executes an unchecked inner command).
-_WRITE_CAPABLE_RE = re.compile(r"<\(|\$\(|`|>")
-
-_SEGMENT_SPLIT_RE = re.compile(r"(?:\|\||&&|[|;&\n])")
-
-
-def _is_read_only_command(cmd: str) -> bool:
-    """True iff every segment of ``cmd`` is provably read-only."""
-    stripped = _SAFE_SINK_RE.sub(" ", cmd)
-    if _WRITE_CAPABLE_RE.search(stripped):
-        return False
-    segments = [s.strip() for s in _SEGMENT_SPLIT_RE.split(stripped)]
-    segments = [s for s in segments if s]
-    if not segments:
-        return False
-    for seg in segments:
-        tokens = seg.split()
-        head = tokens[0].rsplit("/", 1)[-1]
-        # Env-assignment prefixes (`FOO=bar cmd`) are not unwrapped —
-        # conservative disqualify.
-        if head not in _READ_ONLY_HEADS:
-            return False
-        if head == "git":
-            sub = next(
-                (t for t in tokens[1:] if not t.startswith("-")), ""
-            )
-            if sub not in _READ_ONLY_GIT_SUBCOMMANDS:
-                return False
-    return True
+# The Event-137 read-only exemption (an allowlist of reader command
+# heads + a hand-rolled shell scanner that classified a Bash command as
+# read-only and short-circuited Trigger 2) has been deleted. Four
+# adversarial review rounds (2026-07-03) proved it cannot be made safe
+# with zero dependencies: writers/executors slipped through both the
+# allowlist (sort -o, uniq OUT, tree -o, xxd positional, rg --pre,
+# git grep -O, file -C) and the scanner itself (ANSI-C $'...' quote
+# desync hid `;` separators and `>` redirects). A safe parsing-based
+# exemption needs a real bash parser (bashlex), which the
+# zero-dependency kernel forbids. So every Bash command now flows
+# through the sensitive-path / refactor-lexicon / generated-artifact
+# triggers with no exemption to bypass. Cost: reads on sensitive paths
+# draw an advisory (M4 alarm-fatigue) — the loss-averse direction, and
+# advisory mode already absorbs it on the kernel's own repo. A future
+# safe exemption is a deliberate design pass (real parser or a narrower
+# sensitive-path set), not a scanner patch.
 
 
 # ---------------------------------------------------------------------------
@@ -449,11 +383,19 @@ def detect_cascade(
             cmd = _bash_command(pending_op)
             if not cmd:
                 return None
-            # Event 137 — read-only exemption (see module § Read-only
-            # command exemption). Runs after Trigger 1 so declared
-            # self-escalation still wins.
-            if _is_read_only_command(cmd):
-                return None
+            # The Event-137 read-only exemption was REMOVED (2026-07-03).
+            # Four adversarial review rounds proved it cannot be made
+            # safe with zero dependencies: writers/executors kept
+            # slipping through both the command allowlist (sort -o,
+            # tree -o, xxd positional, rg --pre, git grep -O, file -C)
+            # and the hand-rolled shell scanner itself (ANSI-C $'...'
+            # quote-parity desync hid `;` separators and `>` redirects).
+            # A safe parsing-based exemption needs a real bash parser
+            # (bashlex), which the zero-dependency kernel forbids. So
+            # reads on sensitive paths now flow through the triggers and
+            # draw an advisory — the loss-averse direction: exempting a
+            # writer must never happen; over-warning on a read costs one
+            # advisory line.
             # Trigger 2 — sensitive path in command.
             if _sensitive_path_hit(cmd):
                 return ARCHITECTURAL_CASCADE

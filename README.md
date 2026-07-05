@@ -173,14 +173,9 @@ Inside Claude Code:
 /plugin install episteme@episteme
 ```
 
-Then from any shell:
+The plugin is complete by itself: hooks, agents, and skills are live in your Claude Code session with no further setup.
 
-```bash
-episteme init     # one-shot: seed personal memory files from examples
-episteme setup    # score workstyle + cognition profile
-episteme sync     # propagate into Claude Code and Hermes
-episteme doctor   # verify wiring
-```
+The `episteme` shell CLI (`init`, `setup`, `sync`, `doctor`) is **not installed by the plugin** — a marketplace install never runs pip. The CLI ships with the source checkout (Option B below); add that path alongside the plugin only if you want to edit the kernel or drive the CLI workflows.
 
 For authoritative command syntax and update semantics, see [Claude Code's plugin marketplace documentation](https://docs.anthropic.com/en/docs/claude-code/plugins).
 

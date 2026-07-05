@@ -29,7 +29,7 @@ Read the kernel first. Everything else is derived from it.
 
 1) `../kernel/CONSTITUTION.md`
 2) `../kernel/REASONING_SURFACE.md`
-3) `../kernel/SYSTEM_1_COUNTERS.md`
+3) `../kernel/FAILURE_MODES.md`
 4) `../kernel/OPERATOR_PROFILE_SCHEMA.md`
 5) `../README.md`
 6) `ARCHITECTURE.md`

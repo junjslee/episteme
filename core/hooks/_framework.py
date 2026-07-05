@@ -76,6 +76,19 @@ from _chain import (  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 PROTOCOL_TYPE = "protocol"
 DEFERRED_DISCOVERY_TYPE = "deferred_discovery"
+# Resolution layer (2026-07-03). The ledger accumulated 233 permanently
+# 'pending' entries because no resolution mechanism was ever built —
+# the only defined open status was `pending` and nothing could
+# transition it (recon). Resolution is APPEND-ONLY: a verdict record
+# references a discovery's entry_hash; the discovery itself is never
+# mutated (mutating a hash-chained record would break the chain, and
+# the pending->verdict pair IS the audit trail). Readers derive
+# openness: open = status in OPEN_STATUSES AND no verdict references
+# the entry_hash.
+DISCOVERY_VERDICT_TYPE = "deferred_discovery_verdict"
+RESOLUTION_VERDICTS = frozenset({"resolved", "noise", "duplicate"})
+_VERDICT_RATIONALE_FLOOR = 15  # same lazy-value bar as surface fields
+_REF_PREFIX_FLOOR = 8
 CP5_FORMAT_VERSION = "cp5-pre-chain"
 UPGRADED_FORMAT_MARKER = "cp7-chained-v1"
 
@@ -454,6 +467,97 @@ def list_deferred_discoveries(
     return out
 
 
+def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
+    """Discoveries still awaiting an operator verdict.
+
+    OPEN iff payload status is in ``OPEN_STATUSES`` (legacy records
+    without a status count as open — the historical Blueprint-D writer
+    emitted none) AND no ``deferred_discovery_verdict`` record
+    references the discovery's ``entry_hash``. Single chain pass; the
+    SessionStart banner and ``episteme guide --deferred`` read this so
+    a verdicted finding stops re-firing every session.
+    """
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries: list[dict] = []
+    verdicted: set[str] = set()
+    for rec in _chain_iter(target, verify=True):
+        payload = rec.get("payload") if isinstance(rec, dict) else None
+        if not isinstance(payload, dict):
+            continue
+        ptype = payload.get("type")
+        if ptype == DISCOVERY_VERDICT_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                verdicted.add(ref)
+        elif ptype == DEFERRED_DISCOVERY_TYPE:
+            status = payload.get("status")
+            if status is None or status in OPEN_STATUSES:
+                discoveries.append(rec)
+    return [
+        d for d in discoveries
+        if str(d.get("entry_hash") or "") not in verdicted
+    ]
+
+
+def append_discovery_verdict(
+    ref: str,
+    verdict: str,
+    rationale: str,
+    *,
+    path: Path | None = None,
+) -> dict:
+    """Record an operator verdict for an OPEN deferred discovery.
+
+    ``ref`` is the discovery's entry_hash or a unique prefix of at
+    least 8 chars. Append-only by design (module § Resolution layer);
+    re-verdicting an already-closed discovery is rejected so the
+    ledger cannot accumulate contradictory verdicts. Raises
+    ``ChainError`` with an operator-actionable message on any invalid
+    input — callers surface it verbatim.
+    """
+    target = path if path is not None else _deferred_discoveries_path()
+    verdict = (verdict or "").strip().lower()
+    if verdict not in RESOLUTION_VERDICTS:
+        raise ChainError(
+            f"verdict must be one of {sorted(RESOLUTION_VERDICTS)} "
+            f"(got {verdict!r})"
+        )
+    rationale = (rationale or "").strip()
+    if len(rationale) < _VERDICT_RATIONALE_FLOOR:
+        raise ChainError(
+            f"rationale must be >= {_VERDICT_RATIONALE_FLOOR} chars — "
+            "name what was done or why the finding is noise"
+        )
+    ref = (ref or "").strip()
+    if len(ref) < _REF_PREFIX_FLOOR:
+        raise ChainError(
+            f"ref must be an entry_hash or a >= {_REF_PREFIX_FLOOR}-char "
+            f"prefix (got {ref!r})"
+        )
+    matches = [
+        d for d in open_deferred_discoveries(path=target)
+        if str(d.get("entry_hash") or "").startswith(ref)
+    ]
+    if not matches:
+        raise ChainError(
+            f"no OPEN deferred discovery matches {ref!r} — it may "
+            "already be verdicted, or the ref is wrong "
+            "(see `episteme guide --deferred` for open entries)"
+        )
+    if len(matches) > 1:
+        raise ChainError(
+            f"ref {ref!r} is ambiguous ({len(matches)} open matches) — "
+            "use a longer prefix"
+        )
+    full_hash = str(matches[0]["entry_hash"])
+    return _chain_append(target, {
+        "type": DISCOVERY_VERDICT_TYPE,
+        "ref": full_hash,
+        "verdict": verdict,
+        "rationale": rationale,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Chain verification
 # ---------------------------------------------------------------------------
@@ -781,8 +885,28 @@ def compact_deferred_discoveries(
             f"before compaction."
         )
 
+    # Verdicts couple to discoveries by entry_hash (see § Resolution
+    # layer). A GENESIS rebuild recomputes every entry_hash, so any
+    # verdict ref would dangle and a resolved discovery would re-open —
+    # unless we (1) never drop a verdicted discovery as a duplicate, and
+    # (2) remap verdict refs old->new during the rebuild. Collect the
+    # referenced hashes first.
+    verdict_refs: set[str] = set()
+    for rec in parsed:
+        payload = rec.get("payload")
+        if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                verdict_refs.add(ref)
+
     # Walk in file order; keep the first open deferred_discovery per
-    # dedup key, drop later open duplicates, keep everything else.
+    # dedup key, drop later open UNVERDICTED duplicates, keep everything
+    # else. A verdicted discovery is never dropped (its verdict refs it)
+    # but its key is still recorded as seen — otherwise a later
+    # unverdicted duplicate of a resolved finding would survive as
+    # "first" and keep re-firing the banner (adversarial finding
+    # 2026-07-03: verdicting the first member must not defeat dedup of
+    # the rest).
     seen_keys: set[tuple[str, str]] = set()
     kept: list[dict] = []
     for rec in parsed:
@@ -793,8 +917,9 @@ def compact_deferred_discoveries(
             and str(payload.get("status", "pending")) in OPEN_STATUSES
         ):
             key = _dedup_key(payload, dedup_desc_prefix)
-            if key in seen_keys:
-                continue  # later open duplicate — drop
+            verdicted = str(rec.get("entry_hash") or "") in verdict_refs
+            if key in seen_keys and not verdicted:
+                continue  # later open, unverdicted duplicate — drop
             seen_keys.add(key)
         kept.append(rec)
 
@@ -821,6 +946,11 @@ def compact_deferred_discoveries(
     new_lines: list[str] = []
     expected_prev = GENESIS_PREV_HASH
     head_hash = expected_prev
+    # old entry_hash -> new entry_hash, so a verdict's `ref` (which
+    # points at a discovery's OLD hash) can be rewritten to the new one.
+    # A discovery always precedes its verdict in append order, so the
+    # map entry exists by the time the verdict is rebuilt.
+    hash_remap: dict[str, str] = {}
     for rec in kept:
         payload = rec.get("payload")
         ts = rec.get("ts")
@@ -829,7 +959,14 @@ def compact_deferred_discoveries(
                 f"{target}: kept record missing payload / ts during rebuild "
                 f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
             )
+        if payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            old_ref = payload.get("ref")
+            if isinstance(old_ref, str) and old_ref in hash_remap:
+                payload = {**payload, "ref": hash_remap[old_ref]}
+        old_entry_hash = str(rec.get("entry_hash") or "")
         entry_hash = compute_entry_hash(expected_prev, ts, payload)
+        if old_entry_hash:
+            hash_remap[old_entry_hash] = entry_hash
         envelope = {
             "schema_version": UPGRADED_FORMAT_MARKER,
             "ts": ts,

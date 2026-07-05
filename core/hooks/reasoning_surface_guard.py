@@ -73,8 +73,8 @@ from _scenario_detector import (  # noqa: E402  # pyright: ignore[reportMissingI
     detect_scenario as _detect_scenario,
 )
 from _specificity import (  # noqa: E402  # pyright: ignore[reportMissingImports]
-    _classify_disconfirmation as _classify_for_layer2,
     _classify_origin_evidence as _classify_origin,
+    classify_disconfirmation_parts as _classify_parts_for_layer2,
 )
 from _grounding import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     ground_blueprint_fields as _layer3_ground_blueprint_fields,
@@ -95,6 +95,8 @@ from _guidance import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     format_advisory as _guidance_format_advisory,
 )
 from _blueprint_d import (  # noqa: E402  # pyright: ignore[reportMissingImports]
+    FLAW_CLASSES as _TEMPLATE_FLAW_CLASSES,
+    POSTURE_VALUES as _TEMPLATE_POSTURE_VALUES,
     validate_blueprint_d as _validate_blueprint_d,
     write_cascade_deferred_discoveries as _write_cascade_deferred_discoveries,
 )
@@ -551,6 +553,26 @@ def _surface_missing_fields(surface: dict) -> list[str]:
     return missing
 
 
+def _layer2_rejection_label(
+    name: str, verdict: str, has_trigger: bool, has_observable: bool,
+) -> str:
+    """Render one Layer 2 rejection naming the missing contract half.
+
+    ``tautological`` covers three distinct author states (trigger-only,
+    observable-only, neither); a remediation message that names the
+    wrong half sends the author to fix the part they already have.
+    """
+    if verdict != "tautological":
+        return f"{name} ({verdict})"
+    if has_trigger and not has_observable:
+        missing = "missing specific observable"
+    elif has_observable and not has_trigger:
+        missing = "missing conditional trigger"
+    else:
+        missing = "missing conditional trigger and specific observable"
+    return f"{name} (tautological — {missing})"
+
+
 def _layer2_classify_blueprint_fields(
     surface: dict,
     pending_op: dict,
@@ -567,6 +589,11 @@ def _layer2_classify_blueprint_fields(
     - ``"pass"``     — every classifier-eligible field classifies as ``fire``
                        (conditional trigger + specific observable). Surface
                        proceeds to the existing ok path.
+    NOTE: rejection labels are built by ``_layer2_rejection_label`` so
+    the author is told which half of the fire-shape contract is missing
+    — the pre-2026-07-03 message described only the trigger-without-
+    observable shape and sent observable-without-trigger authors in
+    circles (fresh-user recon: 3 of 5 failed attempts).
     - ``"advisory"`` — at least one field classifies as ``absence``
                        (`if no issues arise`-shape). Surface still passes;
                        caller emits a one-line stderr advisory.
@@ -612,15 +639,17 @@ def _layer2_classify_blueprint_fields(
             # `disconfirmation` and `unknowns` entries are classified
             # against the same contract").
             for i, entry in enumerate(value):
-                verdict = _classify_for_layer2(entry)
+                verdict, has_trig, has_obs = _classify_parts_for_layer2(entry)
                 if verdict in ("tautological", "unknown"):
-                    rejections.append(f"unknowns[{i}] ({verdict})")
+                    rejections.append(_layer2_rejection_label(
+                        f"unknowns[{i}]", verdict, has_trig, has_obs))
                 elif verdict == "absence":
                     advisories.append(f"unknowns[{i}] (absence)")
         else:
-            verdict = _classify_for_layer2(value)
+            verdict, has_trig, has_obs = _classify_parts_for_layer2(value)
             if verdict in ("tautological", "unknown"):
-                rejections.append(f"{field_name} ({verdict})")
+                rejections.append(_layer2_rejection_label(
+                    field_name, verdict, has_trig, has_obs))
             elif verdict == "absence":
                 advisories.append(f"{field_name} (absence)")
 
@@ -628,11 +657,12 @@ def _layer2_classify_blueprint_fields(
         detail = (
             f"Layer 2 classifier (blueprint `{blueprint.name}`) rejected: "
             + "; ".join(rejections)
-            + ". A tautological field carries a conditional trigger "
-              "(`if`/`when`/`should`/`once`/`after`/`unless`) but no specific "
-              "observable (numeric threshold, metric name, failure verb, "
-              "log/dashboard reference). Add an observable that would "
-              "falsify the claim."
+            + ". The contract requires BOTH a conditional trigger word "
+              "(`if`/`when`/`should`/`once`/`after`/`unless`) AND a "
+              "specific observable (numeric threshold, metric name, "
+              "failure verb, or log/dashboard reference) in the same "
+              "field — e.g. \"if the deploy regresses, CI turns red "
+              "with a non-zero exit code within 10 minutes\"."
         )
         return ("reject", detail)
 
@@ -910,7 +940,7 @@ def _write_audit(
 ) -> None:
     audit_path = Path.home() / ".episteme" / "audit.jsonl"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
-    entry = {
+    entry: dict[str, object] = {
         "ts": datetime.now(timezone.utc).isoformat(),
         "tool": tool,
         "op": op,
@@ -923,6 +953,16 @@ def _write_audit(
         # verdict). E3 falsifiability measurement reads this field.
         "source": source,
     }
+    # Honest environment tagging (E3 measurement integrity,
+    # 2026-07-03): 38 of the first 50 interrogation-source audit
+    # records were pytest fixtures, indistinguishable from lived use —
+    # the E3 grep would have "passed" on test-suite noise alone. Tag
+    # records written under a test runner so the measurement (kernel/
+    # FALSIFIABILITY_CONDITIONS.md § E3) can exclude them. Tag, don't
+    # drop: users may legitimately work under /tmp, and dropped
+    # records would hide real gate activity.
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        entry["test_env"] = True
     try:
         with open(audit_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry) + "\n")
@@ -1077,18 +1117,109 @@ def _advisory_footer() -> str:
     )
 
 
-def _surface_template() -> str:
+# Shape hints for blueprint-specific required fields. Keyed by field
+# name; rendered verbatim into the template skeleton (must stay valid
+# JSON — a stranger copies the skeleton and replaces placeholder
+# values). Enum vocabularies are sourced from the validating module so
+# template/validator drift fails tests/test_surface_template_roundtrip.
+_TEMPLATE_FIELD_SHAPES: dict[str, str] = {
+    "flaw_classification":
+        '"<one of: ' + " | ".join(sorted(_TEMPLATE_FLAW_CLASSES)) + '>"',
+    "posture_selected":
+        '"<one of: ' + " | ".join(sorted(_TEMPLATE_POSTURE_VALUES)) + '>"',
+    "patch_vs_refactor_evaluation":
+        '"<why this posture for THIS change — name the concrete '
+        'modules/layers involved; generic phrasing is rejected>"',
+    "blast_radius_map":
+        '[{"surface": "<file or doc this op touches>", '
+        '"status": "needs_update"}, '
+        '{"surface": "<surface deliberately untouched>", '
+        '"status": "not-applicable", '
+        '"rationale": "<why it is untouched>"}]',
+    "sync_plan":
+        '[{"surface": "<each needs_update surface above>", '
+        '"action": "<what will be done to it>"}]',
+    "deferred_discoveries": "[]",
+    "removal_consequence_prediction":
+        '"<if/when the constraint is removed, <specific observable: '
+        'number, metric, failure verb, or log/dashboard ref>>"',
+    "origin_evidence":
+        '"<concrete pointer: commit SHA, path:line, URL, issue ID, or '
+        'dated event — hedges like \'probably legacy\' are rejected>"',
+}
+
+_TEMPLATE_BASE_FIELDS: tuple[str, ...] = (
+    "timestamp", "core_question", "knowns", "unknowns", "assumptions",
+    "disconfirmation",
+)
+
+
+def _surface_template(blueprint_name: str = "generic") -> str:
+    """Render the remediation template for the ACTIVE blueprint.
+
+    Contract (tests/test_surface_template_roundtrip.py): a surface
+    built by filling exactly the fields this template names must pass
+    the guard's own strict validation in one attempt. That means every
+    conditionally-required field — `verification_trace` for CP6
+    blueprints, the Blueprint D six for architectural_cascade, the
+    Fence fields — must appear here with a shape a stranger can follow
+    without reading core/hooks source. Registry failures degrade to the
+    base six-field skeleton; the block message must never crash.
+    """
+    entries: list[str] = [
+        '"timestamp": "<ISO-8601 UTC>"',
+        '"core_question": "<one question this work answers>"',
+        '"knowns": ["..."]',
+        '"unknowns": ["<conditional trigger word (if/when/should/once/'
+        'after/unless) + specific observable (number, metric name, '
+        'failure verb, or log/dashboard ref), >= 15 chars>"]',
+        '"assumptions": ["..."]',
+        '"disconfirmation": "<same fire shape — conditional trigger + '
+        'specific observable, >= 15 chars>"',
+    ]
+    guidance = ""
+
+    blueprint = None
+    try:
+        blueprint = _load_registry().get(blueprint_name)
+    except Exception:
+        blueprint = None  # degrade to the base skeleton — never crash.
+
+    if blueprint is not None:
+        for field in blueprint.required_fields:
+            if field in _TEMPLATE_BASE_FIELDS:
+                continue
+            shape = _TEMPLATE_FIELD_SHAPES.get(
+                field, f'"<required by blueprint `{blueprint.name}`>"'
+            )
+            entries.append(f'"{field}": {shape}')
+        needs_trace = (
+            blueprint.verification_trace_required
+            and blueprint.verification_trace_maps_to is None
+        )
+        if needs_trace:
+            entries.append(
+                '"verification_trace": {\n'
+                '    "command": "<shell command, >= 2 tokens, that '
+                'verifies this op>",\n'
+                '    "threshold_observable": "<comparison with a number,'
+                " e.g. 'exit code == 0'>\",\n"
+                '    "window_seconds": 300\n'
+                "  }"
+            )
+            guidance = (
+                "\nThe verification_trace also accepts `or_test`: "
+                '"<pytest node id>" or `or_dashboard`: "<https URL>" in '
+                "place of command + threshold_observable."
+            )
+
     base = (
         "Write .episteme/reasoning-surface.json with:\n"
-        "{\n"
-        '  "timestamp": "<ISO-8601 UTC>",\n'
-        '  "core_question": "<one question this work answers>",\n'
-        '  "knowns": ["..."],\n'
-        '  "unknowns": ["<sharp, >= 15 chars, not a placeholder>"],\n'
-        '  "assumptions": ["..."],\n'
-        '  "disconfirmation": "<concrete observable outcome, >= 15 chars>"\n'
-        "}\n"
+        "{\n  "
+        + ",\n  ".join(entries)
+        + "\n}\n"
         "Lazy values (none, n/a, tbd, 해당 없음, 없음, ...) are rejected."
+        + guidance
     )
     return base + _advisory_footer()
 
@@ -1570,6 +1701,23 @@ def main() -> int:
             )
         return 0
 
+    # Template must match the blueprint that will validate the retry.
+    # `blueprint_name` is only set by the Layer-2/3 flow, which never
+    # runs when the surface is missing or Layer-1-incomplete — exactly
+    # the moments the template is printed. Detect here (surface may be
+    # None; the detector accepts that) so a cascade/fence op's block
+    # message names the fields its OWN validator will demand, not the
+    # generic six. Round-trip contract:
+    # tests/test_surface_template_roundtrip.py.
+    template_blueprint = blueprint_name
+    try:
+        template_blueprint = _detect_scenario(
+            payload, surface_text=None, project_context={},
+            surface=_read_surface(cwd),
+        )
+    except Exception:
+        pass  # degrade to the generic template — never crash the block.
+
     header = f"REASONING SURFACE {status.upper()}: high-impact op `{label}` with {detail}."
     if interrogation_detail:
         header += f" Interrogation artifact: {interrogation_detail}."
@@ -1583,7 +1731,8 @@ def main() -> int:
         "tiered claims, load-bearing claims verified in a fresh context "
         "against external evidence, an argued opposition, a weakest "
         "link, and a pre-committed disconfirmation; or (2) a Reasoning "
-        f"Surface at .episteme/reasoning-surface.json: {_surface_template()}"
+        f"Surface at .episteme/reasoning-surface.json: "
+        f"{_surface_template(template_blueprint)}"
     )
 
     if not advisory_only:
