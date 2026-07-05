@@ -199,6 +199,21 @@ class GitResolutionRobustness(unittest.TestCase):
             # fail toward flagging: exempt nothing rather than crash
             self.assertEqual(set(), dr.git_ignored(Path("/nowhere"), ["a/b.py"]))
 
+    def test_git_ignored_matches_dir_only_pattern_for_absent_path(self):
+        # A dir-only pattern (`/archive/`) matches a bare path (`archive`)
+        # only while that directory exists on disk — so an oracle that asks
+        # about the bare form answers differently on a machine that has the
+        # local-only dir (developer laptop) than on a fresh clone (CI).
+        # The oracle must be machine-independent: absent paths still exempt.
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            subprocess.run(["git", "-C", d, "init", "-q"], check=True)
+            (root / ".gitignore").write_text("/archive/\n", encoding="utf-8")
+            (root / "web").mkdir()
+            (root / "web" / ".gitignore").write_text("/.next/\n", encoding="utf-8")
+            ignored = dr.git_ignored(root, ["archive", "web/.next", "src/real.py"])
+            self.assertEqual({"archive", "web/.next"}, ignored)
+
 
 class ResolutionTests(unittest.TestCase):
     """resolve_exists is filesystem truth (follow symlinks); dir-kind must be a dir."""

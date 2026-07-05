@@ -353,10 +353,17 @@ def git_ignored(repo_root: Path, paths: Iterable[str]) -> Set[str]:
     items = [p for p in paths]
     if not items:
         return set()
+    # Query each path in both bare and trailing-slash form: a dir-only
+    # pattern (`archive/`) matches the bare spelling only while the
+    # directory exists on disk, so the bare form alone gives a different
+    # answer on a machine that has the local-only dir than on a fresh
+    # clone. The slash form pins the directory interpretation regardless
+    # of on-disk state, keeping the oracle machine-independent.
+    queries = [q for p in items for q in (p, p.rstrip("/") + "/")]
     try:
         proc = subprocess.run(
             ["git", "-C", str(repo_root), "check-ignore", "--stdin"],
-            input="\n".join(items),
+            input="\n".join(queries),
             capture_output=True,
             text=True,
         )
@@ -367,7 +374,8 @@ def git_ignored(repo_root: Path, paths: Iterable[str]) -> Set[str]:
     # case we exempt nothing (fail toward flagging rather than hiding drift).
     if proc.returncode not in (0, 1):
         return set()
-    return {p for p in proc.stdout.split("\n") if p}
+    matched = {p.rstrip("/") for p in proc.stdout.split("\n") if p}
+    return {p for p in items if p in matched or p.rstrip("/") in matched}
 
 
 def find_drift(
