@@ -161,6 +161,14 @@ class FreshUserJourney(unittest.TestCase):
         json.loads((project / ".claude" / "settings.json").read_text())
         # T5 contract: no dangling @imports in the default scaffold.
         self._assert_imports_resolve(project)
+        # §9.5 contract: the prose seam matches the import seam — a default
+        # scaffold's AGENTS.md must not tell agents to read a HARNESS.md
+        # that bootstrap never created.
+        self.assertNotIn(
+            "HARNESS.md",
+            (project / "AGENTS.md").read_text(encoding="utf-8"),
+            "default scaffold AGENTS.md must not reference an absent HARNESS.md",
+        )
 
         # Step 4 — bootstrap --harness creates HARNESS.md AND imports it.
         project_h = Path(self.tmp.name) / "proj-harness"
@@ -172,7 +180,29 @@ class FreshUserJourney(unittest.TestCase):
             (project_h / "CLAUDE.md").read_text(encoding="utf-8"),
             "harnessed scaffold must import the HARNESS.md it created",
         )
+        self.assertIn(
+            "`HARNESS.md`",
+            (project_h / "AGENTS.md").read_text(encoding="utf-8"),
+            "harnessed scaffold AGENTS.md must list HARNESS.md as memory",
+        )
         self._assert_imports_resolve(project_h)
+
+        # Step 4b — harness apply AFTER a default bootstrap keeps both
+        # seams coherent in the other direction (T5 for CLAUDE.md, §9.5
+        # for AGENTS.md prose).
+        rc, out = self._run("harness", "apply", "generic", str(project))
+        self.assertEqual(rc, 0, out)
+        self.assertIn(
+            "@HARNESS.md",
+            (project / "CLAUDE.md").read_text(encoding="utf-8"),
+            "post-hoc harness apply must add the CLAUDE.md import",
+        )
+        self.assertIn(
+            "`HARNESS.md`",
+            (project / "AGENTS.md").read_text(encoding="utf-8"),
+            "post-hoc harness apply must add the AGENTS.md memory line",
+        )
+        self._assert_imports_resolve(project)
 
         # Step 5 — nothing leaked outside the sandbox HOME: the state
         # dir the hooks write to exists under the sandboxed HOME (or

@@ -171,6 +171,36 @@ def main() -> int:
         )
         if envelope is not None:
             _hook_log(f"synthesized protocol: correlation={correlation[:16]}")
+        # T13 · Event 143 — Blueprint D synthesis arm. Same Pre/Post
+        # pairing, separate marker namespace (cascade_pending/). A
+        # successfully resolved cascade emits the spec'd protocol
+        # (DESIGN_V1_0_SEMANTIC_GOVERNANCE.md:204). Graceful degrade:
+        # cascade bookkeeping never blocks PostToolUse.
+        #
+        # Cross-arm exclusion (Event 143 review): a correlation-id
+        # collision (SHA-1 fallback + a lingering marker) can hand BOTH
+        # arms a marker for one op. Dispatch priority is Fence >
+        # Blueprint D, so when fence emitted, cascade stands down — but
+        # still deletes its markers so the collision cannot re-fire on
+        # a later op.
+        cascade_envelope = None
+        try:
+            import _cascade_synthesis  # type: ignore  # pyright: ignore[reportMissingImports]
+            if envelope is not None:
+                for _cid in candidates:
+                    _cascade_synthesis.delete_pending_marker(_cid)
+            else:
+                cascade_envelope = _cascade_synthesis.finalize_on_success_with_fallback(
+                    candidates, _extract_exit_code(payload)
+                )
+            if cascade_envelope is not None:
+                _hook_log(
+                    f"synthesized cascade protocol: correlation={correlation[:16]}"
+                )
+        except Exception as cascade_exc:
+            _hook_log(
+                f"cascade synthesis skipped: {type(cascade_exc).__name__}"
+            )
         # Event 138 · v2.0 — lesson synthesis from a fresh interrogation
         # verdict. A successful op whose verdict carries a non-null
         # lesson emits a context-scoped protocol (deduped by lesson
@@ -198,7 +228,9 @@ def main() -> int:
                     blueprint=ctx["blueprint"],
                     context_signature=ctx["context_signature"],
                     surface_snapshot=ctx["surface_snapshot"],
-                    synthesis_produced=envelope is not None,
+                    synthesis_produced=(
+                        envelope is not None or cascade_envelope is not None
+                    ),
                     cwd=ctx["cwd"],
                 )
         except Exception as spot_exc:

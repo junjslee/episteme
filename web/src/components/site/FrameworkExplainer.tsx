@@ -10,7 +10,7 @@ export function FrameworkExplainer() {
   return (
     <Sectioned
       id="practice"
-      index="04"
+      index="05"
       label="the practice"
       kicker="frame · decompose · execute · verify · handoff"
     >

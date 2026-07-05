@@ -26,7 +26,7 @@ const LAYERS: {
     name: "cognition",
     tagline: "the thinking — model-judged",
     body:
-      "The interrogation itself: decompose the conclusion into claims, send the load-bearing ones to a fresh context that never sees the draft, argue the other side, commit to what would prove it wrong.",
+      "Decompose the conclusion into claims, verify the load-bearing ones in a fresh context, argue the other side, commit to what would prove it wrong.",
     why: "Model-judged, because meaning lives where rules can't reach.",
     accent: "border-t-verified",
   },
@@ -35,7 +35,7 @@ const LAYERS: {
     name: "structure",
     tagline: "the floor — deterministic",
     body:
-      "File-system hooks route decision shapes, check that the verdict artifact exists and holds (a stop verdict admits nothing), and hard-block only the genuinely destructive. Everything is recorded.",
+      "Hooks route decision shapes, hold the verdict artifact to its word, and hard-block only the genuinely destructive. Everything is recorded.",
     why: "Deterministic, because deadlines are exactly when discipline gets skipped.",
     accent: "border-t-chain",
   },
@@ -44,7 +44,7 @@ const LAYERS: {
     name: "memory",
     tagline: "the compounding — chained",
     body:
-      "When a verified interrogation teaches something durable, the lesson is sealed into a hash-chained protocol scoped to its context — and resurfaces, unasked, at the next matching decision.",
+      "A lesson that survives verification is sealed into a hash-chained, context-scoped protocol — and resurfaces, unasked, at the next matching decision.",
     why: "Chained, so the agent gets sharper on your codebase — not on the average of the internet.",
     accent: "border-t-unknown",
   },
@@ -54,7 +54,7 @@ export function ThreeLayers() {
   return (
     <Sectioned
       id="layers"
-      index="02"
+      index="03"
       label="the three layers"
       kicker="cognition · structure · memory"
     >
@@ -92,9 +92,8 @@ export function ThreeLayers() {
       </div>
 
       <p className="mx-auto mt-10 max-w-3xl text-center font-sans text-[0.9375rem] leading-relaxed text-ash">
-        It runs where you already work: a Claude Code plugin and a CLI today —
-        and because the kernel is plain files (markdown, JSONL, hooks), the
-        practice travels with you across tools, not with any one vendor.
+        It runs where you already work — a Claude Code plugin and a CLI. The
+        kernel is plain files, so the practice travels with you.
       </p>
     </Sectioned>
   );

@@ -66,6 +66,18 @@ Equivalent to path (1) but bypasses the marketplace fetch — useful when you ar
 
 ---
 
+### Supported platforms
+
+macOS and Linux. **Windows is not supported**: the audit chain's file locking is `fcntl`-based and silently no-ops on Windows, which means the tamper-evidence layer degrades exactly where you wouldn't see it. `episteme doctor` warns on `win32` and the honest path is WSL2, where everything above applies unchanged. Windows-native locking becomes a decision only on real Windows demand — not a default.
+
+---
+
+### Not an install path: PyPI
+
+Deliberately. This is a positive system: the paths above are the *only* install units, because a pip-installed CLI without the kernel's `core/` tree has no meaning (a non-editable `pip install episteme` would give you commands with nothing to govern). The `episteme-kernel` name on PyPI is held by a defensive stub ([`packaging/episteme-kernel-stub/`](./packaging/episteme-kernel-stub/)) that points here; the `episteme` name is squatted by an unrelated package. If real demand for a pip-native kernel ever appears, that becomes a separate, named decision — not a default.
+
+---
+
 ## 4. First run on your repo
 
 Install puts the kernel into your Claude Code session. It does *not* put anything into the repo you happen to be working on — that part happens the first time the session touches a high-impact op (`git push`, `npm publish`, `terraform apply`, DB migration, lockfile edit, kernel-adjacent edit) inside that repo.

@@ -1748,6 +1748,67 @@ def _memory_search(query: str) -> int:
 # doctor
 # ---------------------------------------------------------------------------
 
+def _platform_posture(platform_key: str | None = None) -> tuple[str, str]:
+    """Name the supported platform set instead of implying universality.
+
+    The chain's locking is fcntl-gated and silently no-ops on Windows
+    (core/hooks/_chain.py falls back), so a Windows install looks governed
+    while its tamper-evidence degrades. §9.4 posture: declare macOS/Linux,
+    point Windows at WSL2.
+    """
+    key = platform_key or sys.platform
+    if key == "win32":
+        return (
+            "warn",
+            "Windows is unsupported: chain locking (fcntl) silently no-ops"
+            " here — run episteme under WSL2 or on macOS/Linux",
+        )
+    return ("ok", f"platform {key} — supported (macOS/Linux)")
+
+
+def _probe_hook_wire_format(hook_path: Path | None = None) -> tuple[str, str]:
+    """Drive the gate's cheapest hook over the real PreToolUse wire shape.
+
+    The enforcement layer exists ONLY on Claude Code's hook contract:
+    JSON payload on stdin, exit 0 admits, exit 2 blocks (§9.3). If either
+    direction stops holding, the gate layer is silently dead on every
+    install — so doctor exercises both directions live instead of trusting
+    that the files exist. Returns (status, message) with status in
+    {"ok", "miss", "fail"}.
+    """
+    hook = hook_path or (REPO_ROOT / "core" / "hooks" / "block_dangerous.py")
+    if not hook.exists():
+        return ("miss", f"hook wire probe: {hook} missing (wheel-shaped install?)")
+
+    def _drive(command: str) -> int | None:
+        payload = json.dumps(
+            {"tool_name": "Bash", "tool_input": {"command": command}}
+        )
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(hook)],
+                input=payload,
+                capture_output=True,
+                text=True,
+                timeout=20,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return None
+        return proc.returncode
+
+    admit = _drive("echo wire-probe")
+    block = _drive("git push --force origin main")
+    if admit is None or block is None:
+        return ("fail", "hook wire probe: hook process failed to run — contract drift")
+    if admit != 0 or block != 2:
+        return (
+            "fail",
+            "hook wire probe: PreToolUse contract drift"
+            f" (benign exit {admit}, expected 0; dangerous exit {block}, expected 2)",
+        )
+    return ("ok", "PreToolUse wire contract verified live: exit 0 admits, exit 2 blocks")
+
+
 def _doctor() -> int:
     failures: list[str] = []
     warnings: list[str] = []
@@ -1806,6 +1867,23 @@ def _doctor() -> int:
         else:
             failures.append(f"missing tool: {tool}")
             _line("fail", f"{tool} — required")
+
+    _section("platform / harness contract")
+    posture_level, posture_msg = _platform_posture()
+    if posture_level == "warn":
+        warnings.append(posture_msg)
+        _line("warn", posture_msg)
+    else:
+        _line("ok", posture_msg)
+    probe_status, probe_msg = _probe_hook_wire_format()
+    if probe_status == "ok":
+        _line("ok", probe_msg)
+    elif probe_status == "miss":
+        warnings.append(probe_msg)
+        _line("miss", probe_msg)
+    else:
+        failures.append(probe_msg)
+        _line("fail", probe_msg)
 
     _section("local-only tools")
     for tool in ["rg", "fd", "bat"]:
@@ -2259,6 +2337,15 @@ def _apply_harness_run_context(harness: dict, project_root: Path) -> bool:
     return True
 
 
+# The AGENTS.md required-memory bullet for HARNESS.md. One constant shared
+# by the bootstrap token mapping and the harness-apply post-hoc patch so the
+# two rendering paths cannot drift (§9.5, same contract as HARNESS_IMPORT).
+_HARNESS_MEMORY_BULLET = (
+    "- `HARNESS.md` — your **Cognitive Harness**: specific mental boundaries, "
+    "constraints, and safety logic for this project type"
+)
+
+
 def _apply_harness(harness_name: str, project_root: Path, *, force: bool = False) -> int:
     """Write HARNESS.md and extend RUN_CONTEXT.md for the given harness type."""
     harnesses = _load_harnesses()
@@ -2297,6 +2384,23 @@ def _apply_harness(harness_name: str, project_root: Path, *, force: bool = False
                 content = "@HARNESS.md\n" + content
             _write_text(claude_md, content)
             print("  - Added @HARNESS.md import to CLAUDE.md")
+
+    # Same coherence move for the AGENTS.md prose seam (§9.5): the default
+    # scaffold's required-memory list omits HARNESS.md; once the file
+    # exists, the list should name it.
+    agents_md = project_root / "AGENTS.md"
+    if agents_md.exists():
+        content = agents_md.read_text(encoding="utf-8")
+        if "HARNESS.md" not in content:
+            anchor = "\n\nRead on demand:"
+            if anchor in content:
+                content = content.replace(
+                    anchor, "\n" + _HARNESS_MEMORY_BULLET + anchor, 1
+                )
+            else:
+                content += "\n" + _HARNESS_MEMORY_BULLET + "\n"
+            _write_text(agents_md, content)
+            print("  - Added HARNESS.md memory line to AGENTS.md")
 
     return 0
 
@@ -4323,8 +4427,13 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
     # The memory index may only import files this scaffold creates:
     # HARNESS.md exists iff a harness is applied, so the import renders
     # iff harness_name is set (dangling-@import contract, pinned by
-    # tests/test_fresh_user_journey.py).
+    # tests/test_fresh_user_journey.py). Same contract for the AGENTS.md
+    # prose seam (§9.5): the required-memory list names HARNESS.md iff
+    # the scaffold creates it.
     mapping["HARNESS_IMPORT"] = "@HARNESS.md\n" if harness_name else ""
+    mapping["HARNESS_MEMORY_LINE"] = (
+        _HARNESS_MEMORY_BULLET + "\n" if harness_name else ""
+    )
 
     template_files = [
         "AGENTS.md",

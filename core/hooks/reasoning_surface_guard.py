@@ -1627,6 +1627,33 @@ def main() -> int:
                         except Exception:
                             pass  # bookkeeping never blocks.
 
+                        # T13 · Blueprint D synthesis arm (Event 143,
+                        # spec DESIGN_V1_0_SEMANTIC_GOVERNANCE.md:204).
+                        # Write the Pillar 3 pending marker under every
+                        # candidate correlation id (Event 50 pairing);
+                        # the PostToolUse finalizer emits the cascade
+                        # protocol iff the op exits 0.
+                        try:
+                            import _cascade_synthesis  # type: ignore  # pyright: ignore[reportMissingImports]
+                            _cmd_for_marker = (
+                                _bash_command(payload)
+                                if tool_name == "Bash" else ""
+                            )
+                            _marker_ts = datetime.now(
+                                timezone.utc
+                            ).isoformat()
+                            for _corr in _fence_synthesis.candidate_correlation_ids(
+                                payload, _cmd_for_marker, _marker_ts,
+                            ):
+                                _cascade_synthesis.write_pending_marker(
+                                    layer2_surface,
+                                    _corr,
+                                    cwd,
+                                    _cmd_for_marker,
+                                )
+                        except Exception:
+                            pass  # synthesis bookkeeping never blocks.
+
                 # Layer 4 · CP6 — generic verification_trace. Runs when
                 # the blueprint declares verification_trace_required:
                 # true AND does NOT map the trace to a field (Fence is
