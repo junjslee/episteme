@@ -313,5 +313,144 @@ class CascadeSynthesisEndToEnd(unittest.TestCase):
             )
 
 
+class CascadeSynthesisHardening(unittest.TestCase):
+    """Event 143 adversarial-review findings, each CONFIRMED by
+    execution before these fixes: fail-open dedup on a broken chain,
+    unredacted surface fields, cross-arm double emission, a false
+    never-raises contract, and unbounded record bloat."""
+
+    def test_dedup_survives_a_chain_break(self):
+        # list_protocols(verify=True) silently stops at the first chain
+        # break, blinding the dedup to everything past it — the 438-spam
+        # can recur after any single upstream break. The dedup walk must
+        # read unverified (integrity is verify_chains' job, not dedup's).
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            rc, _, err = _run_guard(_valid_cascade_surface(), Path(d), _CMD,
+                                    tool_use_id="break-a")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="break-a")
+            proto_path = home / "framework" / "protocols.jsonl"
+            lines = proto_path.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            # Break chain integrity at record 0 WITHOUT touching the
+            # dedup key: perturb the envelope ts so entry_hash no longer
+            # matches its content.
+            env = json.loads(lines[0])
+            env["ts"] = "2020-01-01T00:00:00+00:00"
+            proto_path.write_text(json.dumps(env) + "\n", encoding="utf-8")
+            # Same content again under a fresh correlation id.
+            rc, _, err = _run_guard(_valid_cascade_surface(), Path(d), _CMD,
+                                    tool_use_id="break-b")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="break-b")
+            lines = proto_path.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(
+                len(lines), 1,
+                "a chain break must not reopen emission for known content",
+            )
+
+    def test_surface_fields_are_redacted_in_the_record(self):
+        # The observable quotes measured command/test output — exactly
+        # where a leaked secret is most likely to appear. _redact was
+        # applied to the command only.
+        secret_surface = _valid_cascade_surface(
+            disconfirmation=(
+                "if the probe output shows password=hunter2 or the key "
+                "AKIAIOSFODNN7EXAMPLE the gate failed"
+            ),
+        )
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            rc, _, err = _run_guard(secret_surface, Path(d), _CMD,
+                                    tool_use_id="redact-a")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="redact-a")
+            raw = (home / "framework" / "protocols.jsonl").read_text(
+                encoding="utf-8"
+            )
+            self.assertNotIn("hunter2", raw)
+            self.assertNotIn("AKIAIOSFODNN7EXAMPLE", raw)
+            self.assertIn("REDACTED", raw)
+
+    def test_one_op_emits_at_most_one_arm(self):
+        # A correlation-id collision (SHA-1 fallback + lingering marker)
+        # could hand BOTH finalizers a marker for one op. Dispatch
+        # priority is Fence > Blueprint D: fence emits, cascade must
+        # stand down AND still clean its markers.
+        from core.hooks import _fence_synthesis as fence_synth  # pyright: ignore[reportAttributeAccessIssue]
+
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            cid = "collision-test-id"
+            fence_synth.write_pending_marker(
+                {
+                    "constraint_identified": "core/hooks/_grounding.py:32",
+                    "origin_evidence": "commit e1f49c9 added it for CP3 gap #9",
+                    "removal_consequence_prediction": (
+                        "if deep-scan exits non-zero ungrounded entities pass"
+                    ),
+                    "reversibility_classification": "reversible",
+                    "rollback_path": "git revert HEAD",
+                },
+                cid, Path(d), "echo collision",
+            )
+            cascade_synth.write_pending_marker(
+                _valid_cascade_surface(), cid, Path(d), "echo collision",
+            )
+            rc, _, _ = _run_post_hook("echo collision", 0, Path(d),
+                                      tool_use_id=cid)
+            self.assertEqual(rc, 0)
+            lines = (home / "framework" / "protocols.jsonl").read_text(
+                encoding="utf-8"
+            ).strip().splitlines()
+            self.assertEqual(len(lines), 1, "one op must emit at most once")
+            payload = json.loads(lines[0])["payload"]
+            self.assertEqual(payload["blueprint"], "fence_reconstruction")
+            pending = home / "state" / "cascade_pending"
+            self.assertEqual(
+                list(pending.glob(f"{cid}.json")), [],
+                "the standing-down arm must still clean its marker",
+            )
+
+    def test_finalize_never_raises_even_when_build_does(self):
+        import _context_signature as flat_cs  # type: ignore
+
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            cid = "raise-test-id"
+            cascade_synth.write_pending_marker(
+                _valid_cascade_surface(), cid, Path(d), "echo raising",
+            )
+            with patch.object(
+                flat_cs, "build", side_effect=RuntimeError("boom")
+            ):
+                result = cascade_synth.finalize_on_success_with_fallback(
+                    [cid], 0
+                )
+            self.assertIsNone(result, "a build failure must not emit")
+            pending = home / "state" / "cascade_pending"
+            self.assertEqual(list(pending.glob(f"{cid}.json")), [],
+                             "marker cleanup must survive the failure")
+
+    def test_blast_radius_list_is_capped_in_the_record(self):
+        big = _valid_cascade_surface(
+            blast_radius_map=(
+                [{"surface": f"core/mod_{i}.py", "status": "needs_update"}
+                 for i in range(100)]
+            ),
+            sync_plan=(
+                [{"surface": f"core/mod_{i}.py", "action": "update"}
+                 for i in range(100)]
+            ),
+        )
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            rc, _, err = _run_guard(big, Path(d), _CMD, tool_use_id="cap-a")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="cap-a")
+            lines = (home / "framework" / "protocols.jsonl").read_text(
+                encoding="utf-8"
+            ).strip().splitlines()
+            fields = json.loads(lines[0])["payload"]["source_fields"]
+            self.assertLessEqual(len(fields["blast_radius_surfaces"]), 32)
+            self.assertEqual(fields["blast_radius_count"], 100)
+
+
 if __name__ == "__main__":
     unittest.main()

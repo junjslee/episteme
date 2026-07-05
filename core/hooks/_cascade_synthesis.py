@@ -134,12 +134,16 @@ def write_pending_marker(
             "written_at": datetime.now(timezone.utc).isoformat(),
             "cwd": str(cwd),
             "command_redacted": _redact(cmd),
+            # Free-text surface fields are redacted at persistence time:
+            # the observable quotes measured command/test output — exactly
+            # where a leaked secret is most likely to appear (Event 143
+            # adversarial review, confirmed by probe).
             "surface": {
                 "flaw_classification": str(surface.get("flaw_classification", "")),
                 "posture_selected": str(surface.get("posture_selected", "")),
-                "core_question": str(surface.get("core_question", "")),
+                "core_question": _redact(str(surface.get("core_question", ""))),
                 "needs_update_surfaces": _needs_update_surfaces(surface),
-                "observable": _observable(surface),
+                "observable": _redact(_observable(surface)),
             },
         }
         path = _pending_dir() / f"{correlation}.json"
@@ -282,7 +286,10 @@ def _build_protocol(marker: dict, exit_code: int | None) -> dict:
         "source_fields": {
             "flaw_classification": flaw,
             "posture_selected": posture,
-            "blast_radius_surfaces": needs_update,
+            # Capped: a pathological surface must not bloat the durable
+            # record; the count preserves the true blast-radius size.
+            "blast_radius_surfaces": needs_update[:32],
+            "blast_radius_count": len(needs_update),
             "core_question": str(surface.get("core_question", "")),
             "observable": observable,
         },
@@ -314,26 +321,41 @@ def finalize_on_success_with_fallback(
         payload = _build_protocol(found, exit_code)
         try:
             from _framework import (  # type: ignore  # pyright: ignore[reportMissingImports]
-                list_protocols as _list_protocols,
+                ChainError as _ChainError,
+                _chain_iter,
+                _protocols_path,
                 write_protocol as _write_protocol,
             )
         except ImportError:
             return None
         # Content dedup: identical resolution content emits exactly once,
         # ever — superseded records included, so a superseded protocol
-        # cannot resurrect as a fresh duplicate.
+        # cannot resurrect as a fresh duplicate. The walk is UNVERIFIED:
+        # a verified iteration stops silently at the first chain break,
+        # blinding dedup to everything past it and reopening the 438-spam
+        # (Event 143 review, confirmed by probe). Integrity checking is
+        # verify_chains' job; dedup's job is seeing every record. And the
+        # gate FAILS CLOSED — if uniqueness cannot be proven, skipping
+        # one legitimate protocol costs less than re-spamming the ledger.
         h = payload.get("cascade_hash")
         try:
-            for env in _list_protocols(include_superseded=True):
-                p = env.get("payload") if isinstance(env, dict) else None
-                if isinstance(p, dict) and p.get("cascade_hash") == h:
-                    return None
-        except OSError:
+            target = _protocols_path()
+            if target.is_file():
+                for env in _chain_iter(target, verify=False):
+                    p = env.get("payload") if isinstance(env, dict) else None
+                    if isinstance(p, dict) and p.get("cascade_hash") == h:
+                        return None
+        except (OSError, _ChainError):
             return None
         try:
             return _write_protocol(payload)
         except OSError:
             return None
+    except Exception:
+        # The docstring's never-raise contract is load-bearing: callers
+        # in the PostToolUse path must stay exit-0 no matter what the
+        # build/dedup path does.
+        return None
     finally:
         for cid in candidates:
             delete_pending_marker(cid)

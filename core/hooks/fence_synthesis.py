@@ -176,12 +176,23 @@ def main() -> int:
         # successfully resolved cascade emits the spec'd protocol
         # (DESIGN_V1_0_SEMANTIC_GOVERNANCE.md:204). Graceful degrade:
         # cascade bookkeeping never blocks PostToolUse.
+        #
+        # Cross-arm exclusion (Event 143 review): a correlation-id
+        # collision (SHA-1 fallback + a lingering marker) can hand BOTH
+        # arms a marker for one op. Dispatch priority is Fence >
+        # Blueprint D, so when fence emitted, cascade stands down — but
+        # still deletes its markers so the collision cannot re-fire on
+        # a later op.
         cascade_envelope = None
         try:
             import _cascade_synthesis  # type: ignore  # pyright: ignore[reportMissingImports]
-            cascade_envelope = _cascade_synthesis.finalize_on_success_with_fallback(
-                candidates, _extract_exit_code(payload)
-            )
+            if envelope is not None:
+                for _cid in candidates:
+                    _cascade_synthesis.delete_pending_marker(_cid)
+            else:
+                cascade_envelope = _cascade_synthesis.finalize_on_success_with_fallback(
+                    candidates, _extract_exit_code(payload)
+                )
             if cascade_envelope is not None:
                 _hook_log(
                     f"synthesized cascade protocol: correlation={correlation[:16]}"
