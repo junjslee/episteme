@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "episteme-kernel"
+version = "0.0.1"
+description = "Name-defense stub for the episteme cognitive kernel. episteme does not install from PyPI — see the project README for the two real install paths."
+readme = "README.md"
+license = { text = "AGPL-3.0-or-later" }
+requires-python = ">=3.8"
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+]
+
+[project.urls]
+Homepage = "https://github.com/junjslee/episteme"
+Install = "https://github.com/junjslee/episteme/blob/master/INSTALL.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]

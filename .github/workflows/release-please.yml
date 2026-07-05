@@ -37,15 +37,9 @@ jobs:
           # to the next version derived from conventional-commits in the window since
           # the last release.
 
-      # Optional follow-up hooks that fire only on an actual release (not on
-      # release-PR-creation). Left commented until there's a concrete use.
-      #
-      # - name: Publish to PyPI
-      #   if: ${{ steps.release.outputs.release_created }}
-      #   run: |
-      #     pip install build twine
-      #     python -m build
-      #     twine upload dist/*
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      # PyPI publish was deliberately removed (Event 143, PRODUCT_MASTER_PLAN
+      # §9.2): the install units are the Claude Code plugin and a source
+      # checkout — a pip-installed CLI without core/ has no meaning, so the
+      # dead path is deleted rather than left commented where it could be
+      # re-enabled by accident. The PyPI name is defended by the stub at
+      # packaging/episteme-kernel-stub/ (operator-published, never CI).

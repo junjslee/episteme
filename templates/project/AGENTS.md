@@ -12,8 +12,7 @@ This document is the **Soul-binding** contract for any agent operating in this r
 Read in this order at session start:
 - `docs/NEXT_STEPS.md` — immediate priority and the "So-What Now?"
 - `docs/PROGRESS.md` — causal history of state and key decisions
-- `HARNESS.md` — your **Cognitive Harness**: specific mental boundaries, constraints, and safety logic for this project type
-
+{{HARNESS_MEMORY_LINE}}
 Read on demand:
 - `CLAUDE.md`
 - `docs/REQUIREMENTS.md`
