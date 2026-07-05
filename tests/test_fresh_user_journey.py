@@ -70,6 +70,16 @@ class FreshUserJourney(unittest.TestCase):
                 stale.unlink()  # dangling private-doc symlinks
         cls.home = root / "home"
         cls.home.mkdir()
+        # The fresh-user persona has Claude Code by definition (they arrive
+        # via the plugin), but the machine running this suite may not (CI
+        # runners don't). doctor treats `claude` as required, so the journey
+        # must not inherit that host accident: a stub on PATH keeps the
+        # verdict about episteme's own path, deterministic on every machine.
+        cls.stub_bin = root / "stub-bin"
+        cls.stub_bin.mkdir()
+        stub = cls.stub_bin / "claude"
+        stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        stub.chmod(0o755)
 
     @classmethod
     def tearDownClass(cls):
@@ -81,6 +91,7 @@ class FreshUserJourney(unittest.TestCase):
             "HOME": str(self.home),
             "EPISTEME_HOME": str(self.home / ".episteme"),
             "PYTHONPATH": str(self.sandbox / "src"),
+            "PATH": f"{self.stub_bin}{os.pathsep}{os.environ.get('PATH', '')}",
         }
         proc = subprocess.run(
             [
