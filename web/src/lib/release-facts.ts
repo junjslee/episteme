@@ -11,8 +11,8 @@
  * output (`python -m pytest -q` tail line), not from memory.
  */
 export const RELEASE_FACTS = {
-  /** Full local suite: `1408 passed` on 2026-07-03. */
-  testsGreen: 1408,
+  /** Full local suite: `1413 passed` on 2026-07-05 (CI matrix green on the same tree). */
+  testsGreen: 1413,
   /**
    * Current release train (pyproject.toml / release-please manifest).
    * NOTE: historical transcripts (InstallSection terminal,

@@ -53,7 +53,7 @@ export function ProofSection() {
   return (
     <Sectioned
       id="proof"
-      index="03"
+      index="04"
       label="proof"
       kicker="falsifiable, by record"
     >
@@ -64,9 +64,8 @@ export function ProofSection() {
           <span className="text-ash">The kernel reported the miss itself.</span>
         </h2>
         <p className="font-sans text-[0.9375rem] leading-relaxed text-ash md:col-span-5">
-          A falsifiability condition only counts if it can fire. For 49 days
-          the framework ran live and synthesized zero protocols — the one emit
-          path was tied to the rarest operation class. Condition{" "}
+          For 49 days the framework ran live and synthesized nothing.
+          Condition{" "}
           <Link
             href="https://github.com/junjslee/episteme/blob/master/kernel/FALSIFIABILITY_CONDITIONS.md"
             target="_blank"
@@ -75,10 +74,8 @@ export function ProofSection() {
           >
             E1
           </Link>{" "}
-          fired. First the kernel was made to measure the miss in its own
-          reports; then the loop got a real source — every verified
-          interrogation whose lesson survives becomes a context-scoped
-          protocol. The first one landed the same night.{" "}
+          fired, the kernel reported the miss on itself, and the loop was
+          rebuilt. The first protocol landed the same night.{" "}
           <span className="text-bone">
             It&apos;s transcribed below, exactly as sealed.
           </span>
