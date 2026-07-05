@@ -213,6 +213,32 @@ def _op_class(cmd: str) -> str:
     return "cascade:resolution"
 
 
+def cascade_hash(
+    project: str,
+    subsystem: str,
+    flaw: str,
+    posture: str,
+    needs_update: list[str],
+    observable: str,
+) -> str:
+    """Content hash of a cascade resolution — the dedup key.
+
+    Live-dogfood lesson (Event 143): a session surface carrying
+    flaw_classification makes the self-escalation trigger classify every
+    tool call as cascade, and per-command op_class variation defeats the
+    signature-based supersede — 438 identical-content protocols chained
+    in one session. The know-how lives in the resolution content, so
+    emission is bounded by content identity (mirrors
+    _interrogation.lesson_hash), not by which ops ran under it.
+    """
+    import hashlib
+
+    seed = "\x1f".join(
+        [project, subsystem, flaw, posture, "\x1e".join(needs_update), observable]
+    ).encode("utf-8", errors="replace")
+    return "ch_" + hashlib.sha256(seed).hexdigest()[:16]
+
+
 def _build_protocol(marker: dict, exit_code: int | None) -> dict:
     surface = marker.get("surface", {}) if isinstance(marker.get("surface"), dict) else {}
     flaw = str(surface.get("flaw_classification", "")) or "other"
@@ -249,6 +275,9 @@ def _build_protocol(marker: dict, exit_code: int | None) -> dict:
         "synthesized_at": datetime.now(timezone.utc).isoformat(),
         "correlation_id": marker.get("correlation_id", ""),
         "context_signature": sig.as_dict(),
+        "cascade_hash": cascade_hash(
+            project, subsystem, flaw, posture, needs_update, observable
+        ),
         "synthesized_protocol": protocol_text,
         "source_fields": {
             "flaw_classification": flaw,
@@ -285,9 +314,21 @@ def finalize_on_success_with_fallback(
         payload = _build_protocol(found, exit_code)
         try:
             from _framework import (  # type: ignore  # pyright: ignore[reportMissingImports]
+                list_protocols as _list_protocols,
                 write_protocol as _write_protocol,
             )
         except ImportError:
+            return None
+        # Content dedup: identical resolution content emits exactly once,
+        # ever — superseded records included, so a superseded protocol
+        # cannot resurrect as a fresh duplicate.
+        h = payload.get("cascade_hash")
+        try:
+            for env in _list_protocols(include_superseded=True):
+                p = env.get("payload") if isinstance(env, dict) else None
+                if isinstance(p, dict) and p.get("cascade_hash") == h:
+                    return None
+        except OSError:
             return None
         try:
             return _write_protocol(payload)

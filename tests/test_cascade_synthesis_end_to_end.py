@@ -181,9 +181,13 @@ class CascadeSynthesisEndToEnd(unittest.TestCase):
             self.assertIn("resolved without divergence because", text)
             self.assertIn("CI fails or the test suite regresses", text)
 
-            # Markers cleaned up in all candidate slots.
+            # The pairing marker (tool_use_id) is cleaned; the guard's
+            # sha1-fallback sibling may survive only when Pre/Post cross
+            # a second boundary (TTL-bounded orphan, same shape as the
+            # fence arm) — so assert on the deterministic pairing slot.
             pending = home / "state" / "cascade_pending"
-            self.assertEqual(list(pending.glob("*.json")), [])
+            leftovers = [f.name for f in pending.glob("test-use-id-*.json")]
+            self.assertEqual(leftovers, [])
 
     def test_exit_nonzero_writes_no_protocol_and_cleans_markers(self):
         with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
@@ -197,7 +201,8 @@ class CascadeSynthesisEndToEnd(unittest.TestCase):
                 "failed op must not synthesize",
             )
             pending = home / "state" / "cascade_pending"
-            self.assertEqual(list(pending.glob("*.json")), [])
+            leftovers = [f.name for f in pending.glob("test-use-id-*.json")]
+            self.assertEqual(leftovers, [])
 
     def test_generic_op_writes_no_cascade_marker(self):
         generic_surface = {
@@ -251,16 +256,56 @@ class CascadeSynthesisEndToEnd(unittest.TestCase):
             )
             self.assertEqual(list(pending.glob("*.json")), [])
 
-    def test_same_context_resolution_supersedes_not_duplicates(self):
+    def test_same_content_emits_exactly_once_across_ops(self):
+        # Live-dogfood lesson (Event 143): a session surface carrying
+        # flaw_classification makes the self-escalation trigger classify
+        # EVERY tool call as cascade — 438 identical-content protocols
+        # chained in one session because each command head produced a
+        # fresh op_class signature the supersede match could not bound.
+        # The know-how lives in the resolution CONTENT: one surface
+        # content = one protocol, ever, regardless of which or how many
+        # ops run under it.
+        surface = _valid_cascade_surface()
+        commands = [_CMD, "grep -rn pattern src", "git log --oneline -5"]
         with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
-            for _ in range(2):
-                rc, _, err = _run_guard(_valid_cascade_surface(), Path(d), _CMD)
+            for i, cmd in enumerate(commands):
+                tid = f"test-use-id-cascade-dedup-{i}"
+                rc, _, err = _run_guard(surface, Path(d), cmd, tool_use_id=tid)
                 self.assertEqual(rc, 0, err)
-                rc, _, _ = _run_post_hook(_CMD, 0, Path(d))
+                rc, _, _ = _run_post_hook(cmd, 0, Path(d), tool_use_id=tid)
                 self.assertEqual(rc, 0)
             proto_path = home / "framework" / "protocols.jsonl"
             lines = proto_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 2, "append-only: both records persist")
+            self.assertEqual(
+                len(lines), 1,
+                "identical resolution content must emit exactly one protocol",
+            )
+            payload = json.loads(lines[0])["payload"]
+            self.assertTrue(str(payload.get("cascade_hash", "")).startswith("ch_"))
+
+    def test_changed_content_still_supersedes_with_history(self):
+        # Dedup must not kill legitimate evolution: the same context
+        # resolving again with NEW content (a different pre-committed
+        # observable) appends a second record that supersedes the first.
+        with _EphemeralEpistemeHome() as home, tempfile.TemporaryDirectory() as d:
+            first = _valid_cascade_surface()
+            rc, _, err = _run_guard(first, Path(d), _CMD, tool_use_id="dedup-a")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="dedup-a")
+
+            second = _valid_cascade_surface(
+                disconfirmation=(
+                    "if the guidance bind rate stays at zero for 30 days "
+                    "the emitted protocol never fired"
+                ),
+            )
+            rc, _, err = _run_guard(second, Path(d), _CMD, tool_use_id="dedup-b")
+            self.assertEqual(rc, 0, err)
+            _run_post_hook(_CMD, 0, Path(d), tool_use_id="dedup-b")
+
+            proto_path = home / "framework" / "protocols.jsonl"
+            lines = proto_path.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(lines), 2, "changed content must append")
             active = _framework.list_protocols()
             self.assertEqual(
                 len(active), 1,
