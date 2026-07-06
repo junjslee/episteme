@@ -37,6 +37,8 @@ from _fence_synthesis import (  # noqa: E402  # pyright: ignore[reportMissingImp
     candidate_correlation_ids as _candidate_correlation_ids,
     correlation_id as _correlation_id,
     finalize_on_success_with_fallback as _finalize_with_fallback,
+    POST_LOOKBACK_SECONDS as _POST_LOOKBACK_SECONDS,
+    POST_LOOKAHEAD_SECONDS as _POST_LOOKAHEAD_SECONDS,
 )
 import _spot_check  # noqa: E402  # pyright: ignore[reportMissingImports]
 
@@ -162,7 +164,19 @@ def main() -> int:
         # not just the one computed for PostToolUse. PreToolUse may
         # have written the marker under a different id (Claude Code
         # PreToolUse lacks tool_use_id while PostToolUse has it).
-        candidates = _candidate_correlation_ids(payload, cmd, ts)
+        # Second pass: the h_ fallback bucket is a second-granularity
+        # wall-clock stamp, so a Pre/Post sample that straddles a second
+        # boundary diverges. Widen the candidate window (lookback +
+        # lookahead) to re-pair across the boundary. Both synthesis arms
+        # (fence + cascade) consume this list, so the widened window
+        # closes the straddle race for BOTH.
+        candidates = _candidate_correlation_ids(
+            payload,
+            cmd,
+            ts,
+            lookback_seconds=_POST_LOOKBACK_SECONDS,
+            lookahead_seconds=_POST_LOOKAHEAD_SECONDS,
+        )
         # Finalize synthesis first so we know whether a protocol was
         # produced. CP8: pass the synthesis signal into the spot-check
         # sampler; the multiplier lands before the sample roll.

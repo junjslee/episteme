@@ -45,7 +45,7 @@ import os
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -67,6 +67,20 @@ def _framework_path() -> Path:
 
 CP5_FORMAT_VERSION = "cp5-pre-chain"
 MARKER_TTL_SECONDS = 24 * 60 * 60
+
+# CP-FENCE-02 · Pre/Post second-boundary straddle race.
+# The h_ fallback correlation id hashes a SECOND-granularity wall-clock
+# bucket (`ts.split(".")[0]`). PreToolUse (reasoning_surface_guard) and
+# PostToolUse (fence_synthesis) each sample `datetime.now()`
+# independently, so the two hooks land in the same bucket ONLY when both
+# samples fall inside the same wall-clock second. When they straddle a
+# second boundary the ids diverge and the marker handoff breaks. On the
+# PostToolUse read side we widen the candidate set across adjacent second
+# buckets — `POST_LOOKBACK_SECONDS` earlier (the common case: Pre fired
+# first) and `POST_LOOKAHEAD_SECONDS` later (clock skew guard) — so a Pre
+# marker written up to POST_LOOKBACK_SECONDS ago still pairs.
+POST_LOOKBACK_SECONDS = 5
+POST_LOOKAHEAD_SECONDS = 1
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +129,26 @@ def correlation_id(payload: dict, cmd: str, ts: str) -> str:
     return "h_" + hashlib.sha1(seed).hexdigest()[:16]
 
 
-def candidate_correlation_ids(payload: dict, cmd: str, ts: str) -> list[str]:
+def _h_correlation_for_bucket(bucket: str, cwd: str, cmd: str) -> str:
+    """Hash one second-bucket into the h_ fallback correlation id.
+
+    Single code path shared by the current-second seed and the shifted
+    lookback/lookahead seeds so their string shape and hash stay
+    byte-identical — `f"{bucket}|{cwd}|{cmd}"` → sha1[:16] with the
+    `h_` prefix, matching `correlation_id()`.
+    """
+    seed = f"{bucket}|{cwd}|{cmd}".encode("utf-8", errors="replace")
+    return "h_" + hashlib.sha1(seed).hexdigest()[:16]
+
+
+def candidate_correlation_ids(
+    payload: dict,
+    cmd: str,
+    ts: str,
+    *,
+    lookback_seconds: int = 0,
+    lookahead_seconds: int = 0,
+) -> list[str]:
     """Return all candidate correlation ids for a tool call.
 
     Event 50 · CP-FENCE-02 fix. `correlation_id()` returns ONE id
@@ -129,28 +162,55 @@ def candidate_correlation_ids(payload: dict, cmd: str, ts: str) -> list[str]:
     all candidates on read — always finds the match regardless of
     which side had the richer payload.
 
-    Returned list is deduplicated, order-stable (explicit runtime ids
-    first, SHA-1 fallback second).
+    Straddle race (CP-FENCE-02, second pass). The h_ fallback bucket is
+    a second-granularity wall-clock stamp; Pre and Post sample the clock
+    independently, so their buckets diverge whenever the two hooks fall
+    on opposite sides of a second boundary. `lookback_seconds` /
+    `lookahead_seconds` (both default 0) widen the candidate set on the
+    PostToolUse read side across adjacent second buckets so a Pre marker
+    written up to `lookback_seconds` earlier still pairs. With both at 0
+    the function is byte-identical to the pre-widening behavior, keeping
+    every Pre-side call site (guard dual-write, cascade guard write)
+    unchanged.
+
+    Returned list is deduplicated, order-stable: explicit runtime ids
+    first, then the current-second h_ seed (so a fresh marker wins over
+    a stale sibling), then lookback buckets nearest-first, then
+    lookahead buckets nearest-first.
     """
     out: list[str] = []
     seen: set[str] = set()
+
+    def _add(cid: str) -> None:
+        if cid and cid not in seen:
+            out.append(cid)
+            seen.add(cid)
+
     rid = (
         payload.get("tool_use_id")
         or payload.get("toolUseId")
         or payload.get("request_id")
     )
     if isinstance(rid, str) and rid.strip():
-        c = rid.strip()
-        if c not in seen:
-            out.append(c)
-            seen.add(c)
+        _add(rid.strip())
     cwd = str(payload.get("cwd") or os.getcwd())
     bucket = ts.split(".")[0]
-    seed = f"{bucket}|{cwd}|{cmd}".encode("utf-8", errors="replace")
-    h = "h_" + hashlib.sha1(seed).hexdigest()[:16]
-    if h not in seen:
-        out.append(h)
-        seen.add(h)
+    _add(_h_correlation_for_bucket(bucket, cwd, cmd))
+
+    if lookback_seconds > 0 or lookahead_seconds > 0:
+        # Derive shifted buckets through the SAME string shape as the
+        # current-second seed. Graceful degrade: a malformed ts keeps
+        # the single-bucket behavior above (hook path must never raise).
+        try:
+            t = datetime.fromisoformat(ts)
+        except (ValueError, TypeError):
+            return out
+        offsets: list[int] = []
+        offsets.extend(range(-1, -lookback_seconds - 1, -1))
+        offsets.extend(range(1, lookahead_seconds + 1))
+        for off in offsets:
+            shifted = (t + timedelta(seconds=off)).isoformat().split(".")[0]
+            _add(_h_correlation_for_bucket(shifted, cwd, cmd))
     return out
 
 

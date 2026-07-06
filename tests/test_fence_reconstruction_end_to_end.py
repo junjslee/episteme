@@ -27,8 +27,9 @@ import io
 import json
 import os
 import tempfile
+import time
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
@@ -697,6 +698,133 @@ class TestCPFence02CorrelationMismatch(unittest.TestCase):
                     len(remaining), 0,
                     f"all candidate markers should be cleaned, got {remaining}"
                 )
+
+    def test_pairing_survives_second_boundary_straddle(self):
+        """CP-FENCE-02 straddle race. Same handoff as the sibling test
+        but with a >1s wall-clock gap between guard and post hook so the
+        two hooks sample datetime.now() in DIFFERENT second-buckets. The
+        h_ fallback correlation id hashes a second-granularity bucket;
+        pre-fix the PostToolUse candidate list misses the Pre marker's
+        bucket → no protocol AND a lingering marker. Post-fix the widened
+        lookback window re-pairs across the boundary."""
+        with _EphemeralEpistemeHome() as home:
+            with tempfile.TemporaryDirectory() as td:
+                cwd = Path(td)
+                (cwd / "core" / "hooks").mkdir(parents=True, exist_ok=True)
+                (cwd / "core" / "hooks" / "_grounding.py").write_text(
+                    "# grounding\n", encoding="utf-8"
+                )
+                (cwd / "docs").mkdir(exist_ok=True)
+                (cwd / "docs" / "PLAN.md").write_text("# plan\n")
+                surface = _valid_fence_surface(
+                    constraint="core/hooks/_grounding.py:32",
+                )
+                # PreToolUse WITHOUT tool_use_id → SHA-1 fallback bucket.
+                rc, _out, _err = _run_guard(
+                    surface, cwd, "rm .episteme/advisory-surface",
+                    tool_use_id=None,
+                )
+                self.assertEqual(rc, 0, f"PreToolUse should admit: {_err}")
+                pending_dir = home / "state" / "fence_pending"
+                pending_files = list(pending_dir.glob("*.json"))
+                self.assertEqual(len(pending_files), 1)
+                self.assertTrue(pending_files[0].stem.startswith("h_"))
+
+                # Force the Pre/Post wall clocks across a second boundary.
+                time.sleep(1.05)
+
+                # PostToolUse WITH tool_use_id, one-plus second later.
+                rc_post, _out_p, _err_p = _run_post_hook(
+                    "rm .episteme/advisory-surface",
+                    exit_code=0,
+                    cwd=cwd,
+                    tool_use_id="toolu_01ABCDEFG",
+                )
+                self.assertEqual(rc_post, 0)
+                framework = home / "framework" / "protocols.jsonl"
+                self.assertTrue(
+                    framework.is_file(),
+                    "CP-FENCE-02 straddle: PostToolUse must pair across a "
+                    "second boundary via the lookback window"
+                )
+                lines = [
+                    ln for ln in framework.read_text(encoding="utf-8").splitlines()
+                    if ln.strip()
+                ]
+                self.assertEqual(len(lines), 1, "expected exactly 1 protocol")
+                remaining = (
+                    list(pending_dir.glob("*.json"))
+                    if pending_dir.is_dir() else []
+                )
+                self.assertEqual(
+                    len(remaining), 0,
+                    f"all candidate markers should be cleaned, got {remaining}"
+                )
+
+    def test_lookback_window_pairs_across_buckets_and_bounds_at_limit(self):
+        """Deterministic (no sleep) function-level bound check for the
+        widened candidate window. A Pre marker written at ts1 pairs when
+        PostToolUse computes candidates up to POST_LOOKBACK_SECONDS later
+        and stops pairing beyond that bound."""
+        surface = {
+            "constraint_identified": "core/hooks/_grounding.py:32",
+            "origin_evidence": "commit e1f49c9 added it",
+            "removal_consequence_prediction": "if removed, deep-scan fails",
+            "reversibility_classification": "reversible",
+            "rollback_path": "git revert HEAD",
+        }
+        cmd = "rm .episteme/advisory-surface"
+        cwd = Path("/tmp/probe_cwd_unit_cpfence02")
+        # .900000 microseconds so a +1.5s / +4.9s post lands cleanly in a
+        # later second-bucket (straddle), while +7.0s exceeds the window.
+        ts1 = datetime(2026, 7, 6, 4, 30, 0, 900000, tzinfo=timezone.utc)
+        pre_payload = {"cwd": str(cwd)}  # no tool_use_id → h_ fallback only
+        post_payload = {"cwd": str(cwd), "tool_use_id": "toolu_UNIT"}
+
+        def _run(offset_seconds):
+            with _EphemeralEpistemeHome() as home:
+                pre_cands = fence_synth.candidate_correlation_ids(
+                    pre_payload, cmd, ts1.isoformat()
+                )
+                for c in pre_cands:
+                    fence_synth.write_pending_marker(surface, c, cwd, cmd)
+                post_ts = (ts1 + timedelta(seconds=offset_seconds)).isoformat()
+                post_cands = fence_synth.candidate_correlation_ids(
+                    post_payload, cmd, post_ts,
+                    lookback_seconds=fence_synth.POST_LOOKBACK_SECONDS,
+                    lookahead_seconds=fence_synth.POST_LOOKAHEAD_SECONDS,
+                )
+                env = fence_synth.finalize_on_success_with_fallback(
+                    post_cands, 0
+                )
+                pending = home / "state" / "fence_pending"
+                remaining = (
+                    sorted(p.stem for p in pending.glob("*.json"))
+                    if pending.is_dir() else []
+                )
+                return env, remaining, pre_cands
+
+        # +1.5s → post bucket +2s ahead; pre bucket well within lookback.
+        env, remaining, _ = _run(1.5)
+        self.assertIsNotNone(
+            env, "1.5s straddle must still pair via the lookback window"
+        )
+        self.assertEqual(remaining, [], "candidate markers must be cleaned")
+
+        # +4.9s → post bucket +5s ahead; pre bucket at the lookback edge.
+        env, remaining, _ = _run(4.9)
+        self.assertIsNotNone(
+            env, "4.9s straddle must pair at the lookback window edge"
+        )
+        self.assertEqual(remaining, [])
+
+        # +7.0s → beyond the POST_LOOKBACK_SECONDS window → no pairing.
+        env, remaining, pre_cands = _run(7.0)
+        self.assertIsNone(
+            env, "beyond the lookback window, pairing must not occur"
+        )
+        # The unpaired Pre marker is left behind — documents the bound.
+        self.assertEqual(remaining, pre_cands)
 
     def test_pre_with_tool_use_id_writes_dual_markers(self):
         """When both candidates are distinct, PreToolUse writes 2 markers."""
