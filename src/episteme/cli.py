@@ -4527,6 +4527,87 @@ def _kernel_update() -> int:
     return 0
 
 
+def _kernel_compact_protocols(args) -> int:
+    """`episteme kernel compact-protocols` — one-time compaction of the
+    framework protocols ledger (collapse Event-143 cascade-synthesis
+    duplicates; keep-first, chain rebuilt, audit trail preserved).
+
+    Mirrors the `chain compact` gate: a non-dry-run in-place rewrite
+    requires --confirm (operator action per the loss-averse posture).
+    After the run it prints the protocols-chain verify verdict —
+    `verify.intact=true` is the operator's visible success criterion.
+    """
+    import sys as _sys
+
+    hooks_dir = REPO_ROOT / "core" / "hooks"
+    if str(hooks_dir) not in _sys.path:
+        _sys.path.insert(0, str(hooks_dir))
+
+    try:
+        import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+    except ImportError as exc:
+        print(
+            f"[episteme kernel compact-protocols] error loading framework "
+            f"module: {exc}",
+            file=sys.stderr,
+        )
+        return 2
+
+    dry_run = bool(getattr(args, "dry_run", False))
+    json_out = bool(getattr(args, "json", False))
+
+    # Gate: refuse a non-dry-run rewrite without --confirm.
+    if not dry_run and not getattr(args, "confirm", False):
+        print(
+            "[episteme kernel compact-protocols] refusing to rewrite the "
+            "protocols ledger without --confirm (or pass --dry-run to preview)",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        result = _framework.compact_protocols(dry_run=dry_run)
+    except _framework.ChainError as exc:
+        print(f"[episteme kernel compact-protocols] {exc}", file=sys.stderr)
+        return 1
+
+    # The operator's visible success criterion: the protocols chain
+    # verifies intact after the run (dry-run leaves it untouched).
+    verify = _framework.verify_chains()["protocols"]
+    intact = bool(verify.intact)
+
+    if json_out:
+        print(
+            json.dumps(
+                {
+                    "status": result.status,
+                    "total_before": result.total_before,
+                    "total_after": result.total_after,
+                    "removed": result.removed,
+                    "backup_path": (
+                        str(result.backup_path) if result.backup_path else None
+                    ),
+                    "head_hash": result.head_hash,
+                    "message": result.message,
+                    "intact": intact,
+                }
+            )
+        )
+        return 0
+
+    print(f"[episteme kernel compact-protocols] status={result.status}")
+    print(f"  total_before={result.total_before}")
+    print(f"  total_after={result.total_after}")
+    print(f"  removed={result.removed}")
+    if result.backup_path:
+        print(f"  backup_path={result.backup_path}")
+    if result.head_hash:
+        print(f"  head_hash={result.head_hash}")
+    print(f"  {result.message}")
+    print(f"  verify.intact={'true' if intact else 'false'}")
+    return 0
+
+
 def _inject(target: Path = Path("."), strict: bool = True) -> int:
     cwd = target.resolve()
     if not cwd.exists():
@@ -5574,10 +5655,29 @@ def build_parser() -> argparse.ArgumentParser:
     audit = sub.add_parser("audit", help="Reasoning check: verify the current project session has addressed cognitive unknowns")
     audit.add_argument("--fix", action="store_true", help="Append stub Reasoning Surface blocks to files that are missing them")
 
-    kernel = sub.add_parser("kernel", help="Kernel integrity manifest operations")
+    kernel = sub.add_parser("kernel", help="Kernel integrity manifest + ledger maintenance operations")
     kernel_sub = kernel.add_subparsers(dest="kernel_action", required=True)
     kernel_sub.add_parser("verify", help="Verify managed kernel files match the manifest")
     kernel_sub.add_parser("update", help="Regenerate kernel/MANIFEST.sha256 from current files")
+    k_compact = kernel_sub.add_parser(
+        "compact-protocols",
+        help="One-time compaction of the framework protocols ledger (collapse cascade-synthesis duplicates; keep-first, chain rebuilt, audit trail preserved)",
+    )
+    k_compact.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Report what would be removed without backing up or rewriting",
+    )
+    k_compact.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit a single JSON object of the result fields including `intact`",
+    )
+    k_compact.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Required to actually rewrite the ledger when not --dry-run (in-place rewrite + backup)",
+    )
 
     worktree = sub.add_parser("worktree", help="Create a git worktree for a bounded task")
     worktree.add_argument("task_type")
@@ -6609,6 +6709,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             return _kernel_verify()
         if args.kernel_action == "update":
             return _kernel_update()
+        if args.kernel_action == "compact-protocols":
+            return _kernel_compact_protocols(args)
         return 0
     if args.command == "check":
         return _check_dispatch(args)
