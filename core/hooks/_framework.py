@@ -66,6 +66,7 @@ from _chain import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     GENESIS_PREV_HASH,
     ChainError,
     ChainVerdict,
+    _locked as _chain_locked,
     append as _chain_append,
     atomic_replace_file as _atomic_replace,
     compute_entry_hash,
@@ -1032,3 +1033,345 @@ def compact_deferred_discoveries(
             f"Backup: {backup}"
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# One-time cascade-synthesis compaction (protocols)
+# ---------------------------------------------------------------------------
+
+CASCADE_BLUEPRINT = "architectural_cascade"
+
+
+def _cascade_content_key(payload: dict) -> str | None:
+    """Content-identity key for a cascade-synthesis protocol — the dedup
+    axis for ``compact_protocols``. Returns None for every record it
+    cannot positively identify as a cascade duplicate (always kept).
+
+    Scope: ONLY ``type == "protocol"`` AND
+    ``blueprint == "architectural_cascade"``. A non-cascade protocol or
+    a foreign type is out of scope → None.
+
+    Key: the STORED ``cascade_hash`` when present as a str (modern
+    records, emitted since commit 1c01f9d). The ~457-record Event-143
+    spam predates that field, so for a legacy cascade record the key is
+    RECOMPUTED from the payload's own ``source_fields`` / ``op_outcome``
+    via the kernel's own ``_cascade_synthesis.cascade_hash`` — the same
+    function the emit path uses, so a recomputed legacy key collides
+    exactly with the stored key of a modern record describing the same
+    resolution (proven in the ×22 cluster: 21 legacy recomputations
+    collide with 1 stored key).
+
+    FAIL-OPEN ON KEEPING: any exception during recomputation returns
+    None (record kept). Dropping a legitimate protocol is the
+    irreversible cost; keeping a duplicate is cheap and self-corrects on
+    the next modern re-emission. The caller distinguishes an in-scope
+    None (derivation failure — counted + surfaced) from an out-of-scope
+    None (ordinary keep).
+    """
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("type") != PROTOCOL_TYPE:
+        return None
+    if payload.get("blueprint") != CASCADE_BLUEPRINT:
+        return None
+    stored = payload.get("cascade_hash")
+    if isinstance(stored, str):
+        return stored
+    try:
+        # Lazy import: the compaction path is the only _framework caller
+        # that needs the synthesis arm, and importing it eagerly at module
+        # load would couple the whole framework substrate to the T13 arm.
+        import _cascade_synthesis  # type: ignore  # pyright: ignore[reportMissingImports]
+
+        sf = payload.get("source_fields") or {}
+        oo = payload.get("op_outcome") or {}
+        flaw = str(sf["flaw_classification"])
+        posture = str(sf["posture_selected"])
+        needs_update = [str(x) for x in (sf.get("blast_radius_surfaces") or [])]
+        observable = str(sf.get("observable", ""))
+        project = Path(str(oo.get("cwd") or ".")).resolve().name or "unknown_project"
+        subsystem = _cascade_synthesis._subsystem(needs_update)
+        return _cascade_synthesis.cascade_hash(
+            project, subsystem, flaw, posture, needs_update, observable
+        )
+    except Exception:
+        return None
+
+
+def compact_protocols(
+    *,
+    path: Path | None = None,
+    dry_run: bool = False,
+) -> CompactResult:
+    """One-time in-place compaction of the framework protocols chain.
+
+    Event 143's cascade-synthesis arm chained hundreds of identical
+    resolution protocols before content-hash dedup shipped (commit
+    1c01f9d): a session surface carrying ``flaw_classification`` made the
+    self-escalation trigger classify every tool call as a cascade, and
+    per-command ``op_class`` variation defeated the signature-based
+    supersede. This is the complementary one-shot cleanup of the ledger
+    that bloated *before* the ``cascade_hash`` gate landed.
+
+    Algorithm (modelled on ``compact_deferred_discoveries`` — the
+    sanctioned in-place atomic-rewrite + recompute-from-GENESIS pattern):
+
+    1. Read + parse every JSONL line. Any non-JSON / non-dict line aborts
+       with ``ChainError`` BEFORE any write — no partial rewrite.
+    2. INPUT chain pre-verify: refuse a non-intact input (a GENESIS
+       rebuild would silently launder the break into a self-consistent
+       chain and promote quarantined records — the post-rebuild verify
+       passes by construction and can never catch it). Fires for the
+       dry-run path too.
+    3. Walk in file order. For each record derive
+       ``_cascade_content_key(payload)``. Records with key None (every
+       non-cascade payload, plus in-scope cascade records whose key could
+       not be derived) are ALWAYS kept. Among cascade records with a key,
+       KEEP the FIRST per key and drop later duplicates. Payloads stay
+       VERBATIM (no ``cascade_hash`` backfill — audit purity; see the
+       blind-spot note below for the bounded cost).
+    4. ``removed == 0`` → ``noop`` without a backup.
+    5. Rebuild from GENESIS preserving each kept record's ORIGINAL
+       envelope ``ts`` (byte-stable re-run). Two remap maps carry
+       ``supersedes`` across the rewrite:
+       - ``drop_to_rep``: a DROPPED duplicate's OLD entry_hash → the kept
+         representative's OLD entry_hash.
+       - ``hash_remap``: a KEPT record's OLD entry_hash → its NEW one.
+       For each kept payload whose ``supersedes`` points backward:
+       redirect a reference to a dropped duplicate onto its
+       representative (``drop_to_rep``), then rewrite to the new hash
+       (``hash_remap``); leave verbatim if unresolved by both maps.
+       ``supersedes`` always points backward in file order, so both maps
+       are populated by the time a referrer is rebuilt.
+    6. Backup the original bytes to ``<name>.compact-<ts>.bak``,
+       ``atomic_replace_file``, then post-verify (``ChainError`` naming
+       the preserved backup on failure).
+
+    Concurrency: the ENTIRE read → pre-verify → keep-walk → backup →
+    rebuild → replace → post-verify span runs under ``_locked(target)``.
+    The live ledger is append-hot (hooks write during sessions); the
+    sibling holds no lock — this is a deliberate improvement. The rebuild
+    computes hashes via ``compute_entry_hash`` directly (never
+    ``_chain.append``, which would take a second same-process flock on
+    the held file and deadlock).
+
+    ``dry_run=True`` returns the would-be counts after the keep-walk with
+    ``backup_path`` / ``head_hash`` None; no backup, no rewrite.
+
+    Idempotent: a second run finds no duplicates and returns ``noop``.
+
+    Bounded blind spot: kept payloads are verbatim, so a kept LEGACY
+    representative still lacks ``cascade_hash``. The write-time dedup walk
+    keys on the stored field, so it will not recognise the kept legacy
+    rep until ONE modern re-emission of the same resolution lands (that
+    modern record carries the field and collapses onto the rep on the
+    NEXT compaction). Cost is ≤1 future re-emission per legacy-kept
+    cluster — accepted against audit purity.
+    """
+    target = path if path is not None else _protocols_path()
+
+    if not target.is_file():
+        return CompactResult(
+            status="missing",
+            total_before=0,
+            total_after=0,
+            removed=0,
+            backup_path=None,
+            head_hash=None,
+            message=f"{target} does not exist — nothing to compact",
+        )
+
+    # Whole-window lock (see docstring § Concurrency). The missing check
+    # is deliberately BEFORE the lock so _locked's ``a+`` open does not
+    # materialise an empty file for a truly-absent target.
+    with _chain_locked(target):
+        try:
+            text = target.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ChainError(f"compact_protocols read: {exc}") from exc
+
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        if not lines:
+            return CompactResult(
+                status="empty",
+                total_before=0,
+                total_after=0,
+                removed=0,
+                backup_path=None,
+                head_hash=None,
+                message=f"{target} is empty — nothing to compact",
+            )
+
+        # Parse every line first — a single bad line aborts before any
+        # write (matches the sibling; no partial rewrite).
+        parsed: list[dict] = []
+        for idx, line in enumerate(lines):
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ChainError(
+                    f"{target}:line {idx + 1}: not valid JSON ({exc})"
+                ) from exc
+            if not isinstance(rec, dict):
+                raise ChainError(f"{target}:line {idx + 1}: not a JSON object")
+            parsed.append(rec)
+
+        total_before = len(parsed)
+
+        # INPUT chain pre-verify (laundering guard; fires for dry-run too).
+        input_verdict = _chain_verify(target)
+        if not input_verdict.intact:
+            raise ChainError(
+                f"{target}: input chain not intact ({input_verdict.reason}) — "
+                f"refusing to compact. A GENESIS rebuild would launder the "
+                f"break into a verified chain and promote quarantined records. "
+                f"Operator must resolve the break manually (archive + re-play "
+                f"from backup) before compaction."
+            )
+
+        # Keep-walk: first-wins per content key; record dropped-duplicate
+        # -> representative so a later supersedes ref can be re-pointed.
+        seen: dict[str, str] = {}  # content key -> kept rep OLD entry_hash
+        drop_to_rep: dict[str, str] = {}  # dropped OLD hash -> rep OLD hash
+        kept: list[dict] = []
+        deriv_failures = 0
+        for rec in parsed:
+            payload = rec.get("payload")
+            key = _cascade_content_key(payload) if isinstance(payload, dict) else None
+            in_scope = (
+                isinstance(payload, dict)
+                and payload.get("type") == PROTOCOL_TYPE
+                and payload.get("blueprint") == CASCADE_BLUEPRINT
+            )
+            if key is None:
+                # In-scope + None means the key could not be derived —
+                # counted + surfaced (fail-open on keeping). Out-of-scope
+                # None is an ordinary keep.
+                if in_scope:
+                    deriv_failures += 1
+                kept.append(rec)
+                continue
+            old = str(rec.get("entry_hash") or "")
+            rep = seen.get(key)
+            if rep is not None:
+                if old:
+                    drop_to_rep[old] = rep
+                continue  # later duplicate — drop
+            seen[key] = old
+            kept.append(rec)
+
+        total_after = len(kept)
+        removed = total_before - total_after
+
+        deriv_note = (
+            f" ({deriv_failures} in-scope cascade record(s) kept — "
+            f"content key underivable)"
+            if deriv_failures
+            else ""
+        )
+
+        if removed == 0:
+            return CompactResult(
+                status="noop",
+                total_before=total_before,
+                total_after=total_after,
+                removed=0,
+                backup_path=None,
+                head_hash=input_verdict.head_hash,
+                message=(
+                    f"{target}: no cascade duplicates among {total_before} "
+                    f"records — nothing to compact{deriv_note}"
+                ),
+            )
+
+        # Rebuild from GENESIS, preserving each kept record's ORIGINAL ts
+        # (byte-stable) and remapping supersedes old->new (incl. re-pointing
+        # a reference to a dropped duplicate onto its representative).
+        new_lines: list[str] = []
+        expected_prev = GENESIS_PREV_HASH
+        head_hash = expected_prev
+        hash_remap: dict[str, str] = {}  # kept OLD entry_hash -> NEW
+        for rec in kept:
+            payload = rec.get("payload")
+            ts = rec.get("ts")
+            if not isinstance(payload, dict) or not isinstance(ts, str):
+                raise ChainError(
+                    f"{target}: kept record missing payload / ts during rebuild "
+                    f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
+                )
+            sup = payload.get("supersedes")
+            if isinstance(sup, str) and sup.startswith("sha256:"):
+                tgt = sup
+                if tgt in drop_to_rep:
+                    tgt = drop_to_rep[tgt]
+                if tgt in hash_remap:
+                    payload = {**payload, "supersedes": hash_remap[tgt]}
+                # else: unresolved by both maps — leave verbatim.
+            old_entry_hash = str(rec.get("entry_hash") or "")
+            entry_hash = compute_entry_hash(expected_prev, ts, payload)
+            if old_entry_hash:
+                hash_remap[old_entry_hash] = entry_hash
+            envelope = {
+                "schema_version": UPGRADED_FORMAT_MARKER,
+                "ts": ts,
+                "prev_hash": expected_prev,
+                "payload": payload,
+                "entry_hash": entry_hash,
+            }
+            new_lines.append(json.dumps(envelope, ensure_ascii=False))
+            expected_prev = entry_hash
+            head_hash = entry_hash
+
+        if dry_run:
+            return CompactResult(
+                status="compacted",
+                total_before=total_before,
+                total_after=total_after,
+                removed=removed,
+                backup_path=None,
+                head_hash=None,
+                message=(
+                    f"{target}: DRY RUN — would remove {removed} cascade "
+                    f"duplicate(s), leaving {total_after} of {total_before} "
+                    f"records{deriv_note}"
+                ),
+            )
+
+        # Backup the original bytes before any rewrite.
+        from datetime import datetime, timezone
+
+        backup_ts = (
+            datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
+        )
+        backup = target.with_suffix(f".compact-{backup_ts}.bak")
+        try:
+            backup.write_bytes(target.read_bytes())
+        except OSError as exc:
+            raise ChainError(f"compact_protocols backup: {exc}") from exc
+
+        new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
+        try:
+            _atomic_replace(target, new_contents)
+        except OSError as exc:
+            raise ChainError(f"compact_protocols atomic replace: {exc}") from exc
+
+        post_verdict = _chain_verify(target)
+        if not post_verdict.intact:
+            raise ChainError(
+                f"{target}: compaction wrote file but post-verify failed "
+                f"({post_verdict.reason}). Backup preserved at {backup}."
+            )
+
+        return CompactResult(
+            status="compacted",
+            total_before=total_before,
+            total_after=total_after,
+            removed=removed,
+            backup_path=backup,
+            head_hash=post_verdict.head_hash,
+            message=(
+                f"{target}: compacted {total_before} → {total_after} records "
+                f"({removed} cascade duplicate(s) removed); chain intact. "
+                f"Backup: {backup}{deriv_note}"
+            ),
+        )
