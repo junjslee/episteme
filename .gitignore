@@ -11,6 +11,13 @@ dist/
 # Local iteration state for the ralph-loop plugin; never commit.
 .claude/ralph-loop.local.md
 
+# ─── Nested agent git-worktrees ───────────────────────────────────────────────
+# The orchestrator creates isolated worktrees at .claude/worktrees/agent-<id>.
+# Without this rule, checkpoint.py's `git add -A` sweeps them into master as
+# mode-160000 gitlinks (embedded-repo entries with no .gitmodules), polluting
+# the tree for every clone. Event 146.
+.claude/worktrees/
+
 # ─── Playwright MCP session artifacts (snapshots/screenshots) ─────────────────
 .playwright-mcp/
 
