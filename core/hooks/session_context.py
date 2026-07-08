@@ -210,6 +210,40 @@ def _e1_line() -> str | None:
     )
 
 
+def _reaper_line() -> str | None:
+    """Event 146 · marker GC — TTL-reap orphaned pairing markers once per
+    session, off the per-op hot path.
+
+    The live failure this closes: pairing markers leaked unbounded
+    (``state/cascade_pending`` ~689 files, ``state/fence_pending`` 235,
+    oldest 75x past TTL) because ``MARKER_TTL_SECONDS`` gated marker READS
+    only — a Pre marker whose Post never pairs was orphaned forever, and
+    ``_signature_scan`` re-globbed + parsed every leaked file on each
+    admitted Post hook, so per-op latency grew with the leak. SessionStart
+    is the correct home: the sweep runs once per session, never on the hot
+    path.
+
+    Performs the sweep as a side effect (the load-bearing work) and
+    returns the one-line summary only when at least one marker was reaped,
+    so the banner stays silent on the common zero-reap session — matching
+    the silent-on-zero convention of the other producers here. Graceful
+    degrade to None on any import / IO failure: session open must not
+    break on GC bookkeeping.
+    """
+    _hooks_dir = Path(__file__).resolve().parent
+    if str(_hooks_dir) not in sys.path:
+        sys.path.insert(0, str(_hooks_dir))
+    try:
+        import _marker_reaper  # type: ignore  # pyright: ignore[reportMissingImports]
+        results = _marker_reaper.reap_all()
+    except Exception:
+        return None
+    total_reaped = results["cascade"].reaped + results["fence"].reaped
+    if total_reaped <= 0:
+        return None
+    return f"marker-gc: {_marker_reaper.format_summary(results)}"
+
+
 _NEXT_STEPS_MAX_CHARS = 8000
 
 
@@ -475,6 +509,13 @@ def main() -> int:
     e1_line = _e1_line()
     if e1_line:
         lines.append(e1_line)
+
+    # Event 146 · marker GC — TTL-reap orphaned pairing markers once per
+    # session, off the per-op hot path. Runs the sweep as a side effect;
+    # the line is silent unless at least one marker was reaped.
+    reaper_line = _reaper_line()
+    if reaper_line:
+        lines.append(reaper_line)
 
     # Phase A · v1.0.1 — noise-watch advisory derived from the operator
     # profile's cognitive.noise_signature axis. Silent when the knob is
