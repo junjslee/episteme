@@ -620,8 +620,12 @@ class Event146DedupTests(unittest.TestCase):
         self.assertIn(self._POINTER_MARKER, err2)
         self.assertNotIn(self._SCHEMA_MARKER, err2)
         self.assertLess(len(err2.encode()), 200)
-        # Repeat firing costs < 10% of the first firing's bytes.
-        self.assertLess(len(err2.encode()), len(err1.encode()) * 0.10)
+        # The pointer must always be strictly smaller than the full template.
+        # No ratio assertion: the full template's size varies with the host
+        # environment (the operator-posture footer only renders where derived
+        # knobs exist), so a fixed percentage couples the test to the machine.
+        # The <200-byte absolute bound above is the portable contract.
+        self.assertLess(len(err2.encode()), len(err1.encode()))
 
     def test_new_session_gets_full_schema(self):
         cmd = _GP + " origin master"
