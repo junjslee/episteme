@@ -114,7 +114,7 @@ All consequential edits follow the kernel's own loop:
 2. **Decompose.** Fill the Reasoning Surface (Knowns / Unknowns / Assumptions / Disconfirmation). For high-impact work, provide 2+ options with trade-offs and an explicit because-chain.
 3. **Execute.** Prefer smallest reversible action that produces new information. One bounded lane per task owner.
 4. **Verify.** Validate against success criteria, not effort. Re-check each assumption. Evaluate hypothesis: validated / refined / invalidated.
-5. **Handoff.** Maintainer: update the project's authoritative operational record (PROGRESS / NEXT_STEPS may be private staging) and name residuals explicitly. External contributors: include a Handoff section in the PR description (what shipped, what's left, named residuals) — the maintainer integrates this into the operational record on merge.
+5. **Handoff.** Maintainer: a handoff **REPLACES** the private `NEXT_STEPS.md` and **appends exactly one line** to the private `EVENTS.md` history index (see *Commit and handoff conventions*); name residuals explicitly. External contributors: include a Handoff section in the PR description (what shipped, what's left, named residuals) — the maintainer integrates this into the operational record on merge.
 
 High-impact decisions must record to `.episteme/reasoning-surface.json` before the action. See `kernel/HOOKS_MAP.md`.
 
@@ -295,7 +295,7 @@ git push origin --delete event-NN-shortname
 ## Commit and handoff conventions
 
 - Commit messages: imperative mood, scoped (`kernel: …`, `docs: …`, `adapters: …`). Checkpoint commits use the Conventional-Commits-valid prefix `chore(chkpt):`.
-- Maintainer workflow: every substantive change updates the project's authoritative operational record (PROGRESS / NEXT_STEPS — may be in private staging) with a Reasoning Surface block, and every session ends with a one-sentence "So-What Now?".
+- Maintainer workflow — **handoff semantics (compaction discipline, Event 145):** a handoff (1) **REPLACES** the private `NEXT_STEPS.md` (current state · decisions-waiting · next actions · backlog · standing rules) and (2) **appends exactly one line** to the private `EVENTS.md` history index (`| E<N> | date | one-line what | PR/commit/tag refs |`). Appending a "Prior resume" block to `NEXT_STEPS.md` is a protocol violation — the append stack was the accretion disease compaction removed. `PROGRESS.md` is retired to a tombstone that points at `EVENTS.md` + the archive; do not append events to it (its verbatim history lives under `~/episteme-private/docs/archive/`). Each handoff carries a Reasoning Surface block and ends with a one-sentence "So-What Now?".
 - External contributor workflow: include the Reasoning Surface block + "So-What Now?" inline in the PR description; the maintainer integrates these into the operational record on merge. Contributors do not need to update operational docs themselves.
 - Branch naming: `event-NN-shortname` for maintainer-ordered Events (numbering tracked in the maintainer's operational record); `feat/<name>`, `fix/<name>`, `research/<name>`, `ops/<name>`, `docs/<name>` for non-Event work.
 
@@ -314,8 +314,8 @@ Before creating or moving any doc under `docs/`, classify it. The repo splits `d
 
 **PRIVATE tier (symlink to `~/episteme-private/docs/<name>`, gitignore the symlink):**
 
-- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `PLAN.md`, `PROGRESS.md`, `NEXT_STEPS.md`, `*_TRIAGE.md`, `*_CALIBRATION.md`, `PREPARED_PATCHES.md`.
-- Positioning narrative — *"how I market"*: `POSTURE.md`, `NARRATIVE.md`, `COGNITIVE_SYSTEM_PLAYBOOK.md`.
+- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `PLAN.md` (active-plan pointer), `NEXT_STEPS.md` (REPLACE-on-handoff), `EVENTS.md` (append-one-line history index), `PROGRESS.md` (retired tombstone), `*_TRIAGE.md`, `*_CALIBRATION.md`.
+- Operating contract / positioning narrative — *"how I work / how I market"*: `PLAYBOOK.md` (merged operating contract), `POSTURE.md`, `NARRATIVE.md`.
 - Historical decision logs (`DECISION_STORY.md`-class once filled with content).
 - Anything that documents the operator's *how I work* or *how I market*.
 
