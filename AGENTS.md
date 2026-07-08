@@ -292,6 +292,52 @@ git push origin --delete event-NN-shortname
 
 ---
 
+## Release lifecycle (release-please)
+
+Releases are cut by `googleapis/release-please-action@v4` (`.github/workflows/release-please.yml`) driven by `release-please-config.json` + `.release-please-manifest.json`. The versioning contract lives here; the git-merge mechanics that feed it live in `## Git workflow protocol` above.
+
+### rc iteration math (`"versioning": "prerelease"`)
+
+The package config pins `"versioning": "prerelease"` alongside `"prerelease": true` + `"prerelease-type": "rc"`. Under the prerelease strategy (upstream `googleapis/release-please/src/versioning-strategies/prerelease.ts`, `bumpPrerelease()`):
+
+- Last release `1.9.0-rc1`; a releasable commit lands (`feat:` / `fix:` / `perf:` / `deps:` / `revert:` — the non-`hidden` `changelog-sections` types). The strategy sees a prerelease identifier with `patch === 0`, so it increments the trailing prerelease number (zero-padding preserved) and **holds the base**: `1.9.0-rc1` → `1.9.0-rc2` → `1.9.0-rc3`, one bump per release PR merged.
+- While an rc is open the commit **type no longer moves the base** — `feat:` vs `fix:` only selects the changelog section; both iterate the same rc counter. The base advances again only after graduation to a stable tag, at which point the next `feat:` on `1.9.0` opens a fresh cycle at `1.10.0-rc1`.
+- Non-releasable commits (`chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `build:`, `style:`, `chore(chkpt):` — the `hidden` sections) do **not** open a release PR. The strategy change is therefore observable only on the next releasable commit after it merges.
+
+**`versioning` is load-bearing — do not remove it.** `tests/test_release_please_config.py` fails CI if the key is dropped or set to anything but `prerelease`. The JSON schema (upstream `googleapis/release-please/schemas/config.json`) types `versioning` as a bare string with no enum, so a typo would pass schema validation and silently restore the treadmill; the test is the real guard.
+
+### Graduation to a stable GA tag (e.g. `1.9.0`)
+
+Two routes convert the open `1.9.0-rcN` line into the stable `1.9.0` GA. Both are irreversible-once-tagged (a public tag + GitHub Release is a Tier-1 checkpoint per `docs/EVENTS.md` / risk posture) — verify BEFORE merging the release PR.
+
+**Route 1 — `Release-As:` footer (RECOMMENDED; one-shot, deterministic).** `Release-As: x.x.x` bypasses conventional-commit analysis and sets the version verbatim (upstream `googleapis/release-please/README.md`), so it forces exactly `1.9.0` regardless of what accumulated in the commit window — immune to a stray `feat!:` graduating to `2.0.0`. It leaves `prerelease: true` intact, so the next cycle resumes the rc cadence (`1.10.0-rc1`) with no further config change. master is branch-protected (Path A only), so the empty commit lands via a PR, not a direct push:
+
+```bash
+git fetch origin
+git checkout -b release/graduate-1.9.0 origin/master
+git commit --allow-empty -m "chore: release 1.9.0" -m "Release-As: 1.9.0"
+git push -u origin release/graduate-1.9.0
+gh pr create --title "chore: graduate to 1.9.0 GA" \
+  --body "Release-As: 1.9.0 — forces the next release-please proposal to the stable tag, base held."
+# Operator merges via GitHub UI or: gh pr merge --merge   (NOT --squash — the footer must survive)
+```
+
+The push from that merge triggers a release-please run that opens a release PR proposing `1.9.0`. **Before merging the release PR, verify the proposed version is exactly `1.9.0` with NO `-rc` suffix.** If it shows any `-rc`, the footer was not honored in this action version — STOP, do not merge, fall to Route 2.
+
+**Route 2 — flip `prerelease: false` (ALTERNATIVE; mode change, not one-shot).** Setting `"prerelease": false` in `release-please-config.json` engages the strategy's graduation branch (`if (!this.prerelease)` in `prerelease.ts`): on `1.9.0-rc1` with non-breaking commits it strips the identifier and holds the base → `1.9.0`. Caveats: (i) a pending breaking change (`feat!:` / `BREAKING CHANGE:`) in the window graduates to `2.0.0` instead — audit the window first; (ii) it needs its own config-change PR before the release PR (two PRs); (iii) it is a **mode flip** — after `1.9.0` ships, the next `feat:` produces a STABLE `1.10.0` (no rc). To resume the rc cadence you must flip `prerelease` back to `true`. Use Route 2 only when Route 1's pre-merge check showed an unexpected `-rc`.
+
+**Verify on the resulting GitHub Release (after merging the release PR):**
+
+- Tag name is `episteme-v1.9.0` (`include-v-in-tag: true` + component `episteme`).
+- The Release is **NOT** marked "Pre-release". Per upstream `googleapis/release-please/src/manifest.ts`, the prerelease flag on the GitHub Release is `config.prerelease && (version.preRelease || major === 0)`; for `1.9.0` the prerelease identifier is empty and major is `1`, so the box is unchecked even though `config.prerelease` may still be `true`. If the box IS checked, the tag carried a residual `-rc` — investigate before announcing.
+- `pyproject.toml`, `kernel/CHANGELOG.md`, and the three `extra-files` (`.claude-plugin/plugin.json` `$.version`, `.claude-plugin/marketplace.json` `$.plugins[0].version` and `$.metadata.version`) all read `1.9.0`.
+
+### Failure mode this closes
+
+Before this config, `prerelease: true` + `prerelease-type: rc` ran under the **default** versioning strategy (no `versioning` key ⇒ default), which strips `-rc`, bumps the BASE per conventional commits, and re-appends `-rc1` every time. Result: **0/11 pipeline releases ever reached a stable tag** — all eleven were `-rc1` (`1.1.0-rc1` .. `1.9.0-rc1`), a `feat:` advanced the minor (`1.9.0-rc1` → `1.10.0-rc1`) instead of the counter, and `-rc2` was structurally unreachable. Pinning `versioning: prerelease` bounds the base within an open rc line so the counter iterates, and makes GA an explicit operator action (Route 1/2) rather than an unreachable state.
+
+---
+
 ## Commit and handoff conventions
 
 - Commit messages: imperative mood, scoped (`kernel: …`, `docs: …`, `adapters: …`). Checkpoint commits use the Conventional-Commits-valid prefix `chore(chkpt):`.
