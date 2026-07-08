@@ -1443,6 +1443,15 @@ def main() -> int:
                 sys.stderr.write(f"[episteme advisory] {l2_detail}\n")
 
             if status == "ok":
+                # §3.2 · Single per-op wall-clock sample. ONE
+                # `datetime.now()` read for the whole admitted op, threaded
+                # to every correlation-id computation below (fence marker,
+                # cascade deferred-discovery cid, cascade marker). A per-op
+                # timestamp — NOT session-level (which would collapse every
+                # op in a session into one h_ bucket and structurally
+                # cross-pair Post events). Sampling once makes intra-op h_
+                # divergence impossible by construction.
+                op_ts = datetime.now(timezone.utc).isoformat()
                 try:
                     blueprint_name = _detect_scenario(
                         payload, surface_text=None, project_context={},
@@ -1550,24 +1559,27 @@ def main() -> int:
                                 _bash_command(payload)
                                 if tool_name == "Bash" else ""
                             )
-                            marker_ts = datetime.now(timezone.utc).isoformat()
                             # Event 50 · CP-FENCE-02 — write the marker
                             # under every candidate correlation id so
                             # PostToolUse pairs reliably even when
                             # PreToolUse and PostToolUse payloads
                             # disagree on which id is available
                             # (Claude Code's Pre payload typically
-                            # lacks tool_use_id).
+                            # lacks tool_use_id). §3.1: pass session_scope
+                            # so the marker carries the pair signature for
+                            # the tier-3 fallback.
+                            _fence_scope = str(payload.get("session_id") or "")
                             for correlation in _fence_synthesis.candidate_correlation_ids(
                                 payload,
                                 cmd_for_marker,
-                                marker_ts,
+                                op_ts,
                             ):
                                 _fence_synthesis.write_pending_marker(
                                     layer2_surface,
                                     correlation,
                                     cwd,
                                     cmd_for_marker,
+                                    session_scope=_fence_scope,
                                 )
                         except Exception:
                             # Synthesis bookkeeping failure must never
@@ -1615,8 +1627,7 @@ def main() -> int:
                                 if tool_name == "Bash" else ""
                             )
                             _cid = _correlation_id(
-                                payload, _cmd_for_cid,
-                                datetime.now(timezone.utc).isoformat(),
+                                payload, _cmd_for_cid, op_ts,
                             )
                             _write_cascade_deferred_discoveries(
                                 layer2_surface,
@@ -1639,11 +1650,11 @@ def main() -> int:
                                 _bash_command(payload)
                                 if tool_name == "Bash" else ""
                             )
-                            _marker_ts = datetime.now(
-                                timezone.utc
-                            ).isoformat()
+                            # §3.2: same per-op `op_ts` — NOT a second
+                            # `_marker_ts` sample (which straddled a second
+                            # boundary against the deferred-cid sample).
                             for _corr in _fence_synthesis.candidate_correlation_ids(
-                                payload, _cmd_for_marker, _marker_ts,
+                                payload, _cmd_for_marker, op_ts,
                             ):
                                 _cascade_synthesis.write_pending_marker(
                                     layer2_surface,

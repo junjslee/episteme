@@ -24,6 +24,7 @@ them.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -37,6 +38,7 @@ from _fence_synthesis import (  # noqa: E402  # pyright: ignore[reportMissingImp
     candidate_correlation_ids as _candidate_correlation_ids,
     correlation_id as _correlation_id,
     finalize_on_success_with_fallback as _finalize_with_fallback,
+    pair_signature_for_payload as _pair_signature_for_payload,
     POST_LOOKBACK_SECONDS as _POST_LOOKBACK_SECONDS,
     POST_LOOKAHEAD_SECONDS as _POST_LOOKAHEAD_SECONDS,
 )
@@ -149,6 +151,21 @@ def main() -> int:
     except (json.JSONDecodeError, OSError) as exc:
         _hook_log(f"invocation: payload parse failed — {type(exc).__name__}: {exc}")
         return 0
+    # §3.1 diagnostic (bounded logging, shipped). Records the live
+    # PostToolUse payload shape + this hook process's parent PID. Two
+    # loop-hygiene invariants read it: `session_id` presence selects the
+    # pair-signature `session_scope` source, and Pre/Post PPID sharing
+    # decides whether `ppid` is a tier-3 signature discriminator or stays
+    # diagnostic-only. One line per Post invocation; keys/PID only (no
+    # values) so it never leaks command content.
+    try:
+        _hook_log(
+            f"probe: keys={sorted(payload.keys())} "
+            f"ppid={os.getppid()} "
+            f"session_id={'present' if payload.get('session_id') else 'absent'}"
+        )
+    except Exception:
+        pass
     try:
         if _tool_name(payload) != "Bash":
             _hook_log(f"skipped: tool={_tool_name(payload)!r}")
@@ -177,11 +194,19 @@ def main() -> int:
             lookback_seconds=_POST_LOOKBACK_SECONDS,
             lookahead_seconds=_POST_LOOKAHEAD_SECONDS,
         )
+        # §3.1 tier-3 inputs — the timestamp-independent pair signature +
+        # this Post-process's parent PID (soft discriminator; probe §6.2
+        # step 0: Pre/Post share PPID). They let the finalizer pair a >5s
+        # no-tool_use_id op whose Pre marker's second-bucket falls outside
+        # the candidate window.
+        _pair_sig = _pair_signature_for_payload(payload, cmd)
+        _post_ppid = os.getppid()
         # Finalize synthesis first so we know whether a protocol was
         # produced. CP8: pass the synthesis signal into the spot-check
         # sampler; the multiplier lands before the sample roll.
         envelope = _finalize_with_fallback(
-            candidates, _extract_exit_code(payload)
+            candidates, _extract_exit_code(payload),
+            pair_sig=_pair_sig, post_ppid=_post_ppid,
         )
         if envelope is not None:
             _hook_log(f"synthesized protocol: correlation={correlation[:16]}")
