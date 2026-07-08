@@ -117,6 +117,15 @@ docs/PRODUCT_MASTER_PLAN.md
 docs/PRODUCTIZATION_PLAN.md
 docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md
 
+# ─── Privatized cognitive-compaction docs (Event 145, 2026-07-07) ─────────────
+# Doc-layer compaction per FINAL_PRODUCTIZATION_BLUEPRINT: the EVENTS.md history
+# index, the merged PLAYBOOK.md operating contract, and the blueprint itself
+# live in the private staging dir as gitignored symlinks. Same pattern as
+# Events 65/66. Archived sources recoverable under ~/episteme-private/docs/archive/.
+docs/EVENTS.md
+docs/PLAYBOOK.md
+docs/FINAL_PRODUCTIZATION_BLUEPRINT.md
+
 # ─── Privatized operator-profile canonicals (Event 71) ───────────────────────
 # Maintainer's lived profile content lives at ~/episteme-private/core/memory/global/.
 # Canonical paths in core/memory/global/ ship as gitignored symlinks for the
