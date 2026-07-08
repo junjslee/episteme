@@ -163,27 +163,112 @@ def _now_ts() -> str:
 
 
 @contextmanager
-def _locked(path: Path) -> Iterator[None]:
+def rewrite_lock(lock_dir: Path) -> Iterator[None]:
+    """Cross-stream, cross-session rewrite mutex (§4.1).
+
+    A single ``<lock_dir>/.lock`` guards ALL chain-rewrite operations —
+    ``compact_protocols`` / ``compact_deferred_discoveries`` /
+    ``upgrade_cp5_prechain`` / ``reset_stream``. Because both framework
+    streams share one directory, rewrite-vs-rewrite across streams AND
+    across sessions serialize on this one lock.
+
+    **Lock-order law (deadlock prevention): ``rewrite_lock`` →
+    ``_locked(file)``, never the reverse.** Appenders take ONLY
+    ``_locked(file)`` (the hot path is unchanged), so append-vs-rewrite
+    still serializes on the per-file lock exactly as before. No-op
+    fallback on Windows (per CP4)."""
+    lock_dir.mkdir(parents=True, exist_ok=True)
+    lock_path = lock_dir / ".lock"
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        if _fcntl is not None:
+            _fcntl.flock(fd, _fcntl.LOCK_EX)
+        yield
+    finally:
+        try:
+            if _fcntl is not None:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+        finally:
+            os.close(fd)
+
+
+def _verify_and_reacquire(lock_fd, path: Path, *, _after_flock=None, max_attempts: int = 5):
+    """§4.2 — orphaned-inode guard. After an exclusive flock on
+    ``lock_fd``, confirm the descriptor still points at the LIVE
+    ``path`` inode; a concurrent compactor may have ``os.replace``d the
+    path to a new inode while we blocked on the lock, orphaning our fd
+    (an append into an unlinked file is silently lost, and the flock no
+    longer excludes a new appender on the live inode).
+
+    On an ``(st_dev, st_ino)`` mismatch — or ``FileNotFoundError`` on the
+    path — release, reopen ``path``, re-flock, and re-check, up to
+    ``max_attempts`` before raising ``ChainError``. Returns the
+    (possibly reopened) flocked fd on the live inode. No-op when fcntl is
+    unavailable (Windows). ``_after_flock`` is a test seam invoked after
+    each flock acquisition, before the inode check."""
+    if _fcntl is None:
+        return lock_fd
+    for _attempt in range(max_attempts):
+        if _after_flock is not None:
+            _after_flock()
+        try:
+            st_fd = os.fstat(lock_fd.fileno())
+            st_path = os.stat(path)
+            if (st_fd.st_dev, st_fd.st_ino) == (st_path.st_dev, st_path.st_ino):
+                return lock_fd
+        except FileNotFoundError:
+            pass  # path vanished under us → treat as mismatch, reopen
+        # Orphaned inode: drop this fd, reopen the live path, re-flock.
+        try:
+            _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)
+        except OSError:
+            pass
+        lock_fd.close()
+        lock_fd = open(path, "a+", encoding="utf-8")
+        _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)
+    try:
+        lock_fd.close()
+    except OSError:
+        pass
+    raise ChainError(
+        f"_locked({path}): inode kept diverging after {max_attempts} reopen "
+        f"attempts (concurrent rewrite storm?)"
+    )
+
+
+@contextmanager
+def _locked(path: Path, *, _after_first_flock=None) -> Iterator[None]:
     """Acquire an exclusive lock on the chain file during append +
     verify. No-op fallback on Windows with a stderr hint; documented
     degradation per CP4 pattern.
 
     The lock file is the target file itself — opening with ``a+`` so
-    we can hold the descriptor even on an empty / missing file.
-    """
+    we can hold the descriptor even on an empty / missing file. After
+    the flock is granted the inode is re-verified (§4.2) so a
+    concurrent ``os.replace`` by a compactor cannot leave us writing
+    into an orphaned file. ``_after_first_flock`` is a test seam
+    forwarded to ``_verify_and_reacquire``."""
     path.parent.mkdir(parents=True, exist_ok=True)
     # ``a+`` creates the file if absent and leaves the position at end.
     lock_fd = open(path, "a+", encoding="utf-8")
     try:
         if _fcntl is not None:
             _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_EX)
+            lock_fd = _verify_and_reacquire(
+                lock_fd, path, _after_flock=_after_first_flock
+            )
         yield
     finally:
         try:
-            if _fcntl is not None:
+            if _fcntl is not None and not lock_fd.closed:
                 _fcntl.flock(lock_fd.fileno(), _fcntl.LOCK_UN)
+        except (OSError, ValueError):
+            pass
         finally:
-            lock_fd.close()
+            try:
+                lock_fd.close()
+            except OSError:
+                pass
 
 
 def atomic_replace_file(path: Path, new_contents: bytes) -> None:
@@ -447,27 +532,33 @@ def reset_stream(
             "(typically the operator types 'I ACKNOWLEDGE CHAIN RESET' or similar)"
         )
 
-    archived: Path | None = None
-    if path.is_file():
-        ts_slug = _now_ts().replace(":", "").replace(".", "-")
-        archived = path.with_suffix(f".broken-{ts_slug}.jsonl")
-        path.rename(archived)
+    # §4.1 — a reset is a chain-rewrite op: hold the shared rewrite mutex
+    # across the archive-rename + genesis-append so it serializes against
+    # concurrent compactions/upgrades on the same stream directory. The
+    # inner ``append`` still takes ``_locked(path)`` (lock-order preserved:
+    # rewrite_lock → _locked).
+    with rewrite_lock(path.parent):
+        archived: Path | None = None
+        if path.is_file():
+            ts_slug = _now_ts().replace(":", "").replace(".", "-")
+            archived = path.with_suffix(f".broken-{ts_slug}.jsonl")
+            path.rename(archived)
 
-    # Start fresh chain with a chain_reset genesis carrying the
-    # recovery-attestation envelope payload (Event 80 / CP-CHAIN-
-    # RECOVERY-PROTOCOL-01). Schema documented in
-    # kernel/CHAIN_RECOVERY_PROTOCOL.md § Common payload fields.
-    genesis_payload = {
-        "type": "chain_reset",
-        "mode": mode,
-        "reason": reason.strip(),
-        "operator_confirmation": operator_confirmation.strip(),
-        "previous_head": previous_head,
-        "recovered_at": _now_ts(),
-        "archived_from": str(archived) if archived else None,
-        "what_was_lost": what_was_lost.strip() if what_was_lost else None,
-    }
-    envelope = append(path, genesis_payload)
+        # Start fresh chain with a chain_reset genesis carrying the
+        # recovery-attestation envelope payload (Event 80 / CP-CHAIN-
+        # RECOVERY-PROTOCOL-01). Schema documented in
+        # kernel/CHAIN_RECOVERY_PROTOCOL.md § Common payload fields.
+        genesis_payload = {
+            "type": "chain_reset",
+            "mode": mode,
+            "reason": reason.strip(),
+            "operator_confirmation": operator_confirmation.strip(),
+            "previous_head": previous_head,
+            "recovered_at": _now_ts(),
+            "archived_from": str(archived) if archived else None,
+            "what_was_lost": what_was_lost.strip() if what_was_lost else None,
+        }
+        envelope = append(path, genesis_payload)
     return ResetResult(
         status="archived_and_reset" if archived else "reset",
         archived_path=archived,

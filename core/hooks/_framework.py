@@ -71,6 +71,7 @@ from _chain import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     atomic_replace_file as _atomic_replace,
     compute_entry_hash,
     iter_records as _chain_iter,
+    rewrite_lock as _rewrite_lock,
     verify_chain as _chain_verify,
 )
 
@@ -644,130 +645,134 @@ def upgrade_cp5_prechain(
             message=f"{target} does not exist — nothing to upgrade",
         )
 
-    try:
-        text = target.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise UpgradeError(f"upgrade_cp5_prechain read: {exc}") from exc
-
-    lines = [ln for ln in text.splitlines() if ln.strip()]
-    if not lines:
-        return UpgradeResult(
-            status="empty",
-            entries_processed=0,
-            backup_path=None,
-            message=f"{target} is empty — nothing to upgrade",
-        )
-
-    parsed: list[dict] = []
-    for idx, line in enumerate(lines):
+    # §4.1 — a chain-rewrite op: shared rewrite mutex FIRST, then the
+    # per-file lock (lock-order law). The rewrite uses atomic_replace_file
+    # directly, so no second same-process flock is taken.
+    with _rewrite_lock(target.parent), _chain_locked(target):
         try:
-            rec = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise UpgradeError(
-                f"{target}:line {idx + 1}: not valid JSON ({exc})"
-            ) from exc
-        if not isinstance(rec, dict):
-            raise UpgradeError(
-                f"{target}:line {idx + 1}: not a JSON object"
-            )
-        parsed.append(rec)
+            text = target.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise UpgradeError(f"upgrade_cp5_prechain read: {exc}") from exc
 
-    # Idempotent fast path — already upgraded?
-    if all(_looks_already_upgraded(r) for r in parsed):
-        verdict = _chain_verify(target)
-        if verdict.intact:
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        if not lines:
             return UpgradeResult(
-                status="already_upgraded",
-                entries_processed=len(parsed),
+                status="empty",
+                entries_processed=0,
                 backup_path=None,
-                message=(
-                    f"{target}: {len(parsed)} records already in "
-                    f"cp7-chained-v1 envelope; chain intact"
-                ),
+                message=f"{target} is empty — nothing to upgrade",
             )
-        raise UpgradeError(
-            f"{target}: appears upgraded but chain verification failed "
-            f"({verdict.reason}). Operator must resolve manually."
-        )
 
-    # Mixed state — partial upgrade detected.
-    if any(_looks_already_upgraded(r) for r in parsed) and any(
-        _looks_cp5_prechain(r) for r in parsed
-    ):
-        raise UpgradeError(
-            f"{target}: file contains both cp5-pre-chain AND cp7-chained-v1 "
-            f"records. Partial upgrade detected; operator must resolve "
-            f"manually (archive then re-play from backup)."
-        )
+        parsed: list[dict] = []
+        for idx, line in enumerate(lines):
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise UpgradeError(
+                    f"{target}:line {idx + 1}: not valid JSON ({exc})"
+                ) from exc
+            if not isinstance(rec, dict):
+                raise UpgradeError(
+                    f"{target}:line {idx + 1}: not a JSON object"
+                )
+            parsed.append(rec)
 
-    # Every record must look cp5-pre-chain at this point.
-    for idx, rec in enumerate(parsed):
-        if not _looks_cp5_prechain(rec):
+        # Idempotent fast path — already upgraded?
+        if all(_looks_already_upgraded(r) for r in parsed):
+            verdict = _chain_verify(target)
+            if verdict.intact:
+                return UpgradeResult(
+                    status="already_upgraded",
+                    entries_processed=len(parsed),
+                    backup_path=None,
+                    message=(
+                        f"{target}: {len(parsed)} records already in "
+                        f"cp7-chained-v1 envelope; chain intact"
+                    ),
+                )
             raise UpgradeError(
-                f"{target}:line {idx + 1}: expected cp5-pre-chain shape "
-                f"(format_version={CP5_FORMAT_VERSION!r}, null chain fields); "
-                f"got format_version={rec.get('format_version')!r}"
+                f"{target}: appears upgraded but chain verification failed "
+                f"({verdict.reason}). Operator must resolve manually."
             )
-        if not isinstance(rec.get("written_at"), str):
+
+        # Mixed state — partial upgrade detected.
+        if any(_looks_already_upgraded(r) for r in parsed) and any(
+            _looks_cp5_prechain(r) for r in parsed
+        ):
             raise UpgradeError(
-                f"{target}:line {idx + 1}: missing required "
-                f"`written_at` string field"
+                f"{target}: file contains both cp5-pre-chain AND cp7-chained-v1 "
+                f"records. Partial upgrade detected; operator must resolve "
+                f"manually (archive then re-play from backup)."
             )
 
-    # Backup the original file.
-    backup_ts = lines[-1] if False else ""  # placeholder; real ts below
-    from datetime import datetime, timezone
+        # Every record must look cp5-pre-chain at this point.
+        for idx, rec in enumerate(parsed):
+            if not _looks_cp5_prechain(rec):
+                raise UpgradeError(
+                    f"{target}:line {idx + 1}: expected cp5-pre-chain shape "
+                    f"(format_version={CP5_FORMAT_VERSION!r}, null chain fields); "
+                    f"got format_version={rec.get('format_version')!r}"
+                )
+            if not isinstance(rec.get("written_at"), str):
+                raise UpgradeError(
+                    f"{target}:line {idx + 1}: missing required "
+                    f"`written_at` string field"
+                )
 
-    backup_ts = (
-        datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
-    )
-    backup = target.with_suffix(f".upgrade-{backup_ts}.bak")
-    try:
-        backup.write_bytes(target.read_bytes())
-    except OSError as exc:
-        raise UpgradeError(f"upgrade_cp5_prechain backup: {exc}") from exc
+        # Backup the original file.
+        backup_ts = lines[-1] if False else ""  # placeholder; real ts below
+        from datetime import datetime, timezone
 
-    # Walk + rechain. Write to a new file then atomic-replace.
-    new_lines: list[str] = []
-    expected_prev = GENESIS_PREV_HASH
-    for rec in parsed:
-        payload = _cp5_payload_from_legacy(rec)
-        ts = str(rec["written_at"])
-        entry_hash = compute_entry_hash(expected_prev, ts, payload)
-        envelope = {
-            "schema_version": UPGRADED_FORMAT_MARKER,
-            "ts": ts,
-            "prev_hash": expected_prev,
-            "payload": payload,
-            "entry_hash": entry_hash,
-        }
-        new_lines.append(json.dumps(envelope, ensure_ascii=False))
-        expected_prev = entry_hash
-
-    new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
-    try:
-        _atomic_replace(target, new_contents)
-    except OSError as exc:
-        raise UpgradeError(f"upgrade_cp5_prechain atomic replace: {exc}") from exc
-
-    # Post-upgrade verify — the walker's output must re-verify.
-    post_verdict = _chain_verify(target)
-    if not post_verdict.intact:
-        raise UpgradeError(
-            f"{target}: upgrade wrote file but post-verify failed "
-            f"({post_verdict.reason}). Backup preserved at {backup}."
+        backup_ts = (
+            datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
         )
+        backup = target.with_suffix(f".upgrade-{backup_ts}.bak")
+        try:
+            backup.write_bytes(target.read_bytes())
+        except OSError as exc:
+            raise UpgradeError(f"upgrade_cp5_prechain backup: {exc}") from exc
 
-    return UpgradeResult(
-        status="upgraded",
-        entries_processed=len(parsed),
-        backup_path=backup,
-        message=(
-            f"{target}: upgraded {len(parsed)} records from "
-            f"cp5-pre-chain to cp7-chained-v1; chain intact. "
-            f"Backup: {backup}"
-        ),
-    )
+        # Walk + rechain. Write to a new file then atomic-replace.
+        new_lines: list[str] = []
+        expected_prev = GENESIS_PREV_HASH
+        for rec in parsed:
+            payload = _cp5_payload_from_legacy(rec)
+            ts = str(rec["written_at"])
+            entry_hash = compute_entry_hash(expected_prev, ts, payload)
+            envelope = {
+                "schema_version": UPGRADED_FORMAT_MARKER,
+                "ts": ts,
+                "prev_hash": expected_prev,
+                "payload": payload,
+                "entry_hash": entry_hash,
+            }
+            new_lines.append(json.dumps(envelope, ensure_ascii=False))
+            expected_prev = entry_hash
+
+        new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
+        try:
+            _atomic_replace(target, new_contents)
+        except OSError as exc:
+            raise UpgradeError(f"upgrade_cp5_prechain atomic replace: {exc}") from exc
+
+        # Post-upgrade verify — the walker's output must re-verify.
+        post_verdict = _chain_verify(target)
+        if not post_verdict.intact:
+            raise UpgradeError(
+                f"{target}: upgrade wrote file but post-verify failed "
+                f"({post_verdict.reason}). Backup preserved at {backup}."
+            )
+
+        return UpgradeResult(
+            status="upgraded",
+            entries_processed=len(parsed),
+            backup_path=backup,
+            message=(
+                f"{target}: upgraded {len(parsed)} records from "
+                f"cp5-pre-chain to cp7-chained-v1; chain intact. "
+                f"Backup: {backup}"
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -833,206 +838,212 @@ def compact_deferred_discoveries(
             message=f"{target} does not exist — nothing to compact",
         )
 
-    try:
-        text = target.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise ChainError(f"compact_deferred_discoveries read: {exc}") from exc
-
-    lines = [ln for ln in text.splitlines() if ln.strip()]
-    if not lines:
-        return CompactResult(
-            status="empty",
-            total_before=0,
-            total_after=0,
-            removed=0,
-            backup_path=None,
-            head_hash=None,
-            message=f"{target} is empty — nothing to compact",
-        )
-
-    # Parse every line first. A single bad line aborts the whole run so
-    # we never produce a partial rewrite (matches upgrade_cp5_prechain).
-    parsed: list[dict] = []
-    for idx, line in enumerate(lines):
+    # §4.1 retrofit — the whole-window lock this op previously lacked.
+    # Lock-order law: shared rewrite mutex FIRST, then the per-file
+    # lock (matching the sibling compact_protocols). The rebuild uses
+    # compute_entry_hash + atomic_replace_file directly (never
+    # _chain.append), so no second same-process flock is taken.
+    with _rewrite_lock(target.parent), _chain_locked(target):
         try:
-            rec = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise ChainError(
-                f"{target}:line {idx + 1}: not valid JSON ({exc})"
-            ) from exc
-        if not isinstance(rec, dict):
-            raise ChainError(f"{target}:line {idx + 1}: not a JSON object")
-        parsed.append(rec)
+            text = target.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ChainError(f"compact_deferred_discoveries read: {exc}") from exc
 
-    total_before = len(parsed)
-
-    # INPUT chain pre-verify (Event 136 review must-fix). The rebuild below
-    # recomputes prev_hash/entry_hash from GENESIS, so a pre-existing break
-    # or tamper in the input would be SILENTLY "healed" into a self-consistent
-    # chain — laundering a quarantined/tampered record into a verified state,
-    # and the post-rebuild verify passes by construction so it can never catch
-    # this. Refuse to compact a non-intact input (mirrors the sibling
-    # upgrade_cp5_prechain guard). The operator must resolve the break
-    # manually (archive + re-play from backup) before compaction. This fires
-    # for the dry-run path too — you cannot safely preview a compaction whose
-    # rebuild would erase tamper evidence.
-    input_verdict = _chain_verify(target)
-    if not input_verdict.intact:
-        raise ChainError(
-            f"{target}: input chain not intact ({input_verdict.reason}) — "
-            f"refusing to compact. A GENESIS rebuild would launder the break "
-            f"into a verified chain and promote quarantined records. Operator "
-            f"must resolve the break manually (archive + re-play from backup) "
-            f"before compaction."
-        )
-
-    # Verdicts couple to discoveries by entry_hash (see § Resolution
-    # layer). A GENESIS rebuild recomputes every entry_hash, so any
-    # verdict ref would dangle and a resolved discovery would re-open —
-    # unless we (1) never drop a verdicted discovery as a duplicate, and
-    # (2) remap verdict refs old->new during the rebuild. Collect the
-    # referenced hashes first.
-    verdict_refs: set[str] = set()
-    for rec in parsed:
-        payload = rec.get("payload")
-        if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
-            ref = payload.get("ref")
-            if isinstance(ref, str) and ref:
-                verdict_refs.add(ref)
-
-    # Walk in file order; keep the first open deferred_discovery per
-    # dedup key, drop later open UNVERDICTED duplicates, keep everything
-    # else. A verdicted discovery is never dropped (its verdict refs it)
-    # but its key is still recorded as seen — otherwise a later
-    # unverdicted duplicate of a resolved finding would survive as
-    # "first" and keep re-firing the banner (adversarial finding
-    # 2026-07-03: verdicting the first member must not defeat dedup of
-    # the rest).
-    seen_keys: set[tuple[str, str]] = set()
-    kept: list[dict] = []
-    for rec in parsed:
-        payload = rec.get("payload")
-        if (
-            isinstance(payload, dict)
-            and payload.get("type") == DEFERRED_DISCOVERY_TYPE
-            and str(payload.get("status", "pending")) in OPEN_STATUSES
-        ):
-            key = _dedup_key(payload, dedup_desc_prefix)
-            verdicted = str(rec.get("entry_hash") or "") in verdict_refs
-            if key in seen_keys and not verdicted:
-                continue  # later open, unverdicted duplicate — drop
-            seen_keys.add(key)
-        kept.append(rec)
-
-    total_after = len(kept)
-    removed = total_before - total_after
-
-    if removed == 0:
-        return CompactResult(
-            status="noop",
-            total_before=total_before,
-            total_after=total_after,
-            removed=0,
-            backup_path=None,
-            head_hash=_chain_verify(target).head_hash,
-            message=(
-                f"{target}: no open duplicates among {total_before} records "
-                f"— nothing to compact"
-            ),
-        )
-
-    # Rebuild the chain from GENESIS, preserving each kept record's
-    # ORIGINAL envelope ts (byte-stable: re-running on already-compacted
-    # input is a noop because the hashes reproduce exactly).
-    new_lines: list[str] = []
-    expected_prev = GENESIS_PREV_HASH
-    head_hash = expected_prev
-    # old entry_hash -> new entry_hash, so a verdict's `ref` (which
-    # points at a discovery's OLD hash) can be rewritten to the new one.
-    # A discovery always precedes its verdict in append order, so the
-    # map entry exists by the time the verdict is rebuilt.
-    hash_remap: dict[str, str] = {}
-    for rec in kept:
-        payload = rec.get("payload")
-        ts = rec.get("ts")
-        if not isinstance(payload, dict) or not isinstance(ts, str):
-            raise ChainError(
-                f"{target}: kept record missing payload / ts during rebuild "
-                f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
+        lines = [ln for ln in text.splitlines() if ln.strip()]
+        if not lines:
+            return CompactResult(
+                status="empty",
+                total_before=0,
+                total_after=0,
+                removed=0,
+                backup_path=None,
+                head_hash=None,
+                message=f"{target} is empty — nothing to compact",
             )
-        if payload.get("type") == DISCOVERY_VERDICT_TYPE:
-            old_ref = payload.get("ref")
-            if isinstance(old_ref, str) and old_ref in hash_remap:
-                payload = {**payload, "ref": hash_remap[old_ref]}
-        old_entry_hash = str(rec.get("entry_hash") or "")
-        entry_hash = compute_entry_hash(expected_prev, ts, payload)
-        if old_entry_hash:
-            hash_remap[old_entry_hash] = entry_hash
-        envelope = {
-            "schema_version": UPGRADED_FORMAT_MARKER,
-            "ts": ts,
-            "prev_hash": expected_prev,
-            "payload": payload,
-            "entry_hash": entry_hash,
-        }
-        new_lines.append(json.dumps(envelope, ensure_ascii=False))
-        expected_prev = entry_hash
-        head_hash = entry_hash
 
-    if dry_run:
+        # Parse every line first. A single bad line aborts the whole run so
+        # we never produce a partial rewrite (matches upgrade_cp5_prechain).
+        parsed: list[dict] = []
+        for idx, line in enumerate(lines):
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ChainError(
+                    f"{target}:line {idx + 1}: not valid JSON ({exc})"
+                ) from exc
+            if not isinstance(rec, dict):
+                raise ChainError(f"{target}:line {idx + 1}: not a JSON object")
+            parsed.append(rec)
+
+        total_before = len(parsed)
+
+        # INPUT chain pre-verify (Event 136 review must-fix). The rebuild below
+        # recomputes prev_hash/entry_hash from GENESIS, so a pre-existing break
+        # or tamper in the input would be SILENTLY "healed" into a self-consistent
+        # chain — laundering a quarantined/tampered record into a verified state,
+        # and the post-rebuild verify passes by construction so it can never catch
+        # this. Refuse to compact a non-intact input (mirrors the sibling
+        # upgrade_cp5_prechain guard). The operator must resolve the break
+        # manually (archive + re-play from backup) before compaction. This fires
+        # for the dry-run path too — you cannot safely preview a compaction whose
+        # rebuild would erase tamper evidence.
+        input_verdict = _chain_verify(target)
+        if not input_verdict.intact:
+            raise ChainError(
+                f"{target}: input chain not intact ({input_verdict.reason}) — "
+                f"refusing to compact. A GENESIS rebuild would launder the break "
+                f"into a verified chain and promote quarantined records. Operator "
+                f"must resolve the break manually (archive + re-play from backup) "
+                f"before compaction."
+            )
+
+        # Verdicts couple to discoveries by entry_hash (see § Resolution
+        # layer). A GENESIS rebuild recomputes every entry_hash, so any
+        # verdict ref would dangle and a resolved discovery would re-open —
+        # unless we (1) never drop a verdicted discovery as a duplicate, and
+        # (2) remap verdict refs old->new during the rebuild. Collect the
+        # referenced hashes first.
+        verdict_refs: set[str] = set()
+        for rec in parsed:
+            payload = rec.get("payload")
+            if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
+                ref = payload.get("ref")
+                if isinstance(ref, str) and ref:
+                    verdict_refs.add(ref)
+
+        # Walk in file order; keep the first open deferred_discovery per
+        # dedup key, drop later open UNVERDICTED duplicates, keep everything
+        # else. A verdicted discovery is never dropped (its verdict refs it)
+        # but its key is still recorded as seen — otherwise a later
+        # unverdicted duplicate of a resolved finding would survive as
+        # "first" and keep re-firing the banner (adversarial finding
+        # 2026-07-03: verdicting the first member must not defeat dedup of
+        # the rest).
+        seen_keys: set[tuple[str, str]] = set()
+        kept: list[dict] = []
+        for rec in parsed:
+            payload = rec.get("payload")
+            if (
+                isinstance(payload, dict)
+                and payload.get("type") == DEFERRED_DISCOVERY_TYPE
+                and str(payload.get("status", "pending")) in OPEN_STATUSES
+            ):
+                key = _dedup_key(payload, dedup_desc_prefix)
+                verdicted = str(rec.get("entry_hash") or "") in verdict_refs
+                if key in seen_keys and not verdicted:
+                    continue  # later open, unverdicted duplicate — drop
+                seen_keys.add(key)
+            kept.append(rec)
+
+        total_after = len(kept)
+        removed = total_before - total_after
+
+        if removed == 0:
+            return CompactResult(
+                status="noop",
+                total_before=total_before,
+                total_after=total_after,
+                removed=0,
+                backup_path=None,
+                head_hash=_chain_verify(target).head_hash,
+                message=(
+                    f"{target}: no open duplicates among {total_before} records "
+                    f"— nothing to compact"
+                ),
+            )
+
+        # Rebuild the chain from GENESIS, preserving each kept record's
+        # ORIGINAL envelope ts (byte-stable: re-running on already-compacted
+        # input is a noop because the hashes reproduce exactly).
+        new_lines: list[str] = []
+        expected_prev = GENESIS_PREV_HASH
+        head_hash = expected_prev
+        # old entry_hash -> new entry_hash, so a verdict's `ref` (which
+        # points at a discovery's OLD hash) can be rewritten to the new one.
+        # A discovery always precedes its verdict in append order, so the
+        # map entry exists by the time the verdict is rebuilt.
+        hash_remap: dict[str, str] = {}
+        for rec in kept:
+            payload = rec.get("payload")
+            ts = rec.get("ts")
+            if not isinstance(payload, dict) or not isinstance(ts, str):
+                raise ChainError(
+                    f"{target}: kept record missing payload / ts during rebuild "
+                    f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
+                )
+            if payload.get("type") == DISCOVERY_VERDICT_TYPE:
+                old_ref = payload.get("ref")
+                if isinstance(old_ref, str) and old_ref in hash_remap:
+                    payload = {**payload, "ref": hash_remap[old_ref]}
+            old_entry_hash = str(rec.get("entry_hash") or "")
+            entry_hash = compute_entry_hash(expected_prev, ts, payload)
+            if old_entry_hash:
+                hash_remap[old_entry_hash] = entry_hash
+            envelope = {
+                "schema_version": UPGRADED_FORMAT_MARKER,
+                "ts": ts,
+                "prev_hash": expected_prev,
+                "payload": payload,
+                "entry_hash": entry_hash,
+            }
+            new_lines.append(json.dumps(envelope, ensure_ascii=False))
+            expected_prev = entry_hash
+            head_hash = entry_hash
+
+        if dry_run:
+            return CompactResult(
+                status="compacted",
+                total_before=total_before,
+                total_after=total_after,
+                removed=removed,
+                backup_path=None,
+                head_hash=None,
+                message=(
+                    f"{target}: DRY RUN — would remove {removed} open duplicate(s), "
+                    f"leaving {total_after} of {total_before} records"
+                ),
+            )
+
+        # Backup the original bytes before any rewrite.
+        from datetime import datetime, timezone
+
+        backup_ts = (
+            datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
+        )
+        backup = target.with_suffix(f".compact-{backup_ts}.bak")
+        try:
+            backup.write_bytes(target.read_bytes())
+        except OSError as exc:
+            raise ChainError(f"compact_deferred_discoveries backup: {exc}") from exc
+
+        new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
+        try:
+            _atomic_replace(target, new_contents)
+        except OSError as exc:
+            raise ChainError(
+                f"compact_deferred_discoveries atomic replace: {exc}"
+            ) from exc
+
+        post_verdict = _chain_verify(target)
+        if not post_verdict.intact:
+            raise ChainError(
+                f"{target}: compaction wrote file but post-verify failed "
+                f"({post_verdict.reason}). Backup preserved at {backup}."
+            )
+
         return CompactResult(
             status="compacted",
             total_before=total_before,
             total_after=total_after,
             removed=removed,
-            backup_path=None,
-            head_hash=None,
+            backup_path=backup,
+            head_hash=post_verdict.head_hash,
             message=(
-                f"{target}: DRY RUN — would remove {removed} open duplicate(s), "
-                f"leaving {total_after} of {total_before} records"
+                f"{target}: compacted {total_before} → {total_after} records "
+                f"({removed} open duplicate(s) removed); chain intact. "
+                f"Backup: {backup}"
             ),
         )
-
-    # Backup the original bytes before any rewrite.
-    from datetime import datetime, timezone
-
-    backup_ts = (
-        datetime.now(timezone.utc).isoformat().replace(":", "").replace(".", "-")
-    )
-    backup = target.with_suffix(f".compact-{backup_ts}.bak")
-    try:
-        backup.write_bytes(target.read_bytes())
-    except OSError as exc:
-        raise ChainError(f"compact_deferred_discoveries backup: {exc}") from exc
-
-    new_contents = ("\n".join(new_lines) + "\n").encode("utf-8")
-    try:
-        _atomic_replace(target, new_contents)
-    except OSError as exc:
-        raise ChainError(
-            f"compact_deferred_discoveries atomic replace: {exc}"
-        ) from exc
-
-    post_verdict = _chain_verify(target)
-    if not post_verdict.intact:
-        raise ChainError(
-            f"{target}: compaction wrote file but post-verify failed "
-            f"({post_verdict.reason}). Backup preserved at {backup}."
-        )
-
-    return CompactResult(
-        status="compacted",
-        total_before=total_before,
-        total_after=total_after,
-        removed=removed,
-        backup_path=backup,
-        head_hash=post_verdict.head_hash,
-        message=(
-            f"{target}: compacted {total_before} → {total_after} records "
-            f"({removed} open duplicate(s) removed); chain intact. "
-            f"Backup: {backup}"
-        ),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -1181,10 +1192,12 @@ def compact_protocols(
             message=f"{target} does not exist — nothing to compact",
         )
 
-    # Whole-window lock (see docstring § Concurrency). The missing check
-    # is deliberately BEFORE the lock so _locked's ``a+`` open does not
-    # materialise an empty file for a truly-absent target.
-    with _chain_locked(target):
+    # Whole-window lock (see docstring § Concurrency). §4.1 lock-order
+    # law: the shared rewrite mutex (cross-stream / cross-session) is
+    # acquired FIRST, then the per-file lock — never the reverse. The
+    # missing check is deliberately BEFORE the locks so _locked's ``a+``
+    # open does not materialise an empty file for a truly-absent target.
+    with _rewrite_lock(target.parent), _chain_locked(target):
         try:
             text = target.read_text(encoding="utf-8")
         except OSError as exc:
