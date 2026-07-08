@@ -4527,12 +4527,15 @@ def _kernel_update() -> int:
     return 0
 
 
-def _kernel_compact_protocols(args) -> int:
-    """`episteme kernel compact-protocols` — one-time compaction of the
-    framework protocols ledger (collapse Event-143 cascade-synthesis
+def _run_protocols_compaction(args) -> int:
+    """Shared handler for BOTH protocols-compaction entry points (§5.2):
+    `episteme kernel compact-protocols` (operator-spec'd name) and
+    `episteme chain compact --stream protocols`. One-time compaction of
+    the framework protocols ledger (collapse Event-143 cascade-synthesis
     duplicates; keep-first, chain rebuilt, audit trail preserved).
 
-    Mirrors the `chain compact` gate: a non-dry-run in-place rewrite
+    Both entry points bind to this one handler → identical behavior,
+    drift impossible by construction. A non-dry-run in-place rewrite
     requires --confirm (operator action per the loss-averse posture).
     After the run it prints the protocols-chain verify verdict —
     `verify.intact=true` is the operator's visible success criterion.
@@ -4547,7 +4550,7 @@ def _kernel_compact_protocols(args) -> int:
         import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
     except ImportError as exc:
         print(
-            f"[episteme kernel compact-protocols] error loading framework "
+            f"[episteme compact-protocols] error loading framework "
             f"module: {exc}",
             file=sys.stderr,
         )
@@ -4559,7 +4562,7 @@ def _kernel_compact_protocols(args) -> int:
     # Gate: refuse a non-dry-run rewrite without --confirm.
     if not dry_run and not getattr(args, "confirm", False):
         print(
-            "[episteme kernel compact-protocols] refusing to rewrite the "
+            "[episteme compact-protocols] refusing to rewrite the "
             "protocols ledger without --confirm (or pass --dry-run to preview)",
             file=sys.stderr,
         )
@@ -4568,7 +4571,7 @@ def _kernel_compact_protocols(args) -> int:
     try:
         result = _framework.compact_protocols(dry_run=dry_run)
     except _framework.ChainError as exc:
-        print(f"[episteme kernel compact-protocols] {exc}", file=sys.stderr)
+        print(f"[episteme compact-protocols] {exc}", file=sys.stderr)
         return 1
 
     # The operator's visible success criterion: the protocols chain
@@ -4595,7 +4598,7 @@ def _kernel_compact_protocols(args) -> int:
         )
         return 0
 
-    print(f"[episteme kernel compact-protocols] status={result.status}")
+    print(f"[episteme compact-protocols] status={result.status}")
     print(f"  total_before={result.total_before}")
     print(f"  total_after={result.total_after}")
     print(f"  removed={result.removed}")
@@ -4877,6 +4880,12 @@ def _chain_dispatch(args) -> int:
         return 0
 
     if action == "compact":
+        # §5.2 namespace symmetry — `--stream protocols` shares the one
+        # protocols-compaction handler with `episteme kernel
+        # compact-protocols` (drift impossible by construction; single
+        # handler binds both entry points).
+        if getattr(args, "stream", "deferred_discoveries") == "protocols":
+            return _run_protocols_compaction(args)
         # Event 136 CP-DEDUP-01 one-time compaction. Only deferred_discoveries
         # has the pre-Event-49 duplicate bloat. Non-dry-run rewrites the chain
         # in place (backup + atomic replace + post-verify), so gate it on
@@ -5661,7 +5670,7 @@ def build_parser() -> argparse.ArgumentParser:
     kernel_sub.add_parser("update", help="Regenerate kernel/MANIFEST.sha256 from current files")
     k_compact = kernel_sub.add_parser(
         "compact-protocols",
-        help="One-time compaction of the framework protocols ledger (collapse cascade-synthesis duplicates; keep-first, chain rebuilt, audit trail preserved)",
+        help="One-time compaction of the framework protocols ledger (collapse cascade-synthesis duplicates; keep-first, chain rebuilt, audit trail preserved). Alias of `episteme chain compact --stream protocols` (same handler)",
     )
     k_compact.add_argument(
         "--dry-run",
@@ -5760,18 +5769,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     c_compact = chain_sub.add_parser(
         "compact",
-        help="One-time CP-DEDUP-01 compaction of the deferred_discoveries chain (collapse pre-Event-49 open duplicates; first-wins, audit trail preserved)",
+        help="One-time compaction of a framework chain: `--stream deferred_discoveries` (CP-DEDUP-01 open duplicates) or `--stream protocols` (cascade-synthesis duplicates; shares the `kernel compact-protocols` handler)",
     )
     c_compact.add_argument(
         "--stream",
         default="deferred_discoveries",
-        choices=["deferred_discoveries"],
-        help="Stream to compact (only deferred_discoveries has CP-DEDUP-01 bloat)",
+        choices=["deferred_discoveries", "protocols"],
+        help="Stream to compact: deferred_discoveries (CP-DEDUP-01 bloat) or protocols (Event-143 cascade-synthesis duplicates; same handler as `episteme kernel compact-protocols`)",
     )
     c_compact.add_argument(
         "--dry-run",
         action="store_true",
         help="Report what would be removed without backing up or rewriting",
+    )
+    c_compact.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit a single JSON object of the result fields (protocols stream; includes `intact`)",
     )
     c_compact.add_argument(
         "--confirm",
@@ -6710,7 +6724,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         if args.kernel_action == "update":
             return _kernel_update()
         if args.kernel_action == "compact-protocols":
-            return _kernel_compact_protocols(args)
+            return _run_protocols_compaction(args)
         return 0
     if args.command == "check":
         return _check_dispatch(args)

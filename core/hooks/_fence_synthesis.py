@@ -215,6 +215,64 @@ def candidate_correlation_ids(
 
 
 # ---------------------------------------------------------------------------
+# Pair-signature fallback ladder — v1.9 loop-hygiene §3.1
+#
+# The h_ bucket ladder (candidate_correlation_ids) only spans a few
+# seconds, so a >5s no-tool_use_id op cannot pair. The pair signature is
+# a wall-clock-INDEPENDENT key over (session_scope | cwd | normalize(cmd))
+# — PostToolUse's tier-3 fallback (see finalize_on_success_with_fallback)
+# scans pending markers by this signature, oldest-first, delete-on-use.
+# ---------------------------------------------------------------------------
+
+_PAIR_SIG_CMD_CAP_BYTES = 4096
+
+
+def normalize(cmd: str) -> str:
+    """Canonicalize a command for signature pairing: collapse internal
+    whitespace runs to single spaces, expand ``~`` → ``$HOME``, cap at
+    ``_PAIR_SIG_CMD_CAP_BYTES`` bytes. Deterministic: Pre and Post apply
+    the same transform so the signature is identical on both sides."""
+    if not cmd:
+        return ""
+    text = " ".join(cmd.split())
+    home = os.environ.get("HOME") or str(Path.home())
+    text = text.replace("~", home)
+    encoded = text.encode("utf-8", errors="replace")
+    if len(encoded) > _PAIR_SIG_CMD_CAP_BYTES:
+        text = encoded[:_PAIR_SIG_CMD_CAP_BYTES].decode("utf-8", errors="ignore")
+    return text
+
+
+def pair_signature(session_scope: str, cwd: str, cmd: str) -> str:
+    """Timestamp-independent Pre/Post pairing key.
+
+    ``s_`` + sha1(``session_scope | cwd | normalize(cmd)``)[:16].
+    ``session_scope`` is the payload ``session_id`` when the runtime
+    carries it (probe §6.2 step 0: present on both Pre and Post), else
+    empty — the signature then degrades to (cwd | cmd), which still pairs
+    an op with itself as long as nothing else in the same second-window
+    shares the identical command."""
+    seed = f"{session_scope}|{cwd}|{normalize(cmd)}".encode("utf-8", errors="replace")
+    return "s_" + hashlib.sha1(seed).hexdigest()[:16]
+
+
+def _session_scope(payload: dict) -> str:
+    """Session scope for the pair signature. Probe §6.2 step 0 confirmed
+    Claude Code hook payloads carry ``session_id`` on both Pre and Post,
+    so it is the scope source; absent, this returns empty and the
+    signature degrades to (cwd | cmd)."""
+    return str(payload.get("session_id") or "")
+
+
+def pair_signature_for_payload(payload: dict, cmd: str) -> str:
+    """Compute the pair signature from a hook payload (Post side). The cwd
+    is normalized through ``Path`` so it matches the Pre-side marker,
+    which stores ``str(Path(payload['cwd']))``."""
+    cwd = str(Path(str(payload.get("cwd") or os.getcwd())))
+    return pair_signature(_session_scope(payload), cwd, cmd)
+
+
+# ---------------------------------------------------------------------------
 # Context signature — CP5 minimal inline computation
 #
 # The canonical version lives in CP7's `_context_signature.py` and
@@ -263,20 +321,30 @@ def write_pending_marker(
     correlation: str,
     cwd: Path,
     cmd: str,
+    *,
+    session_scope: str = "",
 ) -> Path | None:
     """Persist the Fence-admitted surface so PostToolUse can finalize.
 
     Returns the marker path on success, None on graceful-degrade
     failure. Never raises — the PreToolUse path must not break on
     synthesis bookkeeping failure.
+
+    Marker schema v2 (§3.1, additive; readers tolerate absence): the
+    marker gains ``pair_signature`` (the timestamp-independent tier-3
+    key) and ``ppid`` (this Pre-process's parent PID — a tier-3
+    discriminator; probe §6.2 step 0 confirmed Pre/Post share it). Old v1
+    markers simply never signature-match.
     """
     try:
         marker = {
-            "version": 1,
+            "version": 2,
             "correlation_id": correlation,
             "written_at": datetime.now(timezone.utc).isoformat(),
             "cwd": str(cwd),
             "command_redacted": _redact(cmd),
+            "pair_signature": pair_signature(session_scope, str(cwd), cmd),
+            "ppid": os.getppid(),
             "surface": {
                 "constraint_identified": str(surface.get("constraint_identified", "")),
                 "origin_evidence": str(surface.get("origin_evidence", "")),
@@ -432,9 +500,59 @@ def finalize_on_success(correlation: str, exit_code: int | None) -> dict | None:
         delete_pending_marker(correlation)
 
 
+def _signature_scan(
+    pair_sig: str, post_ppid: int | None
+) -> tuple[Path | None, dict | None]:
+    """Tier 3 of the pairing ladder (§3.1). Scan the pending dir for a
+    marker whose ``pair_signature`` equals ``pair_sig``, TTL-filtered,
+    oldest-first (FIFO: the earliest unfinalized identical op pairs
+    first). Returns ``(path, marker)`` or ``(None, None)``.
+
+    ``post_ppid`` is a SOFT discriminator: markers whose ``ppid`` matches
+    are preferred (probe §6.2 step 0: Pre/Post share PPID), but if none
+    match, the FIFO order over all signature matches still pairs — a
+    differing spawn model degrades to pure FIFO rather than failing a
+    legitimate pair closed. Old v1 markers (no ``pair_signature``) never
+    match. Never raises."""
+    pending = _pending_dir()
+    if not pending.is_dir():
+        return None, None
+    now = datetime.now(timezone.utc)
+    matches: list[tuple[datetime, bool, Path, dict]] = []
+    for path in pending.glob("*.json"):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict) or data.get("pair_signature") != pair_sig:
+            continue
+        written = data.get("written_at")
+        written_dt = now
+        if isinstance(written, str):
+            try:
+                written_dt = datetime.fromisoformat(written.replace("Z", "+00:00"))
+            except ValueError:
+                written_dt = now
+            else:
+                if (now - written_dt).total_seconds() > MARKER_TTL_SECONDS:
+                    continue
+        ppid_match = post_ppid is not None and data.get("ppid") == post_ppid
+        matches.append((written_dt, ppid_match, path, data))
+    if not matches:
+        return None, None
+    preferred = [m for m in matches if m[1]] or matches
+    preferred.sort(key=lambda m: m[0])  # oldest-first FIFO
+    _, _, path, data = preferred[0]
+    return path, data
+
+
 def finalize_on_success_with_fallback(
     candidates: list[str],
     exit_code: int | None,
+    *,
+    pair_sig: str | None = None,
+    post_ppid: int | None = None,
 ) -> dict | None:
     """Event 50 · CP-FENCE-02 — try multiple correlation candidates.
 
@@ -444,12 +562,20 @@ def finalize_on_success_with_fallback(
     under a different id than the PostToolUse-computed correlation
     (the Claude Code PreToolUse-lacks-tool_use_id case).
 
+    Pairing ladder (§3.1, strictly ordered, first hit wins):
+      1+2. ``candidates`` — explicit runtime ids then the bucket window
+           (current + lookback/lookahead second-buckets).
+      3. ``pair_sig`` signature scan — a timestamp-independent fallback
+         for a >5s no-tool_use_id op whose Pre marker's second-bucket is
+         beyond the candidate window. Skipped when ``pair_sig`` is None
+         (backward-compatible: existing callers behave exactly as before).
+
     Behavior:
-      - Walk candidates in order, read the first marker that exists.
-      - If exit_code == 0, synthesize + write protocol (same as
-        ``finalize_on_success``).
-      - Regardless of synthesis outcome, delete ALL candidate markers
-        so stale siblings don't pile up.
+      - Walk candidates in order, read the first marker that exists; else
+        run the tier-3 signature scan.
+      - If exit_code == 0, synthesize + write protocol.
+      - Delete ALL candidate markers (stale siblings), plus the tier-3
+        marker on use (delete-on-use), regardless of synthesis outcome.
       - Returns the envelope on synthesis write, else None.
     """
     found_marker: dict | None = None
@@ -458,6 +584,9 @@ def finalize_on_success_with_fallback(
         if candidate_marker is not None:
             found_marker = candidate_marker
             break
+    tier3_path: Path | None = None
+    if found_marker is None and pair_sig:
+        tier3_path, found_marker = _signature_scan(pair_sig, post_ppid)
     try:
         if found_marker is None:
             return None
@@ -480,6 +609,11 @@ def finalize_on_success_with_fallback(
     finally:
         for cid in candidates:
             delete_pending_marker(cid)
+        if tier3_path is not None:
+            try:
+                tier3_path.unlink()
+            except OSError:
+                pass
 
 
 # ---------------------------------------------------------------------------

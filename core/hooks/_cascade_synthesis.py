@@ -322,6 +322,7 @@ def finalize_on_success_with_fallback(
         try:
             from _framework import (  # type: ignore  # pyright: ignore[reportMissingImports]
                 ChainError as _ChainError,
+                _cascade_content_key,
                 _chain_iter,
                 _protocols_path,
                 write_protocol as _write_protocol,
@@ -337,13 +338,21 @@ def finalize_on_success_with_fallback(
         # verify_chains' job; dedup's job is seeing every record. And the
         # gate FAILS CLOSED — if uniqueness cannot be proven, skipping
         # one legitimate protocol costs less than re-spamming the ledger.
-        h = payload.get("cascade_hash")
+        #
+        # §5.1 read-side healing: key on `_cascade_content_key` (the
+        # shared stored-else-recomputed helper) rather than the raw
+        # `cascade_hash` field. A legacy record with NO stored field then
+        # RECOMPUTES the same content key and participates in dedup with
+        # zero payload mutation (audit purity — Event 144's verbatim
+        # rule). The ≤1-re-emission-per-cluster blind spot closes for
+        # every legacy record, forever, not just ones a compaction visited.
+        key = _cascade_content_key(payload)
         try:
             target = _protocols_path()
-            if target.is_file():
+            if key is not None and target.is_file():
                 for env in _chain_iter(target, verify=False):
                     p = env.get("payload") if isinstance(env, dict) else None
-                    if isinstance(p, dict) and p.get("cascade_hash") == h:
+                    if isinstance(p, dict) and _cascade_content_key(p) == key:
                         return None
         except (OSError, _ChainError):
             return None
