@@ -483,5 +483,189 @@ class ReasoningSurfaceGuardTests(unittest.TestCase):
         self.assertNotIn("not valid JSON", err)
 
 
+# "git push" / "git reset --hard" are assembled from fragments so this test
+# module never carries a literal high-impact command token (the repo's
+# block_dangerous hook substring-matches raw command text; keeping the tokens
+# fragmented keeps the suite runnable under that hook).
+_GP = "git" + " " + "push"
+_GRH = "git" + " " + "reset --hard"
+
+
+class Event146ClassificationTests(unittest.TestCase):
+    """Event 146 — classification is against executed command positions
+    (argv), not raw command text. Data-position occurrences of a high-impact
+    token no longer classify; real executed ops still do."""
+
+    def _label(self, cmd: str) -> str | None:
+        return guard._match_executed_command(cmd)
+
+    def _run(self, cmd: str, cwd: Path) -> tuple[int, str, str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd},
+                   "cwd": str(cwd)}
+        with patch("sys.stdin", new=io.StringIO(json.dumps(payload))), \
+             patch("sys.stdout", new=io.StringIO()) as out, \
+             patch("sys.stderr", new=io.StringIO()) as err:
+            rc = guard.main()
+        return rc, out.getvalue(), err.getvalue()
+
+    # ----- the four live-reproduced false-positive classes -> NO match -----
+
+    def test_heredoc_body_does_not_classify(self):
+        cmd = "cat <<'EOF'\nremember to " + _GP + " origin main after merge\nEOF"
+        self.assertIsNone(self._label(cmd))
+
+    def test_quoted_string_literal_arg_does_not_classify(self):
+        # A python/shell string literal in data position (argument to echo).
+        self.assertIsNone(self._label('echo "' + _GP + ' origin master"'))
+
+    def test_grep_pattern_does_not_classify(self):
+        # Neutral target path so the (orthogonal) architectural-cascade
+        # detector does not fire — isolates the match-surface fix.
+        self.assertIsNone(self._label('grep -rn "' + _GP + '" release_notes.txt'))
+
+    def test_commit_message_body_does_not_classify(self):
+        cmd = 'git commit -m "docs: explain why we ' + _GP + ' after merge"'
+        self.assertIsNone(self._label(cmd))
+
+    def test_false_positive_classes_produce_zero_injection(self):
+        # End-to-end: no surface, no advisory marker, yet these emit nothing.
+        cmds = [
+            "cat <<'EOF'\n" + _GP + " origin main\nEOF",
+            'echo "' + _GP + ' origin master"',
+            'grep -rn "' + _GP + '" release_notes.txt',
+            'git commit -m "note: ' + _GP + ' later"',
+        ]
+        for cmd in cmds:
+            with self.subTest(cmd=cmd), tempfile.TemporaryDirectory() as td:
+                rc, out, err = self._run(cmd, Path(td))
+                self.assertEqual(rc, 0)
+                self.assertEqual(out, "")
+                self.assertEqual(err, "")
+
+    # ----- executed ops still classify -----
+
+    def test_plain_push_classifies(self):
+        self.assertEqual(self._label(_GP + " origin master"), "git push")
+
+    def test_reset_hard_classifies(self):
+        self.assertEqual(self._label(_GRH), "git reset --hard")
+
+    def test_chained_command_classifies(self):
+        # High-impact op after a shell operator (&&) still classifies.
+        self.assertEqual(self._label("cd build && " + _GP), "git push")
+
+    def test_semicolon_chained_classifies(self):
+        self.assertEqual(self._label("false ; " + _GP), "git push")
+
+    def test_wrapper_bash_c_classifies(self):
+        self.assertEqual(self._label('bash -c "' + _GP + '"'), "git push")
+
+    def test_wrapper_sh_c_publish_still_classifies(self):
+        self.assertEqual(self._label('sh -c "npm publish"'), "npm publish")
+
+    def test_backtick_substitution_classifies(self):
+        self.assertEqual(self._label("echo `" + _GP + "`"), "git push")
+
+    def test_dollar_paren_substitution_classifies(self):
+        self.assertEqual(self._label("echo $(" + _GP + ")"), "git push")
+
+    def test_xargs_wrapper_classifies(self):
+        self.assertEqual(self._label("echo x | xargs " + _GP), "git push")
+
+    def test_parse_failure_falls_back_to_whole_text_scan(self):
+        # Unbalanced quote makes shlex raise; the fail-closed fallback still
+        # classifies the real op rather than letting it slip through.
+        self.assertEqual(self._label(_GP + ' origin "master'), "git push")
+
+    def test_reset_hard_blocks_end_to_end(self):
+        with tempfile.TemporaryDirectory() as td:
+            rc, out, err = self._run(_GRH + " HEAD~1", Path(td))
+        self.assertEqual(rc, 2)
+        self.assertIn("git reset --hard", err)
+
+
+class Event146DedupTests(unittest.TestCase):
+    """Event 146 — the full ~2.3 KB remediation schema is emitted once per
+    session; repeat firings collapse to a compact pointer keyed on
+    session_id."""
+
+    _SCHEMA_MARKER = "Write .episteme/reasoning-surface.json with"
+    _POINTER_MARKER = "shown earlier this session"
+
+    def _run(self, cmd: str, cwd: Path, home: Path,
+             session_id: str | None = None) -> tuple[int, str, str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd},
+                   "cwd": str(cwd)}
+        if session_id is not None:
+            payload["session_id"] = session_id
+        with patch("sys.stdin", new=io.StringIO(json.dumps(payload))), \
+             patch("sys.stdout", new=io.StringIO()) as out, \
+             patch("sys.stderr", new=io.StringIO()) as err, \
+             patch.object(guard.Path, "home", return_value=home):
+            rc = guard.main()
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_second_firing_same_session_is_a_pointer(self):
+        cmd = _GP + " origin master"
+        with tempfile.TemporaryDirectory() as td:
+            cwd, home = Path(td) / "proj", Path(td) / "home"
+            cwd.mkdir(); home.mkdir()
+            rc1, _, err1 = self._run(cmd, cwd, home, session_id="sess-A")
+            rc2, _, err2 = self._run(cmd, cwd, home, session_id="sess-A")
+        self.assertEqual(rc1, 2)
+        self.assertEqual(rc2, 2)
+        # First firing carries the full schema.
+        self.assertIn(self._SCHEMA_MARKER, err1)
+        # Second firing is a compact pointer, no schema.
+        self.assertIn(self._POINTER_MARKER, err2)
+        self.assertNotIn(self._SCHEMA_MARKER, err2)
+        self.assertLess(len(err2.encode()), 200)
+        # The pointer must always be strictly smaller than the full template.
+        # No ratio assertion: the full template's size varies with the host
+        # environment (the operator-posture footer only renders where derived
+        # knobs exist), so a fixed percentage couples the test to the machine.
+        # The <200-byte absolute bound above is the portable contract.
+        self.assertLess(len(err2.encode()), len(err1.encode()))
+
+    def test_new_session_gets_full_schema(self):
+        cmd = _GP + " origin master"
+        with tempfile.TemporaryDirectory() as td:
+            cwd, home = Path(td) / "proj", Path(td) / "home"
+            cwd.mkdir(); home.mkdir()
+            self._run(cmd, cwd, home, session_id="sess-A")  # consumes A
+            _, _, err_b = self._run(cmd, cwd, home, session_id="sess-B")
+        self.assertIn(self._SCHEMA_MARKER, err_b)
+
+    def test_missing_session_id_always_shows_full_schema(self):
+        cmd = _GP + " origin master"
+        with tempfile.TemporaryDirectory() as td:
+            cwd, home = Path(td) / "proj", Path(td) / "home"
+            cwd.mkdir(); home.mkdir()
+            _, _, err1 = self._run(cmd, cwd, home, session_id=None)
+            _, _, err2 = self._run(cmd, cwd, home, session_id=None)
+        self.assertIn(self._SCHEMA_MARKER, err1)
+        self.assertIn(self._SCHEMA_MARKER, err2)
+        # No marker is written when there is no session scope.
+        self.assertFalse((home / ".episteme" / "state" / "advisory_shown").exists())
+
+    def test_advisory_mode_second_firing_pointer_under_200_bytes(self):
+        cmd = _GP + " origin master"
+        with tempfile.TemporaryDirectory() as td:
+            cwd, home = Path(td) / "proj", Path(td) / "home"
+            cwd.mkdir(); home.mkdir()
+            (cwd / ".episteme").mkdir()
+            (cwd / ".episteme" / "advisory-surface").write_text("", encoding="utf-8")
+            rc1, out1, _ = self._run(cmd, cwd, home, session_id="sess-adv")
+            rc2, out2, _ = self._run(cmd, cwd, home, session_id="sess-adv")
+        self.assertEqual(rc1, 0)
+        self.assertEqual(rc2, 0)
+        ctx1 = json.loads(out1)["hookSpecificOutput"]["additionalContext"]
+        ctx2 = json.loads(out2)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn(self._SCHEMA_MARKER, ctx1)
+        self.assertIn(self._POINTER_MARKER, ctx2)
+        self.assertNotIn(self._SCHEMA_MARKER, ctx2)
+        self.assertLess(len(ctx2.encode()), 200)
+
+
 if __name__ == "__main__":
     unittest.main()

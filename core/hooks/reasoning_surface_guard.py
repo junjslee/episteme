@@ -38,6 +38,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import sys
 import time
 from datetime import datetime, timezone
@@ -180,6 +181,12 @@ LAZY_TOKENS = frozenset({
 HIGH_IMPACT_BASH = [
     (re.compile(r"\bgit\s+push\b"), "git push"),
     (re.compile(r"\bgit\s+merge\b(?!\s+--abort)"), "git merge"),
+    # Event 146 — `git reset --hard` discards the working tree + index
+    # irreversibly. block_dangerous.py already halts it as a raw string;
+    # add it to the positive enumeration so the surface gate also demands
+    # a Reasoning Surface for it (conscious positive-system addition, not
+    # a match-surface broadening).
+    (re.compile(r"\bgit\s+reset\s+--hard\b"), "git reset --hard"),
     (re.compile(r"\bnpm\s+publish\b"), "npm publish"),
     (re.compile(r"\byarn\s+publish\b"), "yarn publish"),
     (re.compile(r"\bpnpm\s+publish\b"), "pnpm publish"),
@@ -287,6 +294,244 @@ def _match_against_patterns(text: str) -> str | None:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Event 146 — argv-position classification.
+#
+# Failure mode countered: the pre-146 path ran the high-impact patterns over
+# the WHOLE command text (`_match_against_patterns(_normalize_command(cmd))`),
+# so a heredoc BODY, a quoted string literal argument (`echo "git push ..."`),
+# a grep pattern (`grep "git push" ...`), or a commit-message body all
+# classified as high-impact and each firing injected the full ~2.3 KB surface
+# template. This narrows the MATCH SURFACE from all-text to what the shell
+# would actually EXECUTE — argv command-position tokens per segment, plus the
+# command-string ARGUMENT of wrapper/indirect executors, plus command-
+# substitution bodies — while leaving data-position text inert.
+#
+# Fail-closed direction (ratified repo lesson, Events 142-143): the failure
+# direction is TOWARD classifying. A shlex parse failure or any unhandled
+# shape falls back to the pre-146 whole-text scan, and wrappers retain the
+# old whole-argument sensitivity. Only data-position text stops triggering.
+# Tokenization uses shlex (stdlib); no hand-rolled character-level quoting
+# logic beyond shlex + operator splitting + heredoc/substitution extraction.
+# ---------------------------------------------------------------------------
+
+# Heredoc intro: `<<WORD`, `<<-WORD`, `<<'WORD'`, `<<"WORD"`. The body that
+# follows is data (a file / stdin payload), never an executed command line.
+_HEREDOC_INTRO = re.compile(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1")
+
+# Command-substitution spans — their contents ARE executed, so they are
+# extracted and scanned recursively rather than treated as data.
+_BACKTICK_SUBST = re.compile(r"`([^`]*)`")
+_DOLLAR_PAREN_SUBST = re.compile(r"\$\(([^()]*)\)")
+
+# Wrapper executors that run their command-string argument: `bash -c STR`,
+# `sh -c STR`, `python -c STR`, etc. The `-c` argument is scanned with the
+# retained pre-146 whole-text sensitivity (`_match_against_patterns` over a
+# normalized string) so a real high-impact op inside it never goes invisible.
+_WRAPPER_DASH_C = frozenset({
+    "bash", "sh", "zsh", "ksh", "dash",
+    "python", "python2", "python3",
+})
+
+# Redirect tokens are dropped before command-position reconstruction.
+_REDIRECT_TOKENS = frozenset({"<", ">", ">>", "<<", "<<<", "&>", ">&", "2>", "2>>"})
+
+# Bound recursion into command substitutions.
+_MAX_SUBST_DEPTH = 3
+
+
+def _strip_quotes(tok: str) -> str:
+    if len(tok) >= 2 and tok[0] == tok[-1] and tok[0] in ("'", '"'):
+        return tok[1:-1]
+    return tok
+
+
+def _is_quoted(tok: str) -> bool:
+    return len(tok) >= 2 and tok[0] in ("'", '"') and tok[-1] == tok[0]
+
+
+def _neutralize_token(tok: str) -> str:
+    """Command-position reconstruction rule for one non-posix shlex token.
+
+    A quoted token whose content carries internal whitespace is a multi-word
+    string literal in data position (the shape of every Event-146 false
+    positive: `"git push origin master"`, a grep pattern, a commit body) —
+    neutralize it so its internal words cannot form a high-impact adjacency.
+    A single-word quoted token (e.g. a quoted subcommand `git 'push'`) keeps
+    its value, biasing toward classifying (fail-closed). Unquoted tokens pass
+    through unchanged.
+    """
+    if _is_quoted(tok):
+        content = _strip_quotes(tok)
+        if not content or any(ch.isspace() for ch in content):
+            return " "
+        return content
+    return tok
+
+
+def _strip_heredoc_bodies(cmd: str) -> str:
+    """Drop heredoc BODY lines (data), keeping the intro and terminator lines.
+
+    Without this, the body's bare words tokenize as ordinary command-position
+    tokens and a body line like `git push origin main` classifies as an op.
+    """
+    if "<<" not in cmd:
+        return cmd
+    lines = cmd.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        out.append(line)
+        m = _HEREDOC_INTRO.search(line)
+        if m:
+            terminator = m.group(2)
+            j = i + 1
+            while j < len(lines) and lines[j].strip() != terminator:
+                j += 1
+            if j < len(lines):
+                out.append(lines[j])  # retain the terminator line
+            i = j + 1
+            continue
+        i += 1
+    return "\n".join(out)
+
+
+def _extract_substitutions(cmd: str) -> tuple[str, list[str]]:
+    """Replace `` `...` `` / `$(...)` spans with a space and return their bodies.
+
+    Command-substitution bodies execute, so they are scanned recursively.
+    Extraction is quote-agnostic (a substitution inside single quotes does not
+    execute in a real shell) — extracting it anyway over-classifies, which is
+    the fail-closed direction.
+    """
+    subs: list[str] = []
+
+    def _grab(m: "re.Match[str]") -> str:
+        subs.append(m.group(1))
+        return " "
+
+    cmd = _BACKTICK_SUBST.sub(_grab, cmd)
+    for _ in range(_MAX_SUBST_DEPTH):
+        new = _DOLLAR_PAREN_SUBST.sub(_grab, cmd)
+        if new == cmd:
+            break
+        cmd = new
+    return cmd, subs
+
+
+def _tokenize_nonposix(text: str) -> list[str]:
+    """Tokenize with quotes RETAINED so data tokens stay distinguishable.
+
+    Non-posix shlex returns `"git push"` as a single quoted token while a bare
+    `git push` returns two tokens — this is exactly the data-vs-command signal
+    `_neutralize_token` consumes. `punctuation_chars` groups shell operators
+    (`&&`, `||`, `|`, `;`) into their own tokens for segment splitting.
+    Raises ValueError on unbalanced quotes (caller falls back, fail-closed).
+    """
+    lex = shlex.shlex(text, posix=False, punctuation_chars=";&|()<>")
+    lex.whitespace_split = True
+    return list(lex)
+
+
+def _is_operator_token(tok: str) -> bool:
+    return bool(tok) and all(ch in ";&|" for ch in tok)
+
+
+def _split_segments(tokens: list[str]) -> list[list[str]]:
+    """Partition a token stream at shell command separators (&&, ||, |, ;, &)."""
+    segments: list[list[str]] = []
+    current: list[str] = []
+    for tok in tokens:
+        if _is_operator_token(tok):
+            if current:
+                segments.append(current)
+                current = []
+        else:
+            current.append(tok)
+    if current:
+        segments.append(current)
+    return segments
+
+
+def _wrapper_command_string(base: str, tokens: list[str]) -> str | None:
+    """Return the command-string argument a wrapper executor will run, or None.
+
+    `bash -c STR` / `python -c STR` → STR; `xargs CMD ...` → the trailing
+    command line. `source` / `.` run a FILE, handled by
+    `_match_script_execution`, so they return None here.
+    """
+    if base in _WRAPPER_DASH_C:
+        for i in range(1, len(tokens)):
+            if _strip_quotes(tokens[i]) == "-c" and i + 1 < len(tokens):
+                return _strip_quotes(tokens[i + 1])
+        return None
+    if base == "xargs":
+        rest = [_strip_quotes(t) for t in tokens[1:]]
+        return " ".join(rest) if rest else None
+    return None
+
+
+def _scan_eval_segment(tokens: list[str]) -> str | None:
+    """Handle `eval` specially — it executes its argument.
+
+    `eval $X` / `eval "$X"` is variable indirection (blocked, matching the
+    pre-146 INDIRECTION_BASH heuristic whether or not the `$` is quoted).
+    A literal `eval "git push"` is scanned with the retained old sensitivity;
+    `eval "echo hi"` stays inert.
+    """
+    if len(tokens) < 2:
+        return None
+    inner = _strip_quotes(tokens[1])
+    if inner.startswith("$"):
+        return "eval with variable indirection"
+    joined = " ".join(_strip_quotes(t) for t in tokens[1:])
+    return _match_against_patterns(_normalize_command(joined))
+
+
+def _scan_segment(tokens: list[str]) -> str | None:
+    tokens = [t for t in tokens if t not in _REDIRECT_TOKENS]
+    if not tokens:
+        return None
+    base = _strip_quotes(tokens[0]).rsplit("/", 1)[-1]
+    if base == "eval":
+        return _scan_eval_segment(tokens)
+    inner = _wrapper_command_string(base, tokens)
+    if inner is not None:
+        label = _match_against_patterns(_normalize_command(inner))
+        if label:
+            return label
+    reconstructed = " ".join(_neutralize_token(t) for t in tokens)
+    return _match_against_patterns(reconstructed)
+
+
+def _match_executed_command(cmd: str, _depth: int = 0) -> str | None:
+    """Classify against what the shell would EXECUTE, not the raw command text.
+
+    Returns a high-impact / indirection label or None. On any shlex parse
+    failure, falls back to the pre-146 whole-text scan (fail closed).
+    """
+    if not cmd or not cmd.strip():
+        return None
+    body, subs = _extract_substitutions(_strip_heredoc_bodies(cmd))
+    try:
+        tokens = _tokenize_nonposix(body)
+    except ValueError:
+        # Malformed command (e.g. unbalanced quote): fail closed to the
+        # pre-146 whole-text scan so a real op is never lost to a parse error.
+        return _match_against_patterns(_normalize_command(cmd))
+    for segment in _split_segments(tokens):
+        label = _scan_segment(segment)
+        if label:
+            return label
+    if _depth < _MAX_SUBST_DEPTH:
+        for sub in subs:
+            label = _match_executed_command(sub, _depth + 1)
+            if label:
+                return label
+    return None
+
+
 def _resolve_script_path(cwd: Path, raw: str) -> Path | None:
     """Best-effort resolution of a script reference against `cwd`.
 
@@ -338,6 +583,60 @@ def _match_script_execution(cwd: Path, cmd: str) -> str | None:
 
 def _state_store_path() -> Path:
     return Path.home() / ".episteme" / "state" / "session_context.json"
+
+
+def _safe_session_id(raw: str) -> str:
+    """Sanitize a session id for use as a filename component (cf. context_guard)."""
+    cleaned = "".join(
+        ch for ch in (raw or "") if ch.isalnum() or ch in {"-", "_", "."}
+    )
+    return cleaned[:128]
+
+
+def _advisory_shown_marker(session_id: str) -> Path:
+    """Per-session marker recording that the full surface schema was shown.
+
+    Follows the `~/.episteme/state/<kind>/<id>` convention used by the
+    fence / cascade pending markers; isolated in tests via `Path.home`.
+    """
+    return (
+        Path.home() / ".episteme" / "state" / "advisory_shown"
+        / f"{_safe_session_id(session_id)}.marker"
+    )
+
+
+def _should_show_full_surface(payload: dict) -> bool:
+    """Event 146 — session-scoped dedup of the ~2.3 KB remediation schema.
+
+    The first firing in a session shows the full two-artifact schema and
+    records a marker; subsequent firings in the same session collapse to a
+    1-2 line pointer. When the runtime supplies no ``session_id`` — or the
+    marker cannot be persisted — the full schema is shown (fail toward
+    informing). Session id is present on both PreToolUse and PostToolUse
+    payloads (Event 145 B1).
+    """
+    session_id = str(payload.get("session_id") or "").strip()
+    if not session_id:
+        return True
+    marker = _advisory_shown_marker(session_id)
+    try:
+        if marker.exists():
+            return False
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text(
+            datetime.now(timezone.utc).isoformat(), encoding="utf-8"
+        )
+    except OSError:
+        return True
+    return True
+
+
+def _surface_pointer(label: str, status: str) -> str:
+    """Compact (<200 byte) pointer emitted on repeat firings within a session."""
+    return (
+        f"`{label}` needs a valid Reasoning Surface ({status}); full schema "
+        f"shown earlier this session — re-author .episteme/reasoning-surface.json."
+    )
 
 
 def _load_session_state() -> dict:
@@ -412,8 +711,12 @@ def _match_agent_written_files(cmd: str) -> str | None:
 def _match_high_impact(tool_name: str, payload: dict) -> str | None:
     if tool_name == "Bash":
         cmd = _bash_command(payload)
-        normalized = _normalize_command(cmd)
-        label = _match_against_patterns(normalized)
+        # Event 146 — classify against executed command positions, not raw
+        # text. Data-position text (heredoc bodies, quoted string literals,
+        # grep patterns, commit-message bodies) no longer triggers; wrapper
+        # arguments and command substitutions retain the old sensitivity, and
+        # any parse failure falls back to the whole-text scan (fail closed).
+        label = _match_executed_command(cmd)
         if label:
             return label
         cwd = Path(payload.get("cwd") or os.getcwd())
@@ -1759,41 +2062,59 @@ def main() -> int:
     header = f"REASONING SURFACE {status.upper()}: high-impact op `{label}` with {detail}."
     if interrogation_detail:
         header += f" Interrogation artifact: {interrogation_detail}."
-    # Event 138 — factual statements, two satisfier paths. The hooks
-    # doctrine reserves imperatives for the model's own instructions;
-    # out-of-band context states what exists and what would satisfy.
-    instruction = (
-        "Two artifacts satisfy this gate: (1) a fresh interrogation "
-        "verdict at .episteme/interrogation.json, produced by the "
-        "epistemic-interrogation skill — the decision decomposed into "
-        "tiered claims, load-bearing claims verified in a fresh context "
-        "against external evidence, an argued opposition, a weakest "
-        "link, and a pre-committed disconfirmation; or (2) a Reasoning "
-        f"Surface at .episteme/reasoning-surface.json: "
-        f"{_surface_template(template_blueprint)}"
-    )
+
+    # Event 146 — per-session dedup. The full ~2.3 KB two-artifact schema
+    # is shown on the FIRST firing in a session; later firings in the same
+    # session collapse to a 1-2 line pointer so repeat blocks cost <10% of
+    # the original bytes. Decided here (after the status=="ok" early return)
+    # so an admitted op never consumes the session's first-firing slot.
+    show_full = _should_show_full_surface(payload)
+
+    if show_full:
+        # Event 138 — factual statements, two satisfier paths. The hooks
+        # doctrine reserves imperatives for the model's own instructions;
+        # out-of-band context states what exists and what would satisfy.
+        instruction = (
+            "Two artifacts satisfy this gate: (1) a fresh interrogation "
+            "verdict at .episteme/interrogation.json, produced by the "
+            "epistemic-interrogation skill — the decision decomposed into "
+            "tiered claims, load-bearing claims verified in a fresh context "
+            "against external evidence, an argued opposition, a weakest "
+            "link, and a pre-committed disconfirmation; or (2) a Reasoning "
+            f"Surface at .episteme/reasoning-surface.json: "
+            f"{_surface_template(template_blueprint)}"
+        )
+    else:
+        instruction = _surface_pointer(label, status)
 
     if not advisory_only:
         _write_audit(tool_name, label, cwd, status, "blocked", mode)
-        sys.stderr.write(
-            "Execution blocked by Episteme Strict Mode: no valid "
-            "Reasoning Surface or interrogation verdict exists for this "
-            "high-impact op.\n"
-            f"{header}\n{instruction}\n"
-            "Per-project advisory mode (not recommended) is enabled by "
-            "`touch .episteme/advisory-surface`.\n"
-        )
+        if show_full:
+            sys.stderr.write(
+                "Execution blocked by Episteme Strict Mode: no valid "
+                "Reasoning Surface or interrogation verdict exists for this "
+                "high-impact op.\n"
+                f"{header}\n{instruction}\n"
+                "Per-project advisory mode (not recommended) is enabled by "
+                "`touch .episteme/advisory-surface`.\n"
+            )
+        else:
+            sys.stderr.write(f"Episteme Strict Mode: {instruction}\n")
         return 2
 
     _write_audit(tool_name, label, cwd, status, "advisory", mode)
+    if show_full:
+        additional_context = (
+            f"{header} Advisory mode is active (.episteme/advisory-surface "
+            f"present); the op proceeds unblocked and this gap is "
+            f"recorded in the audit trail. {instruction}"
+        )
+    else:
+        additional_context = instruction
     advisory = {
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",
-            "additionalContext": (
-                f"{header} Advisory mode is active (.episteme/advisory-surface "
-                f"present); the op proceeds unblocked and this gap is "
-                f"recorded in the audit trail. {instruction}"
-            ),
+            "additionalContext": additional_context,
         }
     }
     sys.stdout.write(json.dumps(advisory))
