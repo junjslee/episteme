@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import tempfile
 import time
 import unittest
@@ -584,6 +585,89 @@ class Event146ClassificationTests(unittest.TestCase):
         self.assertIn("git reset --hard", err)
 
 
+class Event146FailClosedRegressionTests(unittest.TestCase):
+    """Post-merge review falsified Event 146's fail-closed claim for two
+    realistic shapes: a real executed high-impact op became INVISIBLE to the
+    gate (rc 0, no output).
+
+    FINDING 1 — wrapper-prefix under-classification: a `-c` executor behind an
+    open-ended prefix (`timeout`, `env`, `nohup`, `nice`, `stdbuf`, `command`,
+    `ionice`, `xvfb-run`, ...) left `_wrapper_command_string` returning None
+    and the quoted payload erased as data.
+
+    FINDING 2 — heredoc stripping dropped trailing executed commands: a `<<`
+    inside a quoted string (`git commit -m "add a<<b shift"`) matched the intro
+    regex, and with no terminator line the loop discarded every remaining
+    line — swallowing a real `git push` on the next line.
+
+    Every case runs end-to-end through `main()` with a cwd carrying no
+    surface / advisory artifact — the exact state in which a fail-open lets the
+    op through silently.
+    """
+
+    def _run(self, cmd: str, cwd: Path) -> tuple[int, str, str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd},
+                   "cwd": str(cwd)}
+        with patch("sys.stdin", new=io.StringIO(json.dumps(payload))), \
+             patch("sys.stdout", new=io.StringIO()) as out, \
+             patch("sys.stderr", new=io.StringIO()) as err:
+            rc = guard.main()
+        return rc, out.getvalue(), err.getvalue()
+
+    def _assert_classifies(self, cmd: str, label: str) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            rc, _out, err = self._run(cmd, Path(td))
+        self.assertEqual(rc, 2, f"expected block for {cmd!r}, got rc={rc}")
+        self.assertIn(label, err)
+
+    def _assert_inert(self, cmd: str) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            rc, out, err = self._run(cmd, Path(td))
+        self.assertEqual(rc, 0, f"expected inert for {cmd!r}, got rc={rc} err={err!r}")
+        self.assertEqual(out, "")
+        self.assertEqual(err, "")
+
+    # ----- FINDING 1 — wrapper-prefix under-classification MUST CLASSIFY -----
+
+    def test_timeout_bash_c_push_classifies(self):
+        self._assert_classifies(
+            'timeout 30 bash -c "' + _GP + ' origin main"', "git push")
+
+    def test_env_prefix_bash_c_push_classifies(self):
+        self._assert_classifies(
+            'env A=B bash -c "' + _GP + ' origin main"', "git push")
+
+    def test_nohup_bash_c_publish_classifies(self):
+        self._assert_classifies('nohup bash -c "npm publish"', "npm publish")
+
+    # ----- FINDING 2 — quoted-`<<` no longer eats trailing commands -----
+
+    def test_quoted_lshift_commit_then_push_classifies(self):
+        self._assert_classifies(
+            'git commit -m "add a<<b shift"\n' + _GP + ' origin main',
+            "git push")
+
+    def test_quoted_lshift_echo_then_reset_hard_classifies(self):
+        self._assert_classifies(
+            'echo "compare x << y"\n' + _GRH + ' HEAD~1', "git reset --hard")
+
+    def test_genuine_heredoc_then_push_after_terminator_classifies(self):
+        cmd = "cat <<EOF\n" + _GP + " in body\nEOF\n" + _GP + " origin main"
+        self._assert_classifies(cmd, "git push")
+
+    # ----- MUST STAY INERT -----
+
+    def test_genuine_heredoc_body_push_stays_inert(self):
+        cmd = "cat <<'EOF'\nremember to " + _GP + " origin main after merge\nEOF"
+        self._assert_inert(cmd)
+
+    def test_quoted_string_literal_push_stays_inert(self):
+        self._assert_inert('echo "' + _GP + ' origin master is the command"')
+
+    def test_quoted_lshift_line_then_benign_stays_inert(self):
+        self._assert_inert('echo "compare x << y"\nls -la')
+
+
 class Event146DedupTests(unittest.TestCase):
     """Event 146 — the full ~2.3 KB remediation schema is emitted once per
     session; repeat firings collapse to a compact pointer keyed on
@@ -665,6 +749,28 @@ class Event146DedupTests(unittest.TestCase):
         self.assertIn(self._POINTER_MARKER, ctx2)
         self.assertNotIn(self._SCHEMA_MARKER, ctx2)
         self.assertLess(len(ctx2.encode()), 200)
+
+    def test_advisory_marker_honors_episteme_home(self):
+        # FINDING 4 — the advisory-shown marker resolves through the same
+        # EPISTEME_HOME-aware resolver as the fence / cascade pending dirs, so
+        # a relocated root keeps all guard state under one tree instead of
+        # splitting the dedup marker off under a hardcoded ~/.episteme.
+        cmd = _GP + " origin master"
+        with tempfile.TemporaryDirectory() as td:
+            cwd, home = Path(td) / "proj", Path(td) / "home"
+            root = Path(td) / "relocated"
+            cwd.mkdir(); home.mkdir()
+            with patch.dict(os.environ, {"EPISTEME_HOME": str(root)}):
+                rc, _, _ = self._run(cmd, cwd, home, session_id="sess-relo")
+            self.assertEqual(rc, 2)
+            # Marker lands under the relocated root ...
+            self.assertTrue(
+                (root / "state" / "advisory_shown" / "sess-relo.marker").exists()
+            )
+            # ... and NOT under the Path.home fallback tree.
+            self.assertFalse(
+                (home / ".episteme" / "state" / "advisory_shown").exists()
+            )
 
 
 if __name__ == "__main__":

@@ -315,9 +315,13 @@ def _match_against_patterns(text: str) -> str | None:
 # logic beyond shlex + operator splitting + heredoc/substitution extraction.
 # ---------------------------------------------------------------------------
 
-# Heredoc intro: `<<WORD`, `<<-WORD`, `<<'WORD'`, `<<"WORD"`. The body that
-# follows is data (a file / stdin payload), never an executed command line.
-_HEREDOC_INTRO = re.compile(r"<<-?\s*([\"']?)([A-Za-z_][A-Za-z0-9_]*)\1")
+# Heredoc terminator word shape — used by `_heredoc_terminator` to validate
+# the token following a genuine `<<` / `<<-` operator. A regex over the raw
+# line is NOT used to DETECT the intro (FINDING 2): `<<`-lookalikes inside a
+# quoted string literal (`git commit -m "add a<<b shift"`) must not register
+# as a heredoc. Detection goes through shlex so a `<<` embedded in a quoted
+# token stays inside that token and is never mistaken for an operator.
+_HEREDOC_TERMINATOR_WORD = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 # Command-substitution spans — their contents ARE executed, so they are
 # extracted and scanned recursively rather than treated as data.
@@ -350,6 +354,38 @@ def _is_quoted(tok: str) -> bool:
     return len(tok) >= 2 and tok[0] in ("'", '"') and tok[-1] == tok[0]
 
 
+# FINDING 1 backstop — bare (unquoted) executor tokens that run a
+# command-STRING argument somewhere in the segment: `bash -c ...`,
+# `python -c ...`, `eval ...`, or a trailing-command builder (`xargs`).
+# The set of *prefix* wrappers that can precede one of these
+# (timeout / env / nohup / nice / stdbuf / command / ionice / xvfb-run / ...)
+# is OPEN-ENDED, so we do NOT enumerate prefixes. Instead we detect the
+# executor token wherever it lands and fall the whole segment back to the
+# pre-146 whole-text sensitivity (see `_scan_segment`). `python*` (python2 /
+# python3 / python3.11) is matched by prefix, not enumerated here.
+_EXECUTOR_BASES = frozenset({
+    "bash", "sh", "zsh", "ksh", "dash", "eval", "xargs",
+})
+
+
+def _is_executor_token(tok: str) -> bool:
+    """True when `tok` is a BARE (unquoted) command-string executor.
+
+    A quoted token is data, never an executor — `echo "bash -c git push"`
+    must stay inert. A path-qualified executor (`/usr/bin/bash`) matches on
+    its basename.
+    """
+    if _is_quoted(tok):
+        return False
+    base = tok.rsplit("/", 1)[-1]
+    if base in _EXECUTOR_BASES:
+        return True
+    if base.startswith("python"):
+        rest = base[len("python"):]
+        return rest == "" or rest.replace(".", "").isdigit()
+    return False
+
+
 def _neutralize_token(tok: str) -> str:
     """Command-position reconstruction rule for one non-posix shlex token.
 
@@ -369,11 +405,52 @@ def _neutralize_token(tok: str) -> str:
     return tok
 
 
+def _heredoc_terminator(line: str) -> str | None:
+    """Return the terminator WORD if `line` opens a GENUINE heredoc, else None.
+
+    FINDING 2b — detection goes through shlex, not a raw-line regex. A genuine
+    `<<` / `<<-` operator tokenizes as its own operator token under non-posix
+    shlex; a `<<` that lives inside a quoted string literal
+    (`git commit -m "add a<<b shift"`, `echo "compare x << y"`) stays embedded
+    in its quoted token and never surfaces as an operator — so it is not
+    mistaken for an intro. A here-string (`<<<`) tokenizes as a distinct `<<<`
+    token and is likewise ignored. Any tokenization failure (unbalanced quote)
+    returns None: the fail-closed direction here is NOT to strip.
+    """
+    if "<<" not in line:
+        return None
+    try:
+        tokens = _tokenize_nonposix(line)
+    except ValueError:
+        return None
+    for idx, tok in enumerate(tokens):
+        if tok in ("<<", "<<-"):
+            if idx + 1 >= len(tokens):
+                return None
+            word = tokens[idx + 1]
+            # `<<-EOF` tokenizes as `<<` + `-EOF`; drop the strip-tabs dash.
+            if word.startswith("-"):
+                word = word[1:]
+            word = _strip_quotes(word)
+            if _HEREDOC_TERMINATOR_WORD.fullmatch(word):
+                return word
+            return None
+    return None
+
+
 def _strip_heredoc_bodies(cmd: str) -> str:
     """Drop heredoc BODY lines (data), keeping the intro and terminator lines.
 
     Without this, the body's bare words tokenize as ordinary command-position
     tokens and a body line like `git push origin main` classifies as an op.
+
+    FINDING 2a — when the terminator line is never found, NOTHING is stripped:
+    an unterminated heredoc is either malformed input or a false intro match,
+    and dropping every remaining line hid trailing REAL commands
+    (`git commit -m "a<<b"` + newline + `git push origin main`). Not-stripping
+    is the fail-closed direction — the raw text then reaches the tokenizer,
+    whose quoted-token handling neutralizes data while keeping later commands
+    visible.
     """
     if "<<" not in cmd:
         return cmd
@@ -382,18 +459,23 @@ def _strip_heredoc_bodies(cmd: str) -> str:
     i = 0
     while i < len(lines):
         line = lines[i]
-        out.append(line)
-        m = _HEREDOC_INTRO.search(line)
-        if m:
-            terminator = m.group(2)
-            j = i + 1
-            while j < len(lines) and lines[j].strip() != terminator:
-                j += 1
-            if j < len(lines):
-                out.append(lines[j])  # retain the terminator line
-            i = j + 1
+        terminator = _heredoc_terminator(line)
+        if terminator is None:
+            out.append(line)
+            i += 1
             continue
-        i += 1
+        j = i + 1
+        while j < len(lines) and lines[j].strip() != terminator:
+            j += 1
+        if j < len(lines):
+            # Terminator found — strip the body [i+1, j); keep intro + term.
+            out.append(line)
+            out.append(lines[j])
+            i = j + 1
+        else:
+            # Terminator absent — keep ALL remaining lines untouched.
+            out.extend(lines[i:])
+            break
     return "\n".join(out)
 
 
@@ -501,6 +583,21 @@ def _scan_segment(tokens: list[str]) -> str | None:
         label = _match_against_patterns(_normalize_command(inner))
         if label:
             return label
+    # FINDING 1 backstop — an open-ended set of exec prefixes
+    # (timeout / env / nohup / nice / stdbuf / command / ionice / xvfb-run / ...)
+    # can carry a `bash -c "<op>"` deeper in the segment than the base-token
+    # wrapper fast path above ever inspects, and the neutralizing
+    # reconstruction below would erase the quoted payload as data. If ANY bare
+    # token is a command-string executor, scan the WHOLE segment (quoted
+    # contents included) with the pre-146 whole-text sensitivity so a real op
+    # cannot go invisible. A bare `bash` in data position
+    # (`echo bash -c "git push"`) over-classifies here — the accepted,
+    # fail-closed direction.
+    if any(_is_executor_token(t) for t in tokens):
+        seg_text = " ".join(_strip_quotes(t) for t in tokens)
+        label = _match_against_patterns(_normalize_command(seg_text))
+        if label:
+            return label
     reconstructed = " ".join(_neutralize_token(t) for t in tokens)
     return _match_against_patterns(reconstructed)
 
@@ -581,6 +678,17 @@ def _match_script_execution(cwd: Path, cmd: str) -> str | None:
     return None
 
 
+def _episteme_home() -> Path:
+    """Resolve the episteme state root, honoring ``EPISTEME_HOME``.
+
+    FINDING 4 — mirrors the resolver the fence / cascade / pending-contract
+    modules use for their pending dirs so a relocated ``EPISTEME_HOME`` keeps
+    ALL guard state under one root. Falls back to ``~/.episteme`` when unset —
+    which is why tests that patch ``Path.home`` still isolate state.
+    """
+    return Path(os.environ.get("EPISTEME_HOME") or (Path.home() / ".episteme"))
+
+
 def _state_store_path() -> Path:
     return Path.home() / ".episteme" / "state" / "session_context.json"
 
@@ -600,7 +708,7 @@ def _advisory_shown_marker(session_id: str) -> Path:
     fence / cascade pending markers; isolated in tests via `Path.home`.
     """
     return (
-        Path.home() / ".episteme" / "state" / "advisory_shown"
+        _episteme_home() / "state" / "advisory_shown"
         / f"{_safe_session_id(session_id)}.marker"
     )
 
