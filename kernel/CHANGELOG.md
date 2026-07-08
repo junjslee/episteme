@@ -92,6 +92,47 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.9.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.8.0-rc1...episteme-v1.9.0-rc1) (2026-07-08)
+
+
+### Features
+
+* **cascade,cli:** §5 read-side legacy healing + namespace symmetry; loop-hygiene tests ([9617728](https://github.com/junjslee/episteme/commit/9617728a40969157311692dfcc4286480499e4df))
+* **chain:** §4 shared rewrite mutex + inode re-verify in _locked ([2ecb247](https://github.com/junjslee/episteme/commit/2ecb2474611a16322ad660e8cd0988693b7b52ff))
+* **engine:** T13 Blueprint D synthesis arm — the dominant blueprint can now compound ([7e41d28](https://github.com/junjslee/episteme/commit/7e41d286d096fea116dfba5b3640f1381a7843c9))
+* **framework:** append-only resolution layer for deferred discoveries ([b17e5ec](https://github.com/junjslee/episteme/commit/b17e5ecfd3960f7ecd6981f82fe6cbfd116fa6d3))
+* **hooks:** §3 correlation pairing — signature fallback ladder + single per-op timestamp ([866cb18](https://github.com/junjslee/episteme/commit/866cb180a16467237be93d42b1754e5740fbfa27))
+* **kernel:** episteme kernel compact-protocols — one-time cascade-synthesis ledger compaction ([5de36dc](https://github.com/junjslee/episteme/commit/5de36dc179353a4cc59fa3a9ba15082f2052e0d5))
+* **kernel:** episteme kernel compact-protocols — one-time cascade-synthesis ledger compaction ([2cd33b3](https://github.com/junjslee/episteme/commit/2cd33b372f3c4d538e2e9b99c22f4c4c9bf205ba))
+* **loop-hygiene:** §3 pairing ladder + §4 rewrite mutex/inode + §5 healing/namespace ([366c34e](https://github.com/junjslee/episteme/commit/366c34e20d26b9337779161cc3ea059b26eb24dd))
+* **onboarding:** real init/doctor/bootstrap integration test; coherent scaffold imports ([136325e](https://github.com/junjslee/episteme/commit/136325eca6cd349b6615b183937d81f0c14fc02c))
+* **product:** implement the five §9 sustainability decisions (Event 143) ([ca2b460](https://github.com/junjslee/episteme/commit/ca2b4609969ed447c77ecfb983d5c275d75e513c))
+* **sync:** deliver the v2.0 conclusion pair through build_settings; pin registration parity ([4bab8f1](https://github.com/junjslee/episteme/commit/4bab8f1770dfe5c5cfd00bcde3d704f9317079fb))
+* **tests:** doc-budget linter enforcing bounded working memory ([a41ee89](https://github.com/junjslee/episteme/commit/a41ee89cff91e9b3cf346d6c6114b022902b54f7))
+* **web:** centralize live release facts; mobile pass verified at 390px ([b553edf](https://github.com/junjslee/episteme/commit/b553edfa4031dd8883d3b88e96d0ace9c565553e))
+* **web:** interactive Surface Walk beat; tighten the prose; drop dead components ([42382c0](https://github.com/junjslee/episteme/commit/42382c0c2908b4ed8952da9ae96536590bcd1826))
+
+
+### Bug Fixes
+
+* **ci:** machine-independent drift oracle + fresh-user journey (master is red without this) ([82866f5](https://github.com/junjslee/episteme/commit/82866f5d08b47b86f081268d81f9cbcdc1f80f47))
+* **ci:** make the drift oracle and fresh-user journey machine-independent ([c761bc2](https://github.com/junjslee/episteme/commit/c761bc28c408db9d5faf569aee372f41f6e29e8d))
+* **cli:** lazy runtime-manifest load; honest failure on wheel-shaped installs ([9460e24](https://github.com/junjslee/episteme/commit/9460e243649988c2470a90c264fae88c15e589e1))
+* **cli:** tolerate closed stdout in the deferred list drain ([4018875](https://github.com/junjslee/episteme/commit/4018875f13793c476fed4e6fb748e4dd4f656040))
+* **engine:** bound cascade synthesis by content hash — one resolution, one protocol ([1c01f9d](https://github.com/junjslee/episteme/commit/1c01f9d0e698ae4c0d2cddb6a00a28d1150c1153))
+* **engine:** close the CP-FENCE-02 second-boundary straddle with a Post lookback window ([3889952](https://github.com/junjslee/episteme/commit/38899520921f967c964f6c3076814a4c0225ada6))
+* **engine:** close the CP-FENCE-02 second-boundary straddle with a Post lookback window ([fc6afa9](https://github.com/junjslee/episteme/commit/fc6afa9d0bceb542b914f6e6bd8000866fcff168))
+* **engine:** harden the cascade arm against its adversarial review — fail-closed dedup, redaction, cross-arm exclusion ([7ba8482](https://github.com/junjslee/episteme/commit/7ba84821b107668d5ef03b5c280834d7a1f109bb))
+* **framework:** make deferred-discovery compaction verdict-aware ([6a2eb3e](https://github.com/junjslee/episteme/commit/6a2eb3eee82520afdc2d8a2092387d4e0a3f290e))
+* **hooks:** close 4 residual bypasses found by re-review of the fixes ([abc01d2](https://github.com/junjslee/episteme/commit/abc01d2d5c6e4708ae2b53ba59ead51a28115a71))
+* **hooks:** close the round-3 exemption leaks (xxd/rg/ag/git-grep-O, /dev/null boundary) ([dec7065](https://github.com/junjslee/episteme/commit/dec70651b973935794ad874c2f8cb2c940140eb2))
+* **hooks:** drop less/more from the reader allowlist (log-file + shell-escape) ([eb82501](https://github.com/junjslee/episteme/commit/eb82501f74d248a2af466d018b2e0c13bdf035c3))
+* **hooks:** make the strict-gate remediation template round-trip in one attempt ([0031c8b](https://github.com/junjslee/episteme/commit/0031c8b79c436d41ca4e3027a1c452be2c1042d6))
+* **hooks:** quote-aware read-only exemption; reconstruct the sed fence ([ab151a7](https://github.com/junjslee/episteme/commit/ab151a778deb2b1cafb225109f0c3dc9adac98b2))
+* **hooks:** rewrite read-only exemption as a correct single-pass scanner ([da502cd](https://github.com/junjslee/episteme/commit/da502cdad575c1cd540702c57b4e4155f304ccd2))
+* **hooks:** tag test-runner audit records so E3 measures lived use, not suite noise ([b30fa4b](https://github.com/junjslee/episteme/commit/b30fa4b2430a777b47eae6e66edfd6f459e308c4))
+* **web:** remove the plugin-path CLI dead-end from the install funnel ([61c70a3](https://github.com/junjslee/episteme/commit/61c70a3613e1ba8f1ee64c4d3e1212366abf0832))
+
 ## [1.8.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.7.0-rc1...episteme-v1.8.0-rc1) (2026-06-10)
 
 
