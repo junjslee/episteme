@@ -1,4 +1,7 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147; superseded_by=docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md; scope=enforcement-geometry-framing -->
 # Design — Causal-Consequence Scaffolding & Protocol Synthesis — v1.0 RC
+
+> Scope note: the enforcement-geometry product framing was superseded by [DESIGN_V2_0](./DESIGN_V2_0_EPISTEMIC_ENGINE.md) (Event 138); substrate layers documented here remain authoritative.
 
 Status: **approved (reframed, third pass)** · Drafted 2026-04-21 · Approved 2026-04-21 · Reframed 2026-04-21 · Second-pass reframe 2026-04-21 · Third-pass reframe 2026-04-21 · Scope: v1.0 RC upgrade of the Reasoning Surface from syntactic enforcement to causal-consequence scaffolding, protocol synthesis, active guidance, **and continuous architectural self-maintenance** — grafting four things onto an auto-regressive engine that cannot perform any of them natively: a causal world-model interface, a context-indexed thinking framework that synthesizes context-dependent protocols from conflicting sources, an active-guidance loop that uses those protocols to proactively steer the operator, and a cascade-escalation loop that keeps the system's own understanding of itself coherent as the codebase evolves under its own edits.
 

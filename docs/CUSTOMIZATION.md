@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Customization
 
 Three places you can shape episteme to your own working life: personal memory, skills, and hooks.

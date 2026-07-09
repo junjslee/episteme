@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # The Way to Think — 생각의 틀
 
 > *"The product is a way to think when the model can finish your sentences."*

@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->
 # Evaluation Method — Does episteme actually make a difference?
 
 > Status: **landed Event 135 (2026-05-23). Calibration data accumulates

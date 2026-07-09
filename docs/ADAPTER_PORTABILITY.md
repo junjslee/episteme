@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->
 # Adapter Portability Audit
 
 **Status**: `audit (Event 96, 2026-04-30)` — read-only inventory + migration design. No runtime changes proposed in this document.

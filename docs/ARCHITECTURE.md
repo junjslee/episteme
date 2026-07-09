@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Architecture — The Sovereign Kernel (v1.3.0-rc1 shipped · 1066 tests + 54 subtests green)
 
 > Mermaid flowchart. Renders natively on GitHub, Obsidian, and any CommonMark viewer with Mermaid support. **Five** subgraphs trace the full lifecycle from agent intention through the three-pillar kernel — Cognitive Blueprints, Append-Only Hash Chain, Framework Synthesis & Active Guidance — into praxis, the learning loop, and the post-v1.0-RC behavior-conformance extensions (Event 130 — Contract Gate; Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY).

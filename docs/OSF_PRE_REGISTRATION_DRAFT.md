@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->
 # OSF Pre-Registration — DRAFT (Phase 2 Calibration-Lift Trial)
 
 **Status:** DRAFT — not submitted to OSF.

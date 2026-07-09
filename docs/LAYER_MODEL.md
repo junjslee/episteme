@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # episteme Architecture
 
 *Formerly `COGNITIVE_OS_ARCHITECTURE.md`. Renamed 2026-04-21 to match the repository's actual naming; content updated to the v1.0 RC state.*

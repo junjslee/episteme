@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Contributing to episteme
 
 Short version:

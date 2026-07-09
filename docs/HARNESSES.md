@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Harness System
 
 A **harness** defines the operating environment for a specific project type — execution profile, workflow constraints, safety notes, recommended agents. A generic scaffold gives every project the same shape; a harness gives it the right shape.

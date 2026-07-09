@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # How to verify a Regulator Evidence Packet
 
 **Audience:** external auditor / Internal Audit / Notified Body assessor receiving a `regulator-evidence-packet-<ISO>.zip` from an episteme operator.

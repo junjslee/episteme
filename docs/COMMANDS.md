@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # episteme — command reference
 
 A one-page map of every `episteme` subcommand, grouped by lifecycle phase.

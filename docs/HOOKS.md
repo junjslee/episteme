@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Deterministic Safety Hooks
 
 Hooks run deterministically — the model cannot override them. Each hook is a named counter to a specific class of unsafe or inconsistent action; together they form the execution-time enforcement layer for kernel invariants.

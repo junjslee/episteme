@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Substrate Bridge — A Generalizable Contract for External Memory Systems
 
 The kernel speaks exactly one format: `memory-contract-v1` envelopes. Every external memory system — mem0, Memori, MemOS, claude-mem, a vector DB, a filesystem tree, an MCP server, a future substrate we haven't heard of yet — integrates through the same adapter protocol. No substrate becomes authoritative; they are caches with **declared capabilities** and **declared lossy fields**.

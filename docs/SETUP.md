@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Setup — Profile, Cognition, One-Command
 
 Deterministic onboarding for episteme. Two axes:
