@@ -20,367 +20,110 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme is a way to think — 생각의 틀 — an epistemic engine that makes AI-assisted decisions earn their confidence before they land.**
+> **episteme makes an AI agent show its work before it acts — and makes your repo's docs stop lying about your code.**
 >
-> A five-stage cognitive practice — **Frame → Decompose → Execute → Verify → Handoff** — anchored in Kahneman's System-2 forcing, Dalio's Radical Transparency, Boyd's OODA Orientation, and Munger's Latticework of Mental Models. v2.0 delivers it as three layers. **Cognition** — the senior-researcher interrogation: decompose a load-bearing decision into tiered claims (`measured / cited / inferred / assumed`), verify the load-bearing ones in a *fresh context against external evidence*, argue the strongest opposition, name the weakest link, pre-commit a disconfirmation. **Structure** — deterministic hooks that route decision shapes, validate the verdict artifact (a `stop` verdict fails closed), and hard-block only genuinely destructive operations; the operator-signed Reasoning Surface (Ed25519, structurally out of the agent's reach) remains the operator-side framing artifact. **Memory** — lessons from verified interrogations become hash-chained, context-scoped protocols that resurface at the next matching decision. The division of labor is the research record's, not ours: models judging their own drafts get *worse*, form-checks are gameable by reasoning-shaped tokens, and only architectural constraint converts epistemic awareness into behavior.
->
-> The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809)) settled the empirical question: across 16 models from 8 labs and ~250,000 instances, *"providing models with their own calibration scores produces no significant improvement; only architectural constraint is effective."* Confident Failure Rate drops from 0.60 to 0.14 under external architectural constraint. **The practice itself is the product.** The artifacts under `core/` and `src/episteme/` — the typed Reasoning Surface, the Append-Only Hash Chain, the Active-Guidance loop — are the **Sovereign Cognitive Kernel** that keeps the practice alive at frontier model strength, when *vigilance-as-willpower* fails. Posture over prompt.
->
-> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** — the practice, operationalized.
+> It installs into the coding tools you already use (Claude Code today; a vendor-neutral adapter layer for others). Before any high-impact action — `git push`, a deploy, a migration, deleting a constraint — the agent must write down, on disk, what it knows, what it doesn't, and what observable event would prove it wrong. A deterministic hook checks the artifact and refuses to proceed until it's real (`exit 2`). Lessons from verified decisions become tamper-evident, context-scoped protocols that resurface at the next matching decision — so the agent gets sharper on *your* codebase over time, and your documentation is linted against your code the same way your code is linted against your tests.
 
-**[See it in 60 seconds ↓](#see-it-in-60-seconds)** · **[Install ↓](#quick-start)** · **[Why the file-system, not the prompt ↓](#the-problem--the-solution)** · **[Architecture & philosophy ↓](#architecture--philosophy)** · **[Does it work? ↗](docs/EVALUATION_METHOD.md)**
-
- ![Episteme — the Thinking Framework in motion](docs/assets/demo_posture.gif)
+**[What it looks like ↓](#what-it-looks-like)** · **[Install ↓](#install)** · **[The demos ↓](#the-demos)** · **[How it compares ↓](#how-it-compares)** · **[Under the hood ↓](#under-the-hood)** · **[Does it work? ↗](docs/EVALUATION_METHOD.md)**
 
 ---
 
-## Why prompts can't enforce a way to think
+## What it looks like
 
-The practice in [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md) names six cognitive moves per high-impact decision — Core Question, distinction map, signal-vs-noise filter, because-chain, hypothesis-as-bet, disconfirmation conditions. Each move counters a specific named System-1 failure (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence — Kahneman). A prompt can *request* these moves, but prompts are advisory: they live for one call, get skipped at deadline, and disappear from context. Frontier models comply on the surface and skip the moves underneath — fluently, confidently, and the operator stops checking. That is exactly the failure mode the practice is for.
+You ask your agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
 
-Concrete example. You ask the agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
+**Without episteme** — the agent treats this as a measurement chore. It pulls 30 days of metrics, finds a 7% lift in thumbs-up rate, and writes a confident memo: *"memory helps; keep shipping."* You read it. It's wrong three ways, fluently:
 
-The agent treats your prompt as a measurement task. It pulls metrics from the last 30 days, compares with-memory vs without-memory response samples, finds a 7% positive lift on thumbs-up rate, writes a memo concluding "memory helps; keep shipping." You read it.
+- Thumbs-up tracks response *confidence*, not *correctness* — it measured a proxy for your question, not the question.
+- Memory responses run 30% longer, and length independently drives thumbs-up — the "lift" might be the length effect.
+- No condition was ever named under which the conclusion would be judged wrong — so it can't be.
 
-The agent didn't ask the questions you would have asked, if you weren't tired:
+**With episteme** — before the memo can land, the agent has to commit this to disk:
 
-- **What** is "quality" here actually measuring? The metric the agent picked was *thumbs-up rate*. But thumbs-up correlates with response *confidence*, not response *correctness* — a confidently-wrong answer with a memory citation can score higher than a correctly-uncertain answer without one. The agent measured a proxy for the question, not the question.
-- **Why** would memory help? The proposed mechanism is stable cross-session context. But the with/without comparison didn't control for response length — memory-system responses are 30% longer on average, and length independently correlates with thumbs-up. The "lift" might be the length effect, not memory.
-- **How** would this conclusion be wrong? Re-run with response-length controlled. If the lift persists, memory is doing real work. If it disappears, memory is adding tokens but not signal. That's the disconfirmation the agent never named.
-
-A naive agent gives a measured-sounding answer because the prompt asked for a measurement. `episteme` forces the agent to write down — on disk, before the memo lands — what the measurement actually measures, what mechanism is being claimed, and what observable outcome would prove the claim wrong. The act of writing surfaces that the proxy wasn't the question.
-
-Recent academic work calls the cumulative gap between what the agent knows in context, what you intended, and what your system actually requires **Epistemic Drift**. `episteme` closes that gap by structurally requiring the agent to reason — *what · why · how* — before it acts. Enforcement is **structural**, not advisory. Prompts can be skipped; a file-system hook that exits non-zero cannot.
-
----
-
-## The ABCD architecture — four blueprints, one cortex
-
-`episteme` acts as a **prefrontal cortex for AI agents**: it sits between intent and action, and it refuses to let an action proceed until the reasoning behind it is explicit. Four **Cognitive Blueprints** — each keyed to a specific failure class — decide what "explicit enough" means for a given op:
-
-- **A · Axiomatic Judgment** — resolves conflicts between credible but incompatible sources. Forces the agent to name *why* they disagree and *which feature of the current context* selects between them.
-- **B · Fence Reconstruction** — protects inherited constraints. Before a constraint can be removed, its original purpose must be reconstructed — Chesterton's fence enforced by the file system.
-- **C · Consequence Chain** — decomposes irreversible ops (first-order effect, second-order effect, failure-mode inversion, base-rate reference, margin of safety).
-- **D · Architectural Cascade** — catches refactors and renames that would leave stale references behind. Makes the agent enumerate the full blast radius before it edits.
-
-Every blueprint firing — and every decision it validates — is committed to a **tamper-evident hash chain**. That chain is not a log; it is how the kernel gives you **Active Guidance** later: at the next matching decision, the relevant synthesized protocol is surfaced proactively, before the agent defaults to its training distribution.
-
-The result is a **project-specific thinking framework that compounds**. The agent gets sharper on your codebase every time it resolves a conflict, not because you trained it — because the chain did the remembering.
-
----
-
-## The problem · the solution
-
-### The problem — conflicting sources, averaged answers, no durable know-how
-
-The internet is full of contradictory how-to. Docs say one thing; a senior engineer says another. Two libraries recommend opposite patterns for the same bug. Modern agents, being auto-regressive pattern engines, cannot tell which answer *fits this specific context* — because fit is a causal-world-model judgment, not a pattern match over token frequency. So they average. The output sounds authoritative, fits no specific context, and misleads by omission.
-
-Prompts cannot fix this:
-
-- A system-prompt reminder lives for one call.
-- A `CLAUDE.md` nudge gets skipped the moment a deadline arrives.
-- **Know-how** — the irreducibly context-specific rule of *"in this shape of problem, do this"* — cannot be taught through better wording. It has to be extracted, stored, and re-surfaced.
-
-### The solution — a Thinking Framework at the file-system level
-
-`episteme` intercepts the moment **intent meets state change**. Before any high-impact op (`git push`, `npm publish`, `terraform apply`, DB migrations, lockfile edits), the agent must project its reasoning onto a structured surface on disk:
-
-| Field | What the agent must commit to |
+| Field | What the agent must write |
 |---|---|
-| **Core Question** | The one question this action is actually trying to answer (counters question substitution). |
-| **Knowns** | Verified facts, citations, measurements — not plausible-sounding guesses. |
-| **Unknowns** | Named, classifiable gaps — not vague "there might be risks." |
-| **Assumptions** | Load-bearing beliefs, flagged so they can be falsified. |
-| **Disconfirmation** | The observable event that would prove this plan wrong — pre-committed before action. |
+| **Core Question** | The one question this work actually answers — *"does memory improve correctness, controlled for length?"* |
+| **Knowns** | Verified facts with sources — not plausible-sounding guesses |
+| **Unknowns** | Named gaps (*"whether the lift survives length control"*) — a blank here fails the gate |
+| **Assumptions** | Load-bearing beliefs, flagged so they can be falsified |
+| **Disconfirmation** | A pre-committed observable — *"if the lift disappears under length-controlled re-run, memory is adding tokens, not signal"* |
 
-Validity is checked **structurally**: minimum content length, no lazy-token placeholders (`none`, `n/a`, `tbd`, `해당 없음`), normalized command scanning so bypass shapes like `subprocess.run(['git','push'])` and `os.system('git push')` are caught. Agent-written shell scripts are deep-scanned via a stateful interceptor across calls. If the surface is absent or invalid, the op is refused (`exit 2`). Default is strict; advisory mode (warn-don't-block) is opt-in per-project: `touch .episteme/advisory-surface`.
+Lazy tokens (`none`, `n/a`, `tbd`, `해당 없음`) are rejected. Vague hedges (*"if issues arise"*) are rejected — only concrete falsification conditions pass. The act of writing the surface is what exposes that the proxy wasn't the question. That's the product: **the agent is forced to think in a way you can audit, before the consequences exist.**
 
-**v2.0 adds the deeper satisfier.** Structure can compel an artifact into existence; it cannot tell thinking from theater — reasoning-shaped tokens defeat both regex validators and LLM judges. So the gate now accepts a second artifact: the **interrogation verdict** (`.episteme/interrogation.json`), produced by the `epistemic-interrogation` skill. The decision is decomposed into atomic claims; each load-bearing claim is verified by a **fresh context that never sees the draft reasoning**, using external evidence (file reads, execution, search — because self-review without an external signal measurably makes models worse); the strongest opposition is argued, the weakest link named, a disconfirmation pre-committed. The hook validates only what determinism can validate — freshness, floors, and verdict consistency (a refuted load-bearing claim with a `proceed` verdict is rejected as a contradiction; a `stop` verdict admits nothing). Substance lives in the protocol; structure keeps it practiced.
+![episteme — the thinking framework in motion](docs/assets/demo_posture.gif)
 
-The Disconfirmation field in particular is not a risk checklist — it is the mechanical enforcement of **Robust Falsifiability**: the requirement that a plan commit, *in advance*, to a concrete observable event that would prove it wrong. Strict Mode rejects conditional-but-observable-less phrasing (*"if issues arise"*) and admits only specific falsification conditions (*"p95 latency > 500ms for 5 consecutive minutes, Grafana dashboard api-latency"*). A plan that cannot be falsified is not episteme; it is doxa wearing episteme's vocabulary.
+*Recorded from `scripts/demo_posture.sh` — a blocked constraint-removal, a validated rewrite, a refactor forced to declare its blast radius, and the synthesized protocol firing on a later decision.*
 
-This is the difference between a prompt reminder and a compiler: one asks nicely, the other refuses to proceed.
+## What you get
 
----
+- **A reasoning gate at the point of no return.** Hooks intercept high-impact operations and validate the Reasoning Surface structurally — normalized command scanning catches bypass shapes (`subprocess.run(['git','push'])`, agent-written shell scripts, wrapped executors). Absent or hollow surface → the op is refused. Strict by default; advisory mode is opt-in per project.
+- **Interrogation for load-bearing decisions.** Structure alone can't tell thinking from theater, so the gate also accepts a stronger artifact: the decision decomposed into claims, each load-bearing claim verified by a **fresh context that never saw the draft reasoning**, the strongest opposition argued, the weakest link named. A `stop` verdict fails closed.
+- **Memory that compounds instead of decaying.** Every verified lesson becomes a hash-chained, context-scoped protocol — append-only and tamper-evident, so the agent can't silently rewrite what it learned. At the next matching decision the kernel surfaces the protocol proactively: `[episteme guide] … · overlap 5/6 · Protocol: In context X, do Y`. You don't have to remember to ask.
+- **Docs that are linted against reality.** Every tracked doc carries a machine-readable lifecycle marker (`living / spec-implemented / design-history / report / tombstone`). CI fails when a new doc lands unclassified, when a living doc cites a retired one as if current, or when a point-in-time report tries to squat in `docs/`. Version strings are stamped from the release manifest, never hand-copied. Stale docs surface at session start — silently, only when something is actually stale. **Single source of truth, enforced — not aspired to.**
+- **A system that cleans up after itself.** Review queues are capped with visible backpressure, logs rotate at size caps, expired markers and old telemetry are reaped at session start. Artifacts don't stack; deletion is a designed operation, not an accident of neglect.
+- **One identity across tools.** Your working style, risk posture, and reasoning preferences live in governed, versioned markdown — synced to every adapter with one command. The kernel outlives the tool.
 
-## Protocol Synthesis & Active Guidance — the ultimate vision
+## Install
 
-`episteme` is **not just a blocker**. The framework's real job is to turn every conflict it resolves into durable know-how that the agent re-applies automatically at the next matching decision.
-
-Here is the loop (v1.0.0 GA shipped · CP1–CP10 green; **<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** — see [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md)):
-
-1. **Detect conflict.** The agent encounters two valid-looking but incompatible approaches for a context it hasn't fully resolved before.
-2. **Decompose, don't average.** The Thinking Framework refuses the "average" answer. It forces the agent to extract *why* the sources conflict and which feature of the context tips the decision.
-3. **Synthesize a context-fit protocol.** The resolved *"in context X, do Y"* rule is committed to an append-only, hash-chained knowledge base — tamper-evident, so the agent cannot silently rewrite the lesson.
-4. **Guide actively.** At the next matching decision — even weeks later, even across sessions or tools — the kernel surfaces the protocol **proactively**. You don't have to remember to ask.
-5. **Self-maintain.** When the agent discovers drift (stale config, deprecated API, core-logic mismatch), it is forced to evaluate *patch vs. refactor* honestly and synchronize the cascade across the full blast radius — CLI, config, schemas, docs, tests, external surfaces — before moving on.
-
-> **Current status — self-measured, 2026-06-10.** The gate (steps 1–2) is operational and battle-tested. The compounding arm (steps 3–4) fired its own falsifiability condition ([`kernel/FALSIFIABILITY_CONDITIONS.md` § E1](kernel/FALSIFIABILITY_CONDITIONS.md)): 49 days of framework activity, zero synthesized protocols — the only emit path was attached to the rarest operation class. Event 137 made the kernel measure this itself (`episteme report` § Protocol Synthesis, SessionStart digest); Event 138 gave the loop a real source — every verified interrogation whose lesson is non-null synthesizes a context-scoped protocol on success. The aspirational label stays until lesson-sourced protocols demonstrably bind at future decisions (§ E4); a kernel that enforces disconfirmation on your decisions owes you the same on its own claims.
-
-The knowledge base is not a vector store pretending to be memory. It is a **structural, human-readable, version-controlled artifact** you can read, edit, fork, and migrate between adapters (Claude Code, Cursor, Hermes, future tools).
-
-Synthesized protocols are not cache entries — they are **Knowledge Sanctuaries**: tamper-evident (Pillar 2 hash-chained), context-scoped (each protocol carries a context signature so it only reactivates in matching situations), and supersession-respecting (a newer chain entry can override an older one, but cannot silently rewrite it). "Sanctuary" because the space is protected from the entropic LLM-average that surrounds it: only rules locally validated against *this project's* evidence occupy the space. The kernel outlives the tooling; the sanctuaries are how it carries know-how forward.
-
-This architecture also counters **Cognitive Deskilling** — the erosion of the human operator's own reasoning capacity that follows from uncritical reliance on AI output. Because the Reasoning Surface forces declaration of Unknowns and Disconfirmation on *every* high-impact move, the operator cannot outsource thinking without the gaps being surfaced. See [Human prompt debugging](#human-prompt-debugging) below for the specific mechanism.
-
----
-
-## I want to… → do this
-
-| Goal                                                | Command / pointer                                                   |
-|-----------------------------------------------------|---------------------------------------------------------------------|
-| See the bidirectional symbiosis loop (agent and human debug each other's intent) | [`demos/04_symbiosis/`](./demos/04_symbiosis/) · [`scripts/demo_symbiosis.sh`](./scripts/demo_symbiosis.sh) |
-| See the Thinking Framework *off vs on* on the same prompt      | [`demos/03_differential/`](./demos/03_differential/) · [`scripts/demo_posture.sh`](./scripts/demo_posture.sh) |
-| See what the framework produces end-to-end                     | [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) · [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) |
-| Install as a Claude Code plugin (one line)          | `/plugin marketplace add junjslee/episteme`                     |
-| Install on my machine (CLI + editable kernel)       | `pip install -e . && episteme init` — see [`INSTALL.md`](./INSTALL.md) |
-| Understand what this installs in 3 minutes          | [`kernel/SUMMARY.md`](./kernel/SUMMARY.md)                          |
-| Draft a reasoning surface from a Slack thread       | `episteme capture --input thread.txt --output surface.json`    |
-| Sync identity to every AI tool I use                | `episteme sync`                                                 |
-| Encode working style + reasoning posture            | `episteme setup . --interactive`                                |
-| Apply the right harness for my project type         | `episteme detect . && episteme harness apply <type> .`      |
-| Know when *not* to use this kernel                  | [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md)              |
-| Find attribution for any borrowed concept           | [`kernel/REFERENCES.md`](./kernel/REFERENCES.md)                    |
-| Audit my setup                                      | `episteme doctor`                                               |
-
----
-
-## See it in 60 seconds
-
-Live site + visual dashboard — both rendered against the kernel's own `cp7-chained-v1` hash chain. See [`web/README.md`](./web/README.md) for the Vercel deploy guide.
-
-Four demos, increasing in what they prove:
-
-- **[`demos/04_symbiosis/`](./demos/04_symbiosis/) — the demo for the project's thesis.** *Agent and human debug each other's intent — real, not fictional.* This demo is a recording of an actual 24-hour cycle on this repository (2026-04-27, Events 65 / 66 / 67). Mid-soak, the operator proposed an anxiety-driven irreversible bundle (privatize + `git filter-repo` + GA-tag + soak-break, all today). The kernel's adversarial review surfaced 3 Critical findings; the operator's own profile-audit drift independently corroborated the live diagnosis; Path C decomposed the bundle along reversibility lines; the protocol synthesized became constitutional in `AGENTS.md` so every future agent inherits the rule. Six acts, ~90 seconds. [`DIFF.md`](./demos/04_symbiosis/DIFF.md) compares the alternate-world Path A vs the actual Path C side-by-side.
-- **[`demos/03_differential/`](./demos/03_differential/) — the demo that converts skeptics.** *Exact same prompt, Thinking Framework OFF vs. ON.* A PM asks for a 2-sprint semantic-search scope; off answers *how*; on answers *whether*. [`DIFF.md`](./demos/03_differential/DIFF.md) shows which named failure modes the framework caught.
-- [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) — framework applied to a realistic p95 regression. The fluent-wrong *"add a cache"* answer is rejected at the Core Question gate; a schema-level root cause is produced instead.
-- [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) — canonical four-artifact shape (reasoning-surface → decision-trace → verification → handoff). The kernel applied to itself, auditing whether every borrowed concept is traceable to a primary source.
-
-Open any of the three. You will know what `episteme` produces before reading any philosophy.
-
----
-
-## Quick start
-
-### Option A — install via Claude Code plugin marketplace
-
-The fastest path if you use Claude Code. This repo ships a marketplace manifest (`.claude-plugin/marketplace.json`), so you can add it as a marketplace and install the plugin in two commands.
-
-Inside Claude Code:
+**Option A — Claude Code plugin (two commands, self-contained):**
 
 ```
 /plugin marketplace add junjslee/episteme
 /plugin install episteme@episteme
 ```
 
-The plugin is complete by itself: hooks, agents, and skills are live in your Claude Code session with no further setup.
+Hooks, agents, and skills are live in your session; no pip involved.
 
-The `episteme` shell CLI (`init`, `setup`, `sync`, `doctor`) is **not installed by the plugin** — a marketplace install never runs pip. The CLI ships with the source checkout (Option B below); add that path alongside the plugin only if you want to edit the kernel or drive the CLI workflows.
-
-For authoritative command syntax and update semantics, see [Claude Code's plugin marketplace documentation](https://docs.anthropic.com/en/docs/claude-code/plugins).
-
-### Option B — clone the kernel directly
-
-For contributors, forkers, or if you want the full source tree locally:
+**Option B — clone the kernel (CLI + editable source):**
 
 ```bash
 git clone https://github.com/junjslee/episteme ~/episteme
-cd ~/episteme
-pip install -e .
+cd ~/episteme && pip install -e .
 
-episteme init              # generate personal memory files from templates
-episteme setup . --write   # score working style + reasoning posture
-episteme sync              # push identity to every adapter
-episteme doctor            # verify wiring
+episteme init      # generate personal memory files from templates
+episteme setup .   # score working style + reasoning posture
+episteme sync      # push identity to every adapter
+episteme doctor    # verify wiring
 ```
 
-Project-type harness:
+Adopting in an existing repo: `episteme docs lint` forces a lifecycle classification of every tracked doc — that first lint run is the honest inventory most repos have never had. Details, project harnesses, and the full command reference: [`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md).
 
-```bash
-episteme detect .                         # analyze repo, recommend a harness
-episteme harness apply ml-research .      # apply it
-episteme new-project . --harness auto     # scaffold + auto-detect
-```
+## The demos
 
-Deep-dive onboarding modes, scored dimensions, and defaults: **[`docs/SETUP.md`](./docs/SETUP.md)**.
-Full command reference: **[`docs/COMMANDS.md`](./docs/COMMANDS.md)**.
+Every demo ships its real artifacts — read them before any philosophy.
 
----
+| Demo | What it proves |
+|---|---|
+| [`demos/04_symbiosis/`](./demos/04_symbiosis/) | **The thesis, from real history (2026-04-27, Events 65–67):** the operator proposed an anxiety-driven irreversible bundle; the kernel's adversarial review surfaced 3 Critical findings; the decomposed path became constitutional in `AGENTS.md`. Agent and human debugging *each other's* intent. [`DIFF.md`](./demos/04_symbiosis/DIFF.md) shows the alternate world side-by-side. |
+| [`demos/03_differential/`](./demos/03_differential/) | **Same prompt, framework off vs on.** Off answers *how*; on answers *whether*. [`DIFF.md`](./demos/03_differential/DIFF.md) names the failure modes caught. |
+| [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) | A p95 regression where the fluent-wrong *"add a cache"* dies at the Core Question gate; a schema-level root cause is produced instead. |
+| [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) | The canonical four-artifact shape (reasoning-surface → decision-trace → verification → handoff) — the kernel auditing its own attributions. |
+| [`demos/05_contract_gate/`](./demos/05_contract_gate/) | The behavioral complement: declared contracts run at turn-end. |
 
-## How episteme compares
+Re-record the hero demo yourself: `scripts/demo_posture.sh` (recipe in the script header). The live dashboard renders against the kernel's own hash chain — [`web/README.md`](./web/README.md).
 
-Most tools in this space either build agent runtimes or provide memory APIs for applications. `episteme` augments the developer tools you already use.
+## How it compares
 
-| Axis                  | episteme                                          | Memory APIs (mem0, OpenMemory)  | Agent runtimes (Agno, opencode, omo) |
-|-----------------------|---------------------------------------------------|---------------------------------|--------------------------------------|
-| **What it is**        | Identity + governance layer across dev tools      | Memory API embedded in an app   | A runtime that executes agents       |
-| **Where identity lives** | Governed markdown + JSON, cross-tool, versioned | Vector/graph store, per app     | System prompt per session            |
-| **Sync**              | One command, all tools                            | N/A                             | N/A (per-project config)             |
-| **Know-how extraction** | Enforced at file-system boundary; hash-chained | Opaque retrieval                | Prompt-tuned, per session            |
+| Axis | episteme | Memory APIs (mem0, OpenMemory) | Agent runtimes (Agno, opencode) |
+|---|---|---|---|
+| **What it is** | Reasoning governance + identity layer over your existing tools | Memory API embedded in an app | A runtime that executes agents |
+| **Where identity lives** | Governed, versioned markdown/JSON — cross-tool | Vector/graph store, per app | System prompt, per session |
+| **Know-how** | Extracted at the file-system boundary, hash-chained, resurfaced by context | Opaque retrieval | Prompt-tuned, per session |
+| **Docs/state hygiene** | Lifecycle-linted, GC'd, drift-gated in CI | N/A | N/A |
 
-The gap `episteme` fills: no other project syncs a *governed cognitive contract* across multiple developer AI tools in one command, and no other project forces context-fit protocol extraction at the point of state mutation. Runtimes and memory APIs own different lanes; `episteme` sits above them and makes them aware of *who you are*, *how you think*, and *what your project has already learned*.
+**Isn't this just contract testing?** Contract tests catch *behavioral* regressions — did the code do what the spec says. The Reasoning Surface catches *epistemological* regressions — did we write the right spec, frame the right question, name what would prove us wrong. A passing test suite cannot tell you you're solving the wrong problem fluently; that failure happens before the spec exists. episteme ships both layers ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
 
----
+**Why can't a prompt do this?** Prompts are advisory: they live for one call, get skipped at deadline, and vanish from context. A hook that exits non-zero cannot be skipped. The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 models, 8 labs, ~250k instances) found that showing models their own calibration doesn't help — *only architectural constraint is effective* (Confident Failure Rate 0.60 → 0.14). Posture over prompt.
 
-## Why isn't this just contract testing?
+## Honest limits
 
-A reasonable critique: if the kernel exists to keep generated behavior aligned with declared intent, why not just write more **contract tests** (OpenAPI conformance, Hurl scripts, DDL diffs) and let CI reject the commit when behavior diverges? No human reads anything; the machine judges.
+- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) names when this kernel is the wrong tool. *A discipline without a boundary is a creed.*
+- The kernel measures its own claims: the protocol-synthesis loop fired its own falsifiability condition in 2026-06 (49 days, zero synthesized protocols) and was rebuilt to synthesize from verified interrogations — the audit trail is public ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). A kernel that enforces disconfirmation on your decisions owes you the same on its own.
+- Attribution for every borrowed concept, and the 2025–26 industry work that independently converged on the same patterns: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
 
-The answer is a layer distinction.
+## Under the hood
 
-Contract tests catch **behavioral regressions** — *did the code do what the spec says*. Deterministic, no human in the loop, strictly stronger than review for the class of properties they can express. The Reasoning Surface catches a different failure class: **epistemological regressions** — *did we write the right spec, did we frame the right question, did we silently rule out an alternative, did we substitute a comfortable question for the real one*. A passing Hurl suite cannot tell you you're solving the wrong problem fluently — that failure happens **before** the spec exists.
-
-The two layers compose. Contract tests pin the **output** (behavior boundary). Reasoning Surfaces pin the **framing** (decision boundary). Same constraint-system meta, different target.
-
-Episteme ships both:
-
-- **Reasoning Surface** — the existing kernel substrate (`kernel/REASONING_SURFACE.md`).
-- **Contract Gate** — a deterministic stop-hook that runs declared contracts at turn-end (`docs/CONTRACT_GATE.md`, `core/hooks/contract_gate.py`). Currently a stub; activation is operator-gated.
-
-When tooling lets you skip either, the gap re-opens at that layer. The kernel's job is to make both default-on for projects that opt in.
-
----
-
-## Zero-trust execution
-
-The [**OWASP Top 10 for Agentic Applications (2026)**](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) — peer-reviewed by 100+ industry experts — identifies prompt injection, goal hijacking, overreach, memory poisoning, and unbounded action as the primary risk classes for autonomous agents. The Knowns / Unknowns / Assumptions / Disconfirmation structure is a structural counter to each:
-
-| OWASP Agentic Risk (2026) | episteme counter |
-|---------------------------|------------------|
-| Direct goal manipulation / prompt injection | Core Question declared before execution begins; deviations surface as Unknowns |
-| Indirect instruction injection | Knowns / Disconfirmation separate trusted state from prompt content; agent commits to a falsifiable outcome before acting on retrieved input |
-| Overreach / unbounded action | Constraint regime declared in Frame; reversible-first policy enforced |
-| Fluent hallucination | Unknowns field cannot be blank; assumptions must be named before acting on them |
-| Memory poisoning | Pillar 2 hash-chained protocols — append-only, tamper-evident; silent rewrites of prior state are detected by `verify_chain` |
-| Infinite planning loops | Disconfirmation condition required; loop exits when evidence fires |
-
-No assumption is trusted unless named. No action is taken unless the precondition (Knowns) and constraint regime are declared. The kernel is the verification layer between intent and execution.
-
-### Industry convergence — 2025–2026
-
-Major frameworks and academic papers in the same window converge on the same architectural patterns the kernel ships: file-system-level pre-invocation checkpoints ([Capsule Security ClawGuard](https://www.businesswire.com/news/home/20260415670902/), 2026), hash-chained tamper-evident memory ([SSGM](https://arxiv.org/abs/2603.11768) — Lam et al., 2026), reason-based alignment over rule-lists ([Anthropic's Claude Constitution](https://www.anthropic.com/constitution), 2026-01-22), five-phase cognitive loop with governance layer ([SCL R-CCAM](https://arxiv.org/abs/2511.17673) — Kim, 2025), and five-pillar agent integrity ([Proofpoint Agent Integrity Framework 2026](https://www.proofpoint.com/us/resources/white-papers/agent-integrity-framework)). The kernel predates these publications (CP1 shipped 2026-04-21; v1.0.0 GA 2026-04-28); the convergence is independent validation, not lineage. Full attribution map in [`kernel/REFERENCES.md`](./kernel/REFERENCES.md) under *Convergent contemporary work*.
-
----
-
-## Human prompt debugging
-
-`episteme` doesn't just govern the agent — it **debugs the human's intent**. When the agent maps Knowns vs. Unknowns against a user request, it exposes logical gaps in the *original prompt* before executing flawed assumptions. The Unknowns field is often where the human realizes their question was underspecified. The Disconfirmation field is often where they realize they haven't thought about falsification at all.
-
-This is not a side effect. It is a design property: a system that forces the agent to declare what it does not know forces the human to confront what they did not specify.
-
----
-
-## Repository layout
-
-```
-episteme/
-├── kernel/                     philosophy (markdown; travels across runtimes)
-├── demos/                      end-to-end reference deliverables
-├── core/
-│   ├── memory/global/          operator memory (gitignored; personal)
-│   ├── hooks/                  deterministic safety + workflow hooks
-│   ├── harnesses/              per-project-type operating environments
-│   └── schemas/                memory + evolution contract schemas
-├── adapters/                   kernel delivery layers (Claude Code, Hermes, …)
-├── skills/                     reusable operator skills
-├── templates/                  project scaffolds, example answer files
-├── docs/                       runtime docs, architecture, contracts
-├── src/episteme/               CLI + core library
-└── tests/
-```
-
-Repo operating contract (for any agent working here): **[`AGENTS.md`](./AGENTS.md)**. LLM sitemap: **[`llms.txt`](./llms.txt)**.
-
----
-
-## CLI surface
-
-```bash
-episteme init
-episteme doctor
-episteme sync [--governance-pack minimal|balanced|strict]
-episteme new-project [path] --harness auto
-episteme detect [path]
-episteme harness apply <type> [path]
-episteme profile [survey|infer|hybrid] [path] [--write]
-episteme cognition [survey|infer|hybrid] [path] [--write]
-episteme setup [path] [--interactive] [--write] [--sync] [--doctor]
-episteme bridge anthropic-managed --input <events.json> [--dry-run]
-episteme bridge substrate [list-adapters|describe|verify|push|pull] ...
-episteme capture [--input <file>] [--output <file>] [--by <name>]
-episteme viewer [--host 127.0.0.1] [--port 37776]
-episteme evolve [run|report|promote|rollback] ...
-```
-
-Full reference: [`docs/README.md`](./docs/README.md).
-
----
-
-## Why this architecture
-
-The product is a Thinking Framework; the rest of this list is what falls out when that framework is taken seriously.
-
-- **Feedforward cognitive control, not reactive correction.** Most agent-safety systems observe an error and correct after the fact. `episteme` names the failure modes *before* execution and refuses to proceed until they are countered. Knowns, Unknowns, Assumptions, Disconfirmation are declared *first*, action *second*.
-- **Cognitive contract (Design by Contract).** The Thinking Framework is Bertrand Meyer's *Design by Contract* applied to reasoning itself: **preconditions** (Knowns + validated Assumptions that must hold before execution), **postconditions** (Verification: what must be true at handoff), **invariants** (kernel principles that cannot be suspended). Breach a precondition and the agent does not proceed.
-- **Hypothesis → test → update, observable across sessions.** Each Reasoning Surface carries a hypothesis; each execution carries an outcome; the episodic tier records both; the semantic-promotion job surfaces patterns where hypotheses *never* fire their declared disconfirmation (calibration debt). Thinking-quality drift is detectable over time.
-- **Cognitive profile is hypothesis, not documentation.** The operator profile's nine cognitive-style axes (`dominant_lens`, `noise_signature`, `explanation_depth`, etc.) are control signals that modulate enforcement thresholds — and are themselves audited against the episodic record of actual behavior. Claimed posture vs. lived posture, with drift surfaced as re-elicitation.
-- **Declared limits.** [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) names when the kernel is the wrong tool. *A discipline without a boundary is a creed.*
-- **Hard authority boundary.** Repo docs + global memory are the source of truth; tool-native memories are acceleration, not authority.
-- **Cross-tool consistency.** One governed cognitive contract across Claude Code, Hermes, and future adapters. The framework outlives the tool.
-- **Policy engine for agent cognition.** `episteme` plays the role OPA (Open Policy Agent) plays for cloud infrastructure: an independent layer that evaluates whether a proposed *reasoning state* meets declared policy before the action it authorizes is allowed. The LLM is the runtime; `episteme` is the policy engine.
-- **AI-safety by construction, not by bolt-on.** The same structural gates that counter reasoning failure modes also close the OWASP Agentic risks. Security falls out of the framework.
-
-Memory model, Memory Contract v1, Evolution Contract v1, and managed-runtime coexistence: **[`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md)**.
-
----
-
-## Architecture & philosophy
-
-> Full diagram with node annotations and cross-references: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
-
-The Thinking Framework above is the *product surface*. Beneath it sits a structural vocabulary borrowed from ancient Greek epistemology and Korean aesthetics — a spine that every diagram, demo, and artifact in this repository renders onto.
-
-### The triad — doxa · episteme · praxis
-
-- **Doxa** (δόξα) — common opinion, fluent output produced by default. The nine named failure modes in [`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md) are a taxonomy of *doxa mistaking itself for episteme*.
-- **Episteme** (ἐπιστήμη) — justified knowledge: concrete Knowns, named Unknowns, falsifiable Disconfirmation. The precondition for execution. The repo's namesake.
-- **Praxis** (πρᾶξις) — informed action: effects that land with their authorizing discipline intact. The four canonical artifacts (reasoning-surface / decision-trace / verification / handoff) are its visible form.
-
-### The grain — 결 · gyeol
-
-The Korean word **결** (*gyeol*) names the grain of wood or stone: the latent pattern-structure inside matter that, when followed, yields coherent form; when cut against, fractures. The Reasoning Surface's field ordering — Knowns → Unknowns → Assumptions → Disconfirmation — is the 결 of epistemic discipline: *settled → open → provisional → falsification-condition*. The calibration loop (prediction + outcome joined by `correlation_id`, analyzed by `episteme evolve friction`) is the grain refining itself across cycles.
-
-### Lifecycle
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         operator (you)                              │
-│           ├── cognitive preferences   ├── working style             │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                    episteme sync
-                               │
-      ┌────────────────────────┼────────────────────────┐
-      ▼                        ▼                        ▼
- Claude Code             Hermes (OMO)            future adapter
- (CLAUDE.md)             (OPERATOR.md)           (same kernel)
-      │                        │                        │
-      └────────────────────────┼────────────────────────┘
-                               │
-                       per-session loop
-                               │
-      ┌────────┬────────┬──────┴─────┬────────┬────────┐
-      ▼        ▼        ▼            ▼        ▼        ▼
-    FRAME → DECOMPOSE → EXECUTE → VERIFY → HANDOFF → (next session)
-      │                                        │
-      │ Reasoning Surface                      │ docs/EVENTS.md
-      │ (Knowns / Unknowns /                   │ docs/NEXT_STEPS.md
-      │  Assumptions / Disconfirmation)        │ decision artifact
-      │                                        │
-      └────────────── feedback ────────────────┘
-```
-
-### Four strata, one loop
+Status: **<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** · The practice is Frame → Decompose → Execute → Verify → Handoff, grounded in named counters to specific System-1 failure modes (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — the full operationalization is [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), and the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specified in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
@@ -448,80 +191,47 @@ graph TD
     class A,B neutralStyle
 ```
 
-Four subgraphs, one lifecycle. **Doxa** (red) — fluent-but-unvalidated output or a hard block — is the failure state the kernel exists to prevent. **Episteme** (green) — a validated Reasoning Surface — is the precondition for execution. **Praxis** (light green) — the admitted tool execution and its observed outcome. **결 · Gyeol** (blue) — the calibration loop that refines the framework across cycles, feeding back into the operator profile and the kernel constitution.
+**Doxa** (red) — fluent-but-unvalidated output — is the failure state the kernel exists to prevent. **Episteme** (green) — a validated surface — is the precondition for execution. **Praxis** — the admitted action and its observed outcome. **결 · Gyeol** (blue) — the calibration loop that refines the framework across cycles. Works with any stack: the kernel is pure markdown, the profile plain JSON, the adapter layer (Claude Code, Hermes, OMO/OMX) pluggable.
 
-**Works with any stack.** `episteme` operates independently of the LLM runtime — LangChain, CrewAI, Claude Code, Cursor, MCP. Kernel is pure markdown; operator profile is plain JSON; workflow loop is vendor-neutral. Adapter layer (Claude Code, Hermes, OMO/OMX) is pluggable.
+The kernel itself — pure markdown, no code, no vendor lock-in — starts at [`kernel/`](./kernel/):
 
-### Cognitive Arms — v1.1+
+| File | What it defines |
+|---|---|
+| [`SUMMARY.md`](./kernel/SUMMARY.md) | 30-line operational distillation |
+| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md) | Root claim, four principles, reasoner failure modes |
+| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md) | Full 12-mode taxonomy ↔ counter artifacts |
+| [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md) | The Knowns / Unknowns / Assumptions / Disconfirmation protocol |
+| [`MEMORY_ARCHITECTURE.md`](./kernel/MEMORY_ARCHITECTURE.md) | Five memory tiers (working → reflective) |
+| [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) | When the kernel is the wrong tool |
+| [`REFERENCES.md`](./kernel/REFERENCES.md) | Attribution + convergent contemporary work |
 
-The four blueprints (above) and three pillars — Cognitive Blueprints · Append-Only Hash Chain · Framework Synthesis & Active Guidance — are the v1.0 *unchanging structural foundation*. Pillars do not move. v1.1 adds **3 Cognitive Arms** operating on top: fluid active engines that refactor the kernel's own knowledge over time.
+```
+episteme/
+├── kernel/          philosophy (markdown; travels across runtimes)
+├── core/hooks/      deterministic gates + session automation
+├── src/episteme/    CLI + core library (doc lifecycle, sync, telemetry)
+├── adapters/        delivery layers (Claude Code, Hermes, …)
+├── demos/           end-to-end reference deliverables
+├── skills/          reusable operator skills
+├── templates/       project scaffolds
+└── docs/            architecture, contracts, runtime docs — lifecycle-linted
+```
 
-- **Arm A · Temporal Integrity** — protocols decay. Operator-confirmed retirement supersedes a stale rule rather than silently overwriting it. Verification window: 30 days post-CP-DECAY-03.
-- **Arm B · Causal Synthesis** — zero-LLM entity extraction over the deferred-discovery stream produces cluster proposals the framework can act on. Verification window: 60 days.
-- **Arm C · Self-Consistency Convergence** — protocols promote to models that derive disconfirmations structurally. Verification window: 90 days.
-
-The distinction is load-bearing — pillars are settled vocabulary; arms are how the system audits and refines its own outputs across time. Status: **<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->**. Arm A substrate shipped (supersede-with-history infrastructure + auto-instrumentation hooks that record operator profile + policy edits to chain streams); Arm A residue resumes opportunistically. **Arm B substrate-facing form formally SUNSET at Event 129** — its premise (a stable model-capability gap) was falsified by the Event 119–120 saturation finding; its operator-facing residue (`core/ptsp/` typed Fact/Inference promotion gate) is retained-and-reachable via `episteme practice trace`. Arm C scoped for a future cycle pending evidence the substrate-gap claim survives.
-
----
-
-### The kernel files
-
-Start at **[`kernel/`](./kernel/)**. Pure markdown. No code. No vendor lock-in.
-
-| File                                                              | What it defines                                              |
-|-------------------------------------------------------------------|--------------------------------------------------------------|
-| [`SUMMARY.md`](./kernel/SUMMARY.md)                               | 30-line operational distillation                             |
-| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md)                     | Root claim, four principles, six reasoner failure modes      |
-| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)                   | Full 12-mode taxonomy (6 reasoner + 3 governance v0.11 + 2 v1.0 RC + 1 v1.2 RC) ↔ counter artifacts |
-| [`ARTIFACT_TAXONOMY.md`](./kernel/ARTIFACT_TAXONOMY.md)            | Four-tier mutation discipline (frozen-purpose · authoritative-living · working-execution · ephemeral) |
-| [`PATTERN_GOVERNANCE.md`](./kernel/PATTERN_GOVERNANCE.md)          | Novel-decision vs mechanical-implementation; pattern-declaration artifact + implementation-of reference |
-| [`CALIBRATION_TELEMETRY.md`](./kernel/CALIBRATION_TELEMETRY.md)    | Brier score + calibration curve + base-rate-aware metrics from signed-surface outputs |
-| [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md)           | Knowns / Unknowns / Assumptions / Disconfirmation protocol   |
-| [`OPERATOR_PROFILE_SCHEMA.md`](./kernel/OPERATOR_PROFILE_SCHEMA.md) | Schema for encoding an operator's cognitive preferences   |
-| [`MEMORY_ARCHITECTURE.md`](./kernel/MEMORY_ARCHITECTURE.md)       | Five memory tiers (working / episodic / semantic / procedural / reflective) |
-| [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md)                   | When the kernel is the wrong tool; declared gaps             |
-| [`REFERENCES.md`](./kernel/REFERENCES.md)                         | Attribution for every load-bearing borrowed concept; convergent contemporary work; regulator-recognizable standards |
-| [`CHANGELOG.md`](./kernel/CHANGELOG.md)                           | Versioned kernel history                                     |
-
-Authority hierarchy: **project docs > operator profile > kernel defaults > runtime defaults.** Specific beats general.
-
----
+Authority hierarchy: **project docs > operator profile > kernel defaults > runtime defaults.** Repo operating contract for agents: [`AGENTS.md`](./AGENTS.md) · LLM sitemap: [`llms.txt`](./llms.txt).
 
 ## Read next
 
-| Topic                                      | Where                                                            |
-|--------------------------------------------|------------------------------------------------------------------|
-| The v1.0 RC direction                      | [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md) |
-| Kernel distillation (30 lines)             | [`kernel/SUMMARY.md`](./kernel/SUMMARY.md)                       |
-| What the kernel produces                   | [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) · [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) |
-| Same prompt, framework off vs. on            | [`demos/03_differential/`](./demos/03_differential/)             |
-| Bidirectional symbiosis — agent and human debug each other's intent | [`demos/04_symbiosis/`](./demos/04_symbiosis/) |
-| Install paths (marketplace, CLI, dev)      | [`INSTALL.md`](./INSTALL.md)                                     |
-| Benchmark with disconfirmation target      | [`benchmarks/kernel_v1/`](./benchmarks/kernel_v1/)               |
-| Substrate bridge (mem0, memori, noop)      | [`docs/SUBSTRATE_BRIDGE.md`](./docs/SUBSTRATE_BRIDGE.md)         |
-| Profile + cognition setup                  | [`docs/SETUP.md`](./docs/SETUP.md)                               |
-| Sync matrix, memory model, contracts       | [`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md)           |
-| Architecture diagram + cross-references    | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)                 |
-| Behavioral-drift complement (Contract Gate) | [`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)              |
-| Harness system                             | [`docs/HARNESSES.md`](./docs/HARNESSES.md)                       |
-| Hook reference + governance packs          | [`docs/HOOKS.md`](./docs/HOOKS.md)                               |
-| Skills + agent personas + provenance       | [`docs/SKILLS_AND_PERSONAS.md`](./docs/SKILLS_AND_PERSONAS.md)   |
-| Personal customization (memory/hooks/skills) | [`docs/CUSTOMIZATION.md`](./docs/CUSTOMIZATION.md)             |
-| Agent repo operating contract              | [`AGENTS.md`](./AGENTS.md)                                       |
-| Layer model + adapter matrix               | [`docs/LAYER_MODEL.md`](./docs/LAYER_MODEL.md)                   |
-
----
-
-## Push-readiness checklist
-
-```bash
-PYTHONPATH=. pytest -q tests/test_profile_cognition.py
-python3 -m py_compile src/episteme/cli.py
-episteme doctor
-git status && git rev-list --left-right --count @{u}...HEAD
-```
-
----
+| Topic | Where |
+|---|---|
+| The practice, operationalized | [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md) |
+| Architecture + blueprint specs | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) |
+| Does it work? (evaluation method) | [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md) |
+| Install paths (marketplace, CLI, dev) | [`INSTALL.md`](./INSTALL.md) |
+| Doc lifecycle + memory contracts | [`docs/MEMORY_CONTRACT.md`](./docs/MEMORY_CONTRACT.md) · [`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md) |
+| Hooks + governance packs | [`docs/HOOKS.md`](./docs/HOOKS.md) |
+| Security posture (OWASP Agentic 2026 mapping) | [`docs/COMPLIANCE_CROSSWALK.md`](./docs/COMPLIANCE_CROSSWALK.md) |
+| Personal customization | [`docs/CUSTOMIZATION.md`](./docs/CUSTOMIZATION.md) |
+| Full docs index (generated) | [`docs/README.md`](./docs/README.md) |
 
 ## Commercial licensing
 
