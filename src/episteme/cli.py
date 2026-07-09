@@ -1511,11 +1511,133 @@ def _sync_check(governance_mode: str = "balanced") -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Volatile-fact stamping (Event 147, Mechanism — deploy-on-merge contract)
+# ---------------------------------------------------------------------------
+# Version strings and other release-coupled facts drift when hand-copied into
+# prose (ARCHITECTURE.md said one version, README another, reality a third).
+# The fix is a machine-owned span: a doc wraps the volatile value in
+# `<!-- episteme-fact:version -->...<!-- /episteme-fact:version -->` and
+# `episteme sync` rewrites the inner text from `.release-please-manifest.json`
+# on every deploy. Prose keeps the marker; CI (release-please) owns the value.
+#
+# Anti-accretion: this REPLACES hand-maintenance of version prose; it does not
+# add a parallel source of truth — the manifest release-please already writes
+# is the single upstream value.
+
+_VOLATILE_FACT_VERSION_RE = re.compile(
+    r"(<!--\s*episteme-fact:version\s*-->)(.*?)(<!--\s*/episteme-fact:version\s*-->)",
+    re.DOTALL,
+)
+
+
+def _read_release_version(root: Path) -> str | None:
+    """Return the release-please version for the repo root package (`.` key).
+
+    Reads `.release-please-manifest.json`. Returns None (skip stamping) when
+    the manifest is absent, malformed, or carries no usable version — a
+    missing manifest must never crash sync, only decline to stamp.
+    """
+    manifest = root / ".release-please-manifest.json"
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict) or not data:
+        return None
+    # Prefer the root package key `.`; fall back to the sole value when a
+    # single-package manifest uses a different path key.
+    version = data.get(".")
+    if version is None and len(data) == 1:
+        version = next(iter(data.values()))
+    if not isinstance(version, str) or not version.strip():
+        return None
+    return version.strip()
+
+
+def _tracked_docs(root: Path) -> list[Path]:
+    """Enumerate git-tracked markdown docs under `root` (portable).
+
+    Uses `git ls-files` so only tracked files are stamped (never gitignored
+    scratch or private symlink targets). Falls back to a `docs/**/*.md` +
+    top-level `*.md` glob when git is unavailable or `root` is not a repo, so
+    fixture tmpdirs and non-git adopters still work.
+    """
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z", "*.md"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if out.returncode == 0:
+            rels = [r for r in out.stdout.split("\0") if r]
+            paths = [root / r for r in rels]
+            # A resolved worktree may return symlinks (private docs); keep
+            # only regular files so we never write through a symlink target.
+            return [p for p in paths if p.is_file() and not p.is_symlink()]
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    globbed: list[Path] = []
+    top = root / "README.md"
+    if top.is_file() and not top.is_symlink():
+        globbed.append(top)
+    docs_dir = root / "docs"
+    if docs_dir.is_dir():
+        for p in sorted(docs_dir.rglob("*.md")):
+            if p.is_file() and not p.is_symlink():
+                globbed.append(p)
+    return globbed
+
+
+def _stamp_volatile_facts(
+    root: Path,
+    version: str | None = None,
+    *,
+    files: "list[Path] | None" = None,
+) -> list[Path]:
+    """Rewrite `episteme-fact:version` spans in tracked docs from the manifest.
+
+    Idempotent: a span already holding the current version is left untouched
+    and its file is not rewritten. Returns the list of files actually changed.
+    A doc with no marker is skipped. When `version` is None it is read from the
+    manifest; if still unresolvable, this is a no-op (returns []).
+    """
+    if version is None:
+        version = _read_release_version(root)
+    if not version:
+        return []
+    candidates = files if files is not None else _tracked_docs(root)
+    changed: list[Path] = []
+    for path in candidates:
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if "episteme-fact:version" not in text:
+            continue
+        new_text = _VOLATILE_FACT_VERSION_RE.sub(
+            lambda m: f"{m.group(1)}{version}{m.group(3)}", text
+        )
+        if new_text != text:
+            try:
+                path.write_text(new_text, encoding="utf-8")
+            except OSError:
+                continue
+            changed.append(path)
+    return changed
+
+
 def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     from .adapters import claude as _claude
     from .adapters import hermes as _hermes
     from .adapters import omo as _omo
     from .adapters import omx as _omx
+
+    # Deploy-on-merge: refresh release-coupled facts in tracked docs before
+    # mounting the runtime, so a synced surface never carries a stale version.
+    _stamped = _stamp_volatile_facts(REPO_ROOT)
 
     _claude.sync(governance_mode)
     hermes_synced = _hermes.sync()
@@ -1525,6 +1647,8 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     print("Synced user runtime:")
     print(f"  - Claude: {HOME / '.claude'}")
     print(f"  - Governance pack: {governance_mode}")
+    if _stamped:
+        print(f"  - Stamped version facts in {len(_stamped)} doc(s)")
     if hermes_synced:
         print(f"  - Hermes: {HOME / '.hermes'}")
     if omo_synced:
@@ -2927,30 +3051,48 @@ def _render_workstyle_explanations(mode: str, payload: dict) -> str:
 # Kernel defaults; overridable per-operator via the operator_profile.md field.
 PROFILE_STALE_DAYS = 30
 
-_LAST_ELICITED_RE = re.compile(
-    r"^\s*(?:[-*+]\s+)?(?:_|\*|`)?\s*Last elicited\s*[:\-]\s*(?:_|\*|`)?\s*(\d{4}-\d{2}-\d{2})",
+# Lines that carry an elicitation/observation date. Anchored at line start
+# (after optional bullet / emphasis markers) on one of the recognised keys —
+# prose lines that merely *mention* a date (e.g. a `note:` field) are not
+# consulted, so only declared elicitation metadata drives freshness.
+_ELICITATION_LINE_RE = re.compile(
+    r"^\s*(?:[-*+]\s+)?(?:_|\*|`)?\s*"
+    r"(?:last[ _]elicited|last[ _]observed)\b.*$",
     re.IGNORECASE | re.MULTILINE,
 )
+_ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 def _read_last_elicited(profile_path: Path) -> date | None:
-    """Parse `Last elicited: YYYY-MM-DD` out of the operator profile markdown.
+    """Return the NEWEST elicitation date declared in the operator profile.
+
+    Event 147 — the v2 profile carries a multi-date `Last elicited:` header
+    (`2026-04-13 ...; 2026-04-20 ...; 2026-07-08 ...`) plus per-axis
+    `last_observed:` lines. The pre-147 parser captured only the first date on
+    the first `Last elicited` line, so a profile refreshed on one axis still
+    read as stale. This now scans every elicitation-keyed line, parses every
+    ISO date on it, and returns the maximum — a single refreshed axis makes the
+    profile fresh, which matches the operator's mental model of "last touched".
 
     Tolerant to surrounding italics / backticks / bullet markers so
-    hand-editing doesn't break detection. Returns None when absent or
-    malformed — callers treat `None` as stale-unknown (still warn).
+    hand-editing doesn't break detection. Returns None when no parseable date
+    is present — callers treat `None` as stale-unknown (still warn). Malformed
+    dates (e.g. `2026-13-40`) are skipped, not fatal.
     """
     try:
         text = profile_path.read_text(encoding="utf-8")
     except OSError:
         return None
-    m = _LAST_ELICITED_RE.search(text)
-    if not m:
+    dates: list[date] = []
+    for line_match in _ELICITATION_LINE_RE.finditer(text):
+        for iso in _ISO_DATE_RE.finditer(line_match.group(0)):
+            try:
+                dates.append(date.fromisoformat(iso.group(0)))
+            except ValueError:
+                continue
+    if not dates:
         return None
-    try:
-        return date.fromisoformat(m.group(1))
-    except ValueError:
-        return None
+    return max(dates)
 
 
 def _profile_staleness(
