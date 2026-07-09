@@ -244,6 +244,110 @@ def _reaper_line() -> str | None:
     return f"marker-gc: {_marker_reaper.format_summary(results)}"
 
 
+_DOC_STALENESS_EVENT_LAG = 15
+_DOC_STALENESS_DATE_DAYS = 45
+
+
+def _doc_staleness_line() -> str | None:
+    """Event 147 · doc-lifecycle staleness banner.
+
+    Counts tracked ``status=living`` docs whose ``reviewed_as_of`` lags the
+    corpus: by more than ``_DOC_STALENESS_EVENT_LAG`` events when the latest
+    ``E<n>`` tag is resolvable from ``docs/EVENTS.md``, or (fallback) by more
+    than ``_DOC_STALENESS_DATE_DAYS`` days when the marker carries an ISO date
+    instead of an event tag. Emits ONE advisory line only when the count is
+    positive, so the banner stays silent on the common fresh-corpus session —
+    matching the silent-on-zero convention of ``_reaper_line`` and the other
+    producers here.
+
+    Read-only and self-contained: globs ``docs/*.md`` and reads line 1 for the
+    lifecycle marker rather than importing ``src/episteme`` (the hook runs as a
+    standalone script with no guaranteed package path) and never shells out, so
+    it adds well under 50ms to SessionStart. Graceful-degrades to None on any
+    IO / parse failure — session open must not break on an advisory count. The
+    drain is opportunistic: whoever next edits a stale doc bumps its
+    ``reviewed_as_of`` (``episteme docs lint`` reminds; it is not a CI failure).
+    """
+    import re
+
+    try:
+        docs_dir = Path("docs")
+        if not docs_dir.is_dir():
+            return None
+
+        marker_re = re.compile(r"episteme-lifecycle:")
+        status_re = re.compile(r"status=([^;\s]+)")
+        review_re = re.compile(r"reviewed_as_of=([^;\s]+)")
+        event_re = re.compile(r"^E(\d+)$")
+        date_re = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
+
+        # Latest event tag from the EVENTS index, if resolvable. A private
+        # symlink whose target is present resolves via is_file(); a broken
+        # symlink or absent file leaves latest_event None and the fallback
+        # date rule governs.
+        latest_event: int | None = None
+        events_path = docs_dir / "EVENTS.md"
+        try:
+            if events_path.is_file():
+                text = events_path.read_text(encoding="utf-8", errors="replace")
+                nums = [int(m) for m in re.findall(r"\bE(\d+)\b", text)]
+                if nums:
+                    latest_event = max(nums)
+        except OSError:
+            latest_event = None
+
+        today = datetime.now(timezone.utc).date()
+        stale = 0
+        for path in docs_dir.glob("*.md"):
+            # Skip symlinks (private planning docs are symlinked, lifecycle-exempt).
+            if path.is_symlink():
+                continue
+            try:
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    first_line = fh.readline()
+            except OSError:
+                continue
+            if not marker_re.search(first_line):
+                continue
+            sm = status_re.search(first_line)
+            if sm is None or sm.group(1) != "living":
+                continue
+            rm = review_re.search(first_line)
+            if rm is None:
+                continue
+            reviewed = rm.group(1)
+
+            ev = event_re.match(reviewed)
+            if ev is not None:
+                if latest_event is None:
+                    continue  # event-tagged but no corpus latest to compare
+                if latest_event - int(ev.group(1)) > _DOC_STALENESS_EVENT_LAG:
+                    stale += 1
+                continue
+
+            dm = date_re.match(reviewed)
+            if dm is not None:
+                try:
+                    reviewed_date = datetime(
+                        int(dm.group(1)), int(dm.group(2)), int(dm.group(3))
+                    ).date()
+                except ValueError:
+                    continue
+                if (today - reviewed_date).days > _DOC_STALENESS_DATE_DAYS:
+                    stale += 1
+                continue
+            # Unparseable reviewed_as_of: leave for `episteme docs lint`.
+
+        if stale <= 0:
+            return None
+        return (
+            f"doc-staleness: {stale} living docs unreviewed "
+            f">15 events — episteme docs lint"
+        )
+    except Exception:
+        return None
+
+
 _NEXT_STEPS_MAX_CHARS = 8000
 
 
@@ -516,6 +620,13 @@ def main() -> int:
     reaper_line = _reaper_line()
     if reaper_line:
         lines.append(reaper_line)
+
+    # Event 147 · doc-lifecycle staleness — count living docs whose
+    # reviewed_as_of lags the corpus by >15 events (or >45 days when dated).
+    # Silent on zero; read-only advisory, drain is opportunistic on next edit.
+    doc_staleness_line = _doc_staleness_line()
+    if doc_staleness_line:
+        lines.append(doc_staleness_line)
 
     # Phase A · v1.0.1 — noise-watch advisory derived from the operator
     # profile's cognitive.noise_signature axis. Silent when the knob is
