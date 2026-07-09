@@ -8,6 +8,7 @@ real repo is clean. The fixtures build throwaway git repos so ``tracked_docs``'
 
 from __future__ import annotations
 
+import os
 import subprocess
 import unittest
 from pathlib import Path
@@ -250,6 +251,55 @@ class RepoCorpusTests(unittest.TestCase):
             "doc lifecycle violations in the tracked corpus:\n"
             + dl.format_findings(findings),
         )
+
+
+class RepoRootResolutionTests(unittest.TestCase):
+    """FIX 1 (Event 148 follow-up): ``_repo_root`` anchors the git call at the
+    CURRENT working directory, never the package location, so the installed CLI
+    lints/indexes the repo the operator is standing in. Pre-fix these FAIL: the
+    old ``_repo_root`` anchored at ``Path(__file__)`` and always linted the
+    episteme package repo (clean), so the CLI printed a false 'clean' against a
+    foreign repo carrying a broken doc.
+    """
+
+    def _fixture_with_broken_doc(self, root: Path) -> None:
+        _init_repo(root)
+        # A tracked docs/*.md with no lifecycle marker — a guaranteed failure.
+        _add(root, "docs/BROKEN.md", "# a doc with no lifecycle marker\n")
+
+    def test_run_lint_cli_anchors_at_cwd(self):
+        with TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._fixture_with_broken_doc(root)
+            prev = os.getcwd()
+            os.chdir(root)
+            try:
+                rc = dl.run_lint_cli()
+            finally:
+                os.chdir(prev)
+            self.assertEqual(rc, 1, "lint must fail against the cwd fixture")
+
+    def test_run_lint_cli_root_arg_overrides_discovery(self):
+        with TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._fixture_with_broken_doc(root)
+            # cwd stays the (clean) episteme repo; --root points at the fixture.
+            rc = dl.run_lint_cli(root=root)
+            self.assertEqual(rc, 1, "--root must override cwd discovery")
+
+    def test_repo_root_falls_back_to_cwd_not_package(self):
+        with TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            # NOT a git repo — resolution must fall back to cwd, never to the
+            # package's parents[2] (the episteme repo).
+            prev = os.getcwd()
+            os.chdir(root)
+            try:
+                resolved = dl._repo_root()
+            finally:
+                os.chdir(prev)
+            self.assertEqual(resolved, root)
+            self.assertNotEqual(resolved, _REPO_ROOT)
 
 
 if __name__ == "__main__":

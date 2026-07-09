@@ -498,11 +498,24 @@ def run_index_cli(root: Optional[Path] = None, check: bool = False) -> int:
 
 
 def _repo_root() -> Path:
-    """Resolve the repo root (git top-level, else the package's parents[2])."""
-    here = Path(__file__).resolve()
+    """Resolve the repo root for the CURRENT working directory.
+
+    Anchors ``git rev-parse --show-toplevel`` at :func:`Path.cwd` — NEVER at
+    the package location (``Path(__file__)``). The installed CLI must lint /
+    index the repo the operator is standing in; anchoring at the module would
+    make ``episteme docs lint`` always resolve the episteme package repo and
+    print a false 'clean' against whatever foreign repo the operator actually
+    invoked it from.
+
+    On failure (git absent, or cwd is not inside a working tree) falls back to
+    ``Path.cwd()`` itself — never to the package's ``parents[2]``. A lint that
+    honestly targets cwd (and may find nothing) is strictly safer than one that
+    silently reports a different repo as clean.
+    """
+    cwd = Path.cwd()
     try:
         proc = subprocess.run(
-            ["git", "-C", str(here.parent), "rev-parse", "--show-toplevel"],
+            ["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
             check=True,
@@ -512,4 +525,4 @@ def _repo_root() -> Path:
             return Path(top)
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
-    return here.parents[2]
+    return cwd
