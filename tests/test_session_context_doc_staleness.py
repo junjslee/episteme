@@ -100,6 +100,43 @@ class DocStalenessBanner(unittest.TestCase):
             self.assertIsNotNone(line)
             assert line is not None
             self.assertIn("doc-staleness: 1 living docs", line)
+            # Event 148 · smallfix #1: the date-fallback fired, so the wording
+            # must name the day threshold, not the event threshold.
+            self.assertIn(">45 days", line)
+            self.assertNotIn(">15 events", line)
+
+    def test_event_lag_case_names_event_threshold(self):
+        """When only the event-lag rule fires, the banner says '>15 events'."""
+        with tempfile.TemporaryDirectory() as td:
+            docs = Path(td) / "docs"
+            docs.mkdir()
+            (docs / "EVENTS.md").write_text("E200\n", encoding="utf-8")
+            _write_doc(docs, "A.md", "living", "E100")  # lag 100 > 15 ⇒ stale
+            with _chdir(Path(td)):
+                line = sc._doc_staleness_line()
+            self.assertIsNotNone(line)
+            assert line is not None
+            self.assertIn("doc-staleness: 1 living docs", line)
+            self.assertIn(">15 events", line)
+            self.assertNotIn(">45 days", line)
+
+    def test_mixed_event_and_date_staleness_names_both(self):
+        """Both classes stale ⇒ wording names both thresholds, count is the sum."""
+        old = (datetime.now(timezone.utc) - timedelta(days=100)).strftime("%Y-%m-%d")
+        with tempfile.TemporaryDirectory() as td:
+            docs = Path(td) / "docs"
+            docs.mkdir()
+            (docs / "EVENTS.md").write_text("E200\n", encoding="utf-8")
+            _write_doc(docs, "A.md", "living", "E100")  # event-lag stale
+            _write_doc(docs, "B.md", "living", old)      # date-fallback stale
+            with _chdir(Path(td)):
+                line = sc._doc_staleness_line()
+            self.assertIsNotNone(line)
+            assert line is not None
+            self.assertIn("doc-staleness: 2 living docs", line)
+            self.assertIn(">15 events", line)
+            self.assertIn(">45 days", line)
+            self.assertEqual(line.count("\n"), 0, "must emit exactly one line")
 
     def test_symlinked_doc_skipped(self):
         """Private planning docs are symlinked and lifecycle-exempt."""
