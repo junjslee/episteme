@@ -78,7 +78,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable
 
 _HOOKS_DIR = Path(__file__).resolve().parent
 if str(_HOOKS_DIR) not in sys.path:
@@ -782,11 +782,15 @@ def stats(
 
 def _validate_verdict(
     entry: QueuedEntry,
-    verdicts: dict,
+    verdicts: object,
 ) -> str | None:
     """Return None when the verdict dict is shape-valid; return an
     error string when a required dimension is missing, absent, or
     carries an out-of-enum value."""
+    # `object`, not `dict`: `verdicts` originates in hook/CLI payload input,
+    # where it can be a non-dict. The isinstance guard is the live fail-safe;
+    # annotating the param `dict` made Pyright flag it as unreachable dead code
+    # (precedent: adapters/claude.py commit 8d3991a). Event 148 · follow-up.
     if not isinstance(verdicts, dict):
         return "verdicts must be a dict"
     sv = verdicts.get("surface_validity")
