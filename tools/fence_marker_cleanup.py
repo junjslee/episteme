@@ -17,9 +17,17 @@ to force a sweep out of band.
 
 Prints a one-line summary to stderr and exits 0. Safe to run repeatedly;
 idempotent.
+
+Argument discipline (Event 148 · smallfix #3, closing an Event 146 finding):
+the sweep is destructive (it unlinks marker files), so it must run ONLY on a
+bare invocation. ``-h``/``--help`` prints usage and exits 0 without sweeping;
+any unknown flag or positional exits 2 without sweeping. Previously the tool
+ignored ``sys.argv`` entirely, so ``--help`` (and any typo'd flag) silently ran
+a live sweep.
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -30,7 +38,24 @@ if str(_HOOKS_DIR) not in sys.path:
 import _marker_reaper  # type: ignore  # noqa: E402  # pyright: ignore[reportMissingImports]
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI args. Defines no options, so a bare invocation runs the
+    sweep; ``-h``/``--help`` (exit 0) and any unknown token (exit 2) both
+    short-circuit via ``SystemExit`` before the sweep can start."""
+    parser = argparse.ArgumentParser(
+        prog="fence_marker_cleanup",
+        description=(
+            "Force an out-of-band sweep of orphaned pairing markers "
+            "(cascade + fence pending dirs), TTL-unlinking any marker past "
+            "MARKER_TTL_SECONDS. Takes no arguments; run bare to sweep."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    # Parse BEFORE any destructive work: --help / unknown-flag must not sweep.
+    _parse_args(sys.argv[1:] if argv is None else argv)
     results = _marker_reaper.reap_all()
     cascade = results["cascade"]
     fence = results["fence"]
