@@ -1638,6 +1638,17 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     # Deploy-on-merge: refresh release-coupled facts in tracked docs before
     # mounting the runtime, so a synced surface never carries a stale version.
     _stamped = _stamp_volatile_facts(REPO_ROOT)
+    if _stamped:
+        # A stamped span can feed the generated docs index (a doc's H1 may
+        # carry the version), so heal the index in the same breath —
+        # otherwise the stamp itself manufactures index drift (E148
+        # verification finding: the first live stamp left docs/README.md
+        # one line stale). Healing must never block a sync.
+        try:
+            from . import doc_lifecycle as _dl
+            _dl.update_readme_index(REPO_ROOT, _dl.discover_config(REPO_ROOT))
+        except Exception:
+            pass
 
     _claude.sync(governance_mode)
     hermes_synced = _hermes.sync()

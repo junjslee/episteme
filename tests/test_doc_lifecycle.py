@@ -252,6 +252,20 @@ class RepoCorpusTests(unittest.TestCase):
             + dl.format_findings(findings),
         )
 
+    def test_docs_index_is_current(self):
+        # E148 verification finding: `docs index --check` existed but no CI
+        # carrier ran it, so the first live volatile-fact stamp (PR #119)
+        # drifted the committed index one line without any gate noticing —
+        # the mechanism-without-carrier (D11) shape again. This test IS the
+        # carrier: the committed docs/README.md generated section must match
+        # a fresh regeneration byte-for-byte.
+        self.assertEqual(
+            dl.run_index_cli(root=_REPO_ROOT, check=True),
+            0,
+            "docs/README.md generated index is stale — run `episteme docs "
+            "index` and commit the result",
+        )
+
 
 class RepoRootResolutionTests(unittest.TestCase):
     """FIX 1 (Event 148 follow-up): ``_repo_root`` anchors the git call at the
