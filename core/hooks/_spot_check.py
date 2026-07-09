@@ -78,7 +78,7 @@ import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable
 
 _HOOKS_DIR = Path(__file__).resolve().parent
 if str(_HOOKS_DIR) not in sys.path:
@@ -165,8 +165,45 @@ def _anchor_path() -> Path:
     return _episteme_home() / "sample_schedule_anchor.json"
 
 
+# Mirror of reasoning_surface_guard._ROOT_WALK_MAX_DEPTH / _interrogation's
+# copy — duplicated per the hooks-stay-self-contained convention.
+_ROOT_WALK_MAX_DEPTH = 64
+
+
+def _canonical_project_root(cwd: Path) -> Path:
+    """Nearest ancestor holding ``.episteme/``, bounded by the repo boundary.
+
+    Mirrors ``_interrogation._canonical_project_root`` /
+    ``reasoning_surface_guard._resolve_episteme_root`` (duplicated per the
+    hooks-stay-self-contained convention): walk UP for a directory holding
+    ``.episteme/``, STOPPING at the first directory carrying a ``.git`` entry
+    (dir in a normal checkout, FILE in a linked worktree) and at the filesystem
+    root. The boundary directory itself is inspected first — a repo root
+    carries both. NEVER cross the boundary into a parent repo.
+
+    Event 148 follow-up — the per-project ``spot_check_rate`` override must
+    resolve the same boundary the Event-148 admission path adopted. Without it
+    the raw ``<cwd>/.episteme/spot_check_rate`` read (a) missed a root override
+    when the op ran from a subdirectory and (b) would, under a naive walk-up,
+    let a nested child repo inherit the parent's sampling rate. Returns ``cwd``
+    unchanged when nothing is found up to the boundary, so the override path
+    names a non-existent file and ``_read_project_override`` falls back to the
+    schedule (raw-cwd behavior preserved on the no-marker path).
+    """
+    probe = cwd.resolve() if cwd.exists() else cwd
+    for _ in range(_ROOT_WALK_MAX_DEPTH):
+        if (probe / ".episteme").is_dir():
+            return probe
+        if (probe / ".git").exists():
+            return cwd
+        if probe.parent == probe:
+            break
+        probe = probe.parent
+    return cwd
+
+
 def _project_override_path(cwd: Path) -> Path:
-    return cwd / ".episteme" / "spot_check_rate"
+    return _canonical_project_root(cwd) / ".episteme" / "spot_check_rate"
 
 
 def _skip_counter_path() -> Path:
@@ -179,6 +216,14 @@ def _reflective_dir() -> Path:
     Equals ``_cognitive_budget.DEFAULT_REFLECTIVE_DIR`` when EPISTEME_HOME
     is unset."""
     return _episteme_home() / "memory" / "reflective"
+
+
+# Mirror of ``_cognitive_budget.HISTORY_FILENAME`` — the approval-history file
+# name. Duplicated (not imported) so the fatigue short-circuit below can stat
+# the file WITHOUT importing the budget module. Kept in sync by convention;
+# ``_cognitive_budget._resolve_path`` joins the same name onto the reflective
+# dir, so the two stay consistent.
+_CB_APPROVAL_HISTORY_FILENAME = "approval_times.jsonl"
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +470,24 @@ def _fatigue_active(
     today (``_cognitive_budget`` auto-instrumentation is deferred), so an
     empty stream yields no signal and this gate is a no-op — the hard
     pending cap remains the safety net. Never raises; fails toward *not
-    fatigued* (enqueue) when the budget module is unavailable."""
+    fatigued* (enqueue) when the budget module is unavailable.
+
+    Cheap short-circuit (FIX 3, Event 148 follow-up): because capture is
+    manual today the approvals file is absent or empty on the overwhelming
+    majority of ops. Stat the file — resolved the same way
+    ``_cognitive_budget._resolve_path`` does (reflective dir + history file
+    name) — BEFORE importing the budget module or walking/chain-verifying the
+    stream, and return *not fatigued* immediately when it is absent or empty.
+    This keeps the sampled-op hot path free of the import + chain walk until
+    the stream actually has content."""
+    rdir = reflective_dir if reflective_dir is not None else _reflective_dir()
+    approvals = rdir / _CB_APPROVAL_HISTORY_FILENAME
+    try:
+        if not approvals.is_file() or approvals.stat().st_size == 0:
+            return False
+    except OSError:
+        return False
+
     try:
         from episteme import (  # type: ignore  # pyright: ignore[reportMissingImports]
             _cognitive_budget as cb,
@@ -433,7 +495,6 @@ def _fatigue_active(
     except Exception:
         return False
     try:
-        rdir = reflective_dir if reflective_dir is not None else _reflective_dir()
         window, p50, rate = cb.load_thresholds(
             cwd if cwd is not None else Path.cwd()
         )
@@ -721,11 +782,15 @@ def stats(
 
 def _validate_verdict(
     entry: QueuedEntry,
-    verdicts: dict,
+    verdicts: object,
 ) -> str | None:
     """Return None when the verdict dict is shape-valid; return an
     error string when a required dimension is missing, absent, or
     carries an out-of-enum value."""
+    # `object`, not `dict`: `verdicts` originates in hook/CLI payload input,
+    # where it can be a non-dict. The isinstance guard is the live fail-safe;
+    # annotating the param `dict` made Pyright flag it as unreachable dead code
+    # (precedent: adapters/claude.py commit 8d3991a). Event 148 · follow-up.
     if not isinstance(verdicts, dict):
         return "verdicts must be a dict"
     sv = verdicts.get("surface_validity")

@@ -5873,9 +5873,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     docs_cmd = sub.add_parser("docs", help="Doc/artifact lifecycle — marker lint + generated index")
     docs_sub = docs_cmd.add_subparsers(dest="docs_action", required=True)
-    docs_sub.add_parser("lint", help="Validate lifecycle markers on every tracked docs/*.md (positive system)")
+    d_lint = docs_sub.add_parser("lint", help="Validate lifecycle markers on every tracked docs/*.md (positive system)")
+    d_lint.add_argument("--root", type=Path, default=None, help="Repo root to lint (default: git top-level of the current working directory)")
     d_index = docs_sub.add_parser("index", help="Regenerate the docs/README.md index from lifecycle markers")
     d_index.add_argument("--check", action="store_true", help="Verify the committed index is up to date (CI gate); do not write")
+    d_index.add_argument("--root", type=Path, default=None, help="Repo root to index (default: git top-level of the current working directory)")
 
     kernel = sub.add_parser("kernel", help="Kernel integrity manifest + ledger maintenance operations")
     kernel_sub = kernel.add_subparsers(dest="kernel_action", required=True)
@@ -6664,9 +6666,12 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "docs":
         from . import doc_lifecycle as _dl
         if args.docs_action == "lint":
-            return _dl.run_lint_cli()
+            return _dl.run_lint_cli(root=getattr(args, "root", None))
         if args.docs_action == "index":
-            return _dl.run_index_cli(check=getattr(args, "check", False))
+            return _dl.run_index_cli(
+                root=getattr(args, "root", None),
+                check=getattr(args, "check", False),
+            )
         return 0
     if args.command == "memory":
         if args.memory_action == "record":
