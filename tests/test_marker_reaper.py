@@ -364,5 +364,307 @@ class CliTool(unittest.TestCase):
         self.assertNotIn("vanished=", proc.stderr)  # sweep-summary token, absent ⇒ no sweep
 
 
+# ===========================================================================
+# Event 148 · LOG-GC — advisory_shown / hooks.log + audit.jsonl / telemetry
+# ===========================================================================
+
+
+def _write_advisory(d: Path, name: str, written_at: datetime | None) -> Path:
+    """Write an advisory_shown marker whose whole content is an ISO timestamp,
+    mirroring reasoning_surface_guard._should_show_full_surface. When
+    written_at is None the file is empty (age falls back to mtime)."""
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / f"{name}.marker"
+    p.write_text("" if written_at is None else written_at.isoformat(), encoding="utf-8")
+    return p
+
+
+class AdvisoryShownReap(unittest.TestCase):
+    def test_ttl_boundary_just_under_stays_just_over_reaped(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            d = reaper.advisory_shown_dir_for_tests()
+            ttl = reaper.ADVISORY_SHOWN_TTL_SECONDS
+            under = _write_advisory(d, "under", now - timedelta(seconds=ttl - 1))
+            over = _write_advisory(d, "over", now - timedelta(seconds=ttl + 1))
+            res = reaper.reap_advisory_shown(now=now)
+            self.assertTrue(under.exists(), "marker just under 7d TTL must survive")
+            self.assertFalse(over.exists(), "marker just over 7d TTL must be unlinked")
+            self.assertEqual((res.reaped, res.kept), (1, 1))
+
+    def test_age_keyed_on_iso_content_not_mtime(self):
+        # Content says 30 days old, but mtime is fresh (just written). Age must
+        # follow the ISO content, so the marker is reaped despite a fresh mtime.
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            d = reaper.advisory_shown_dir_for_tests()
+            p = _write_advisory(d, "old_content", now - timedelta(days=30))
+            res = reaper.reap_advisory_shown(now=now)
+            self.assertFalse(p.exists())
+            self.assertEqual(res.reaped, 1)
+
+    def test_empty_marker_ages_by_mtime(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            d = reaper.advisory_shown_dir_for_tests()
+            fresh = _write_advisory(d, "empty_fresh", None)
+            stale = _write_advisory(d, "empty_stale", None)
+            old = (now - timedelta(days=8)).timestamp()
+            os.utime(stale, (old, old))
+            res = reaper.reap_advisory_shown(now=now)
+            self.assertTrue(fresh.exists(), "fresh empty marker kept (mtime fallback)")
+            self.assertFalse(stale.exists(), "stale empty marker reaped by mtime")
+            self.assertEqual((res.reaped, res.kept), (1, 1))
+
+    def test_missing_dir_is_noop(self):
+        with _TmpHome():
+            res = reaper.reap_advisory_shown()
+            self.assertEqual((res.reaped, res.kept, res.vanished), (0, 0, 0))
+
+    def test_delete_between_scan_and_unlink_no_exception(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            d = reaper.advisory_shown_dir_for_tests()
+            _write_advisory(d, "racey", now - timedelta(days=10))
+
+            def _boom(self, *a, **k):
+                raise FileNotFoundError(self)
+
+            with patch.object(Path, "unlink", _boom):
+                res = reaper.reap_advisory_shown(now=now)  # must not raise
+            self.assertEqual(res.reaped, 0)
+            self.assertGreaterEqual(res.vanished, 1)
+
+    def test_env_override_ttl(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            d = reaper.advisory_shown_dir_for_tests()
+            p = _write_advisory(d, "twoday", now - timedelta(days=2))
+            prev = os.environ.get("EPISTEME_ADVISORY_SHOWN_TTL_SECONDS")
+            os.environ["EPISTEME_ADVISORY_SHOWN_TTL_SECONDS"] = str(24 * 3600)
+            try:
+                sweep = reaper.sweep_all(now=now)
+            finally:
+                if prev is None:
+                    os.environ.pop("EPISTEME_ADVISORY_SHOWN_TTL_SECONDS", None)
+                else:
+                    os.environ["EPISTEME_ADVISORY_SHOWN_TTL_SECONDS"] = prev
+            self.assertFalse(p.exists(), "2d-old marker reaped under 1d override")
+            self.assertEqual(sweep.advisory.reaped, 1)
+
+
+class LogRotation(unittest.TestCase):
+    def test_cap_boundary_at_cap_not_rotated_over_cap_rotated(self):
+        with _TmpHome():
+            p = reaper.hooks_log_path_for_tests()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            cap = 100
+            # Exactly at cap → not rotated.
+            p.write_bytes(b"x" * cap)
+            res = reaper.rotate_oversized_log(p, cap)
+            self.assertFalse(res.rotated, "file exactly at cap must NOT rotate")
+            self.assertFalse((p.parent / (p.name + ".1")).exists())
+            # One byte over cap → rotated.
+            p.write_bytes(b"x" * (cap + 1))
+            res = reaper.rotate_oversized_log(p, cap)
+            self.assertTrue(res.rotated, "file over cap must rotate")
+            self.assertEqual(res.bytes_before, cap + 1)
+            archive = p.parent / (p.name + ".1")
+            self.assertTrue(archive.exists(), "archive .1 created")
+            self.assertEqual(archive.read_bytes(), b"x" * (cap + 1))
+            self.assertTrue(p.exists(), "live file recreated (empty) after rotate")
+            self.assertEqual(p.stat().st_size, 0)
+
+    def test_single_generation_previous_archive_discarded(self):
+        with _TmpHome():
+            p = reaper.audit_log_path_for_tests()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            cap = 10
+            # First rotation leaves gen-1 content in .1.
+            p.write_bytes(b"AAAAAAAAAAA")  # 11 bytes > cap
+            reaper.rotate_oversized_log(p, cap)
+            archive = p.parent / (p.name + ".1")
+            self.assertEqual(archive.read_bytes(), b"AAAAAAAAAAA")
+            # Second rotation: .1 must hold gen-2, gen-1 discarded (one generation).
+            p.write_bytes(b"BBBBBBBBBBB")
+            reaper.rotate_oversized_log(p, cap)
+            self.assertEqual(archive.read_bytes(), b"BBBBBBBBBBB")
+
+    def test_missing_file_is_noop(self):
+        with _TmpHome():
+            p = reaper.hooks_log_path_for_tests()
+            res = reaper.rotate_oversized_log(p, 5)
+            self.assertFalse(res.rotated)
+            self.assertFalse(p.exists())
+
+    def test_replace_failure_does_not_raise(self):
+        with _TmpHome():
+            p = reaper.hooks_log_path_for_tests()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(b"x" * 50)
+
+            def _boom(*a, **k):
+                raise OSError("simulated replace failure")
+
+            with patch("os.replace", _boom):
+                res = reaper.rotate_oversized_log(p, 10)  # must not raise
+            self.assertFalse(res.rotated)
+            self.assertTrue(p.exists(), "live file untouched when replace fails")
+
+
+class TelemetryReap(unittest.TestCase):
+    def _write_tel(self, d: Path, name: str, age_days: float) -> Path:
+        d.mkdir(parents=True, exist_ok=True)
+        p = d / name
+        p.write_text("{}\n", encoding="utf-8")
+        ts = (datetime.now(timezone.utc) - timedelta(days=age_days)).timestamp()
+        os.utime(p, (ts, ts))
+        return p
+
+    def test_old_reaped_recent_kept_by_mtime(self):
+        with _TmpHome():
+            d = reaper.telemetry_dir_for_tests()
+            fresh = self._write_tel(d, "2026-07-01-audit.jsonl", 5)
+            old = self._write_tel(d, "2026-01-01-audit.jsonl", 60)
+            res = reaper.reap_telemetry(keep_newest=0)
+            self.assertTrue(fresh.exists())
+            self.assertFalse(old.exists())
+            self.assertEqual(res.reaped, 1)
+
+    def test_keep_newest_floor_overrides_age(self):
+        # 25 files, ALL 60 days old (all past TTL). keep_newest=20 must preserve
+        # the newest 20 by mtime regardless of age; only 5 oldest are reaped.
+        with _TmpHome():
+            d = reaper.telemetry_dir_for_tests()
+            paths = []
+            for i in range(25):
+                # age decreases with i, so higher i == newer (larger mtime)
+                paths.append(self._write_tel(d, f"f{i:02d}-audit.jsonl", 60 + (25 - i)))
+            res = reaper.reap_telemetry(keep_newest=20)
+            self.assertEqual(res.reaped, 5, "only the 5 oldest past-TTL files reaped")
+            self.assertEqual(res.kept, 20)
+            survivors = sorted(pp.name for pp in d.glob("*-audit.jsonl"))
+            self.assertEqual(len(survivors), 20)
+            # The 5 oldest (lowest i) are gone; newest 20 (i>=5) survive.
+            self.assertNotIn("f00-audit.jsonl", survivors)
+            self.assertIn("f05-audit.jsonl", survivors)
+            self.assertIn("f24-audit.jsonl", survivors)
+
+    def test_tier1_jsonl_never_matched(self):
+        with _TmpHome():
+            d = reaper.telemetry_dir_for_tests()
+            tier1 = d / "tier1.jsonl"
+            d.mkdir(parents=True, exist_ok=True)
+            tier1.write_text("{}\n", encoding="utf-8")
+            old = (datetime.now(timezone.utc) - timedelta(days=365)).timestamp()
+            os.utime(tier1, (old, old))
+            res = reaper.reap_telemetry(keep_newest=0)
+            self.assertTrue(tier1.exists(), "tier1.jsonl must never be reaped")
+            self.assertEqual(res.reaped, 0)
+
+    def test_missing_dir_is_noop(self):
+        with _TmpHome():
+            res = reaper.reap_telemetry()
+            self.assertEqual((res.reaped, res.kept, res.vanished), (0, 0, 0))
+
+    def test_env_overrides(self):
+        with _TmpHome():
+            d = reaper.telemetry_dir_for_tests()
+            self._write_tel(d, "a-audit.jsonl", 3)
+            self._write_tel(d, "b-audit.jsonl", 3)
+            self._write_tel(d, "c-audit.jsonl", 3)
+            prev_ttl = os.environ.get("EPISTEME_TELEMETRY_TTL_SECONDS")
+            prev_keep = os.environ.get("EPISTEME_TELEMETRY_KEEP_NEWEST")
+            os.environ["EPISTEME_TELEMETRY_TTL_SECONDS"] = str(24 * 3600)  # 1d
+            os.environ["EPISTEME_TELEMETRY_KEEP_NEWEST"] = "1"
+            try:
+                sweep = reaper.sweep_all()
+            finally:
+                for k, v in (
+                    ("EPISTEME_TELEMETRY_TTL_SECONDS", prev_ttl),
+                    ("EPISTEME_TELEMETRY_KEEP_NEWEST", prev_keep),
+                ):
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+            # 3 files, all 3d old (> 1d TTL), keep newest 1 → reap 2.
+            self.assertEqual(sweep.telemetry.reaped, 2)
+            self.assertEqual(sweep.telemetry.kept, 1)
+
+
+class SweepAllAndSummary(unittest.TestCase):
+    def test_never_raises_on_empty_home(self):
+        with _TmpHome():
+            sweep = reaper.sweep_all()  # nothing exists anywhere
+            self.assertEqual(reaper.format_sweep_summary(sweep), "")
+
+    def test_summary_combines_all_active_segments(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            # marker
+            _write_marker(_fence_dir(), "f_stale", now - timedelta(days=2))
+            # advisory
+            _write_advisory(
+                reaper.advisory_shown_dir_for_tests(), "adv", now - timedelta(days=10)
+            )
+            # hooks.log over cap
+            hl = reaper.hooks_log_path_for_tests()
+            hl.parent.mkdir(parents=True, exist_ok=True)
+            hl.write_bytes(b"x" * (5 * 1024 * 1024 + 1))
+            # telemetry old — keep_newest overridden to 0 so the single old
+            # file is past-TTL-reapable (the floor would otherwise preserve it).
+            td = reaper.telemetry_dir_for_tests()
+            td.mkdir(parents=True, exist_ok=True)
+            tp = td / "old-audit.jsonl"
+            tp.write_text("{}\n", encoding="utf-8")
+            oldts = (now - timedelta(days=40)).timestamp()
+            os.utime(tp, (oldts, oldts))
+
+            prev_keep = os.environ.get("EPISTEME_TELEMETRY_KEEP_NEWEST")
+            os.environ["EPISTEME_TELEMETRY_KEEP_NEWEST"] = "0"
+            try:
+                sweep = reaper.sweep_all(now=now)
+            finally:
+                if prev_keep is None:
+                    os.environ.pop("EPISTEME_TELEMETRY_KEEP_NEWEST", None)
+                else:
+                    os.environ["EPISTEME_TELEMETRY_KEEP_NEWEST"] = prev_keep
+            line = reaper.format_sweep_summary(sweep)
+            self.assertIn("marker-gc:", line)
+            self.assertIn("1 fence", line)
+            self.assertIn("advisory-gc:", line)
+            self.assertIn("log-rotate:", line)
+            self.assertIn("hooks.log", line)
+            self.assertIn("telemetry-gc:", line)
+            self.assertIn("kept newest", line)
+
+    def test_reaper_line_silent_on_zero_all_sinks(self):
+        with _TmpHome():
+            self.assertIsNone(sc._reaper_line())
+
+    def test_reaper_line_fires_on_advisory_only(self):
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            _write_advisory(
+                reaper.advisory_shown_dir_for_tests(), "adv", now - timedelta(days=10)
+            )
+            line = sc._reaper_line()
+            assert line is not None
+            self.assertIn("advisory-gc:", line)
+
+    def test_reaper_line_still_reports_markers(self):
+        # Backward-compat: marker-only sweep still produces the marker-gc line.
+        with _TmpHome():
+            now = datetime.now(timezone.utc)
+            _write_marker(_fence_dir(), "f_stale", now - timedelta(days=2))
+            _write_marker(_cascade_dir(), "c_stale", now - timedelta(days=2))
+            line = sc._reaper_line()
+            assert line is not None
+            self.assertIn("marker-gc", line)
+            self.assertIn("1 cascade", line)
+            self.assertIn("1 fence", line)
+
+
 if __name__ == "__main__":
     unittest.main()

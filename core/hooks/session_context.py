@@ -235,13 +235,17 @@ def _reaper_line() -> str | None:
         sys.path.insert(0, str(_hooks_dir))
     try:
         import _marker_reaper  # type: ignore  # pyright: ignore[reportMissingImports]
-        results = _marker_reaper.reap_all()
+        # Event 148 — the sweep now covers all four unbounded data-growth
+        # sinks the E146 audit named (pairing markers + advisory dedup markers
+        # + size-capped hooks.log/audit.jsonl rotation + telemetry reap), not
+        # just the two pairing-marker dirs. format_sweep_summary returns "" when
+        # nothing changed, preserving the silent-on-zero contract.
+        summary = _marker_reaper.format_sweep_summary(_marker_reaper.sweep_all())
     except Exception:
         return None
-    total_reaped = results["cascade"].reaped + results["fence"].reaped
-    if total_reaped <= 0:
+    if not summary:
         return None
-    return f"marker-gc: {_marker_reaper.format_summary(results)}"
+    return summary
 
 
 _DOC_STALENESS_EVENT_LAG = 15
