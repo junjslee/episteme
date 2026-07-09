@@ -397,5 +397,52 @@ class LessonSynthesis(unittest.TestCase):
             )
 
 
+class RootBoundary(unittest.TestCase):
+    """Event 148 — interrogation artifact discovery walks UP to the
+    governed root but STOPS at the first repo boundary (`.git` file or
+    dir). A nested child repo without its own `.episteme` must NOT resolve
+    to the parent's verdict (fail-open: a governed op admitted via a
+    verdict the child never authored)."""
+
+    @staticmethod
+    def _mk(base: Path, rel: str, is_dir: bool = False, content: str = "") -> Path:
+        p = base / rel
+        if is_dir:
+            p.mkdir(parents=True, exist_ok=True)
+        else:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return p
+
+    def test_walks_up_to_episteme_root_from_subdir(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            sub = self._mk(root, "pkg/src", is_dir=True)
+            self.assertEqual(_interrogation._canonical_project_root(sub), root)
+
+    def test_child_repo_does_not_inherit_parent_verdict(self):
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            self._mk(td, "parent/.git", is_dir=True)
+            self._mk(td, "parent/.episteme", is_dir=True)
+            _write_artifact(td / "parent", _valid_artifact())
+            self._mk(td, "parent/child/.git", content="gitdir: /nowhere")
+            child = td / "parent" / "child"
+            childsub = self._mk(td, "parent/child/src", is_dir=True)
+            # child has no `.episteme` → status "missing", NOT the parent's
+            # fresh "ok" verdict.
+            self.assertEqual(_interrogation.artifact_status(child)[0], "missing")
+            self.assertEqual(
+                _interrogation.artifact_status(childsub)[0], "missing")
+
+    def test_bare_dir_no_git_no_episteme_missing(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            sub = self._mk(root, "a/b/c", is_dir=True)
+            self.assertEqual(_interrogation.artifact_status(sub)[0], "missing")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -842,53 +842,88 @@ def _match_high_impact(tool_name: str, payload: dict) -> str | None:
     return None
 
 
-def _canonical_project_root(cwd: Path) -> Path:
-    """Resolve the project root so the surface lookup survives subdirectory cwd.
+# Belt-and-suspenders traversal cap for the root walk. The `.git` repo
+# boundary and the filesystem root both terminate the walk in governed and
+# ungoverned trees respectively; this cap only bites on a pathological
+# symlink cycle or an absurdly deep ungoverned path. Generous enough that a
+# real subdirectory cwd (e.g. `pkg/a/b/c/d/e/…`) still reaches its root.
+_ROOT_WALK_MAX_DEPTH = 64
 
-    Claude Code's Bash-tool cwd can inherit from prior subdirectory ops (e.g.
-    `pnpm build` in `web/`), making `cwd / ".episteme"` miss the project-level
-    surface. This helper canonicalizes by preferring:
 
-      1. `git rev-parse --show-toplevel` — fast, authoritative inside a repo.
-      2. Walking up from cwd for a directory containing `.episteme/` — covers
-         non-git contexts or deeply-nested tooling cwds (bounded to 8 levels
-         to avoid runaway traversal on pathological symlinks).
-      3. Falling back to cwd itself — preserves original behavior outside a
-         git/episteme context (e.g. test fixtures, tmpdirs).
+def _resolve_episteme_root(cwd: Path) -> Path | None:
+    """Nearest ancestor holding `.episteme/`, bounded by the repo boundary.
 
-    Timeout on the git subprocess is 2 seconds; if git is unavailable or slow
-    the walk fallback kicks in. Hook hot-path impact measured negligible
-    (< 30ms in the common case).
+    Walk UP from ``cwd`` until a directory containing `.episteme/` is found,
+    STOPPING at the first directory that carries a `.git` entry (a directory
+    in a normal checkout, a FILE in a linked worktree) and at the filesystem
+    root. The `.git`-boundary directory itself IS inspected for `.episteme/`
+    BEFORE the walk stops — a repo root carries both. The walk NEVER crosses
+    a `.git` boundary into a parent repo:
 
-    Path-A Event 42 fix — pulled forward from v1.0.1 hook-ergonomics rider
-    after repeated REASONING SURFACE MISSING blocks in the 2026-04-23 session.
+      Event 148 fail-open closer — a nested child repo WITHOUT its own
+      `.episteme` must not inherit the parent's surface / advisory marker /
+      interrogation verdict. Crossing the boundary would silently disarm the
+      guard for an ungoverned repo (a governed op admitted, or blocked-op
+      downgraded to advisory, on artifacts the child never authored). That is
+      the fail-open shape this resolver exists to prevent.
+
+    Returns ``None`` when no `.episteme/` is found up to (and including) the
+    boundary, the filesystem root, or the depth cap — the caller then falls
+    back to today's missing-artifact (fail-closed) behavior.
+
+    Pure path checks only — NO `git rev-parse` subprocess on this hot path
+    (Event 148 deliverable 5; the subprocess it replaces both crossed the
+    nested-repo boundary via its walk fallback and coupled the gate to the
+    `git` binary's presence and cwd-discovery quirks). ``cwd`` is resolved to
+    its real path first so a symlinked cwd is checked against the real tree.
     """
-    import subprocess
-    try:
-        out = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            timeout=2,
-        )
-        if out.returncode == 0 and out.stdout.strip():
-            return Path(out.stdout.strip())
-    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
-        pass
     probe = cwd.resolve() if cwd.exists() else cwd
-    for _ in range(8):
+    for _ in range(_ROOT_WALK_MAX_DEPTH):
         if (probe / ".episteme").is_dir():
             return probe
+        # Repo boundary — checked AFTER `.episteme` so a repo root (which
+        # carries both) resolves to itself. `.exists()` matches the `.git`
+        # dir of a normal checkout AND the `.git` FILE of a linked worktree.
+        if (probe / ".git").exists():
+            return None
         if probe.parent == probe:
             break
         probe = probe.parent
-    return cwd
+    return None
+
+
+def _canonical_project_root(cwd: Path) -> Path:
+    """Governed root for `.episteme` artifact discovery, or ``cwd`` fallback.
+
+    Back-compat wrapper over :func:`_resolve_episteme_root`: returns the
+    governed root when one is found before the repo boundary, else ``cwd`` —
+    so ``cwd / ".episteme" / …`` names a non-existent artifact and the caller
+    gets today's missing-artifact (fail-closed) behavior. The fallback can
+    never accidentally satisfy discovery: if ``cwd/.episteme`` existed the
+    resolver would have returned ``cwd`` at depth 0.
+
+    Path-A Event 42 (subdirectory cwd survives) is preserved by the walk;
+    Event 148 removes the `git rev-parse` subprocess and adds the `.git`
+    boundary so a nested child repo cannot inherit a parent's artifacts.
+    """
+    return _resolve_episteme_root(cwd) or cwd
 
 
 def _surface_path(cwd: Path) -> Path:
     """Canonical path to the reasoning surface — honors canonical root."""
     return _canonical_project_root(cwd) / ".episteme" / "reasoning-surface.json"
+
+
+def _advisory_marker_path(cwd: Path) -> Path:
+    """Canonical path to the advisory opt-out marker — honors canonical root.
+
+    Routed through the same boundary-aware resolver as the surface so the
+    advisory opt-out is seen from a subdirectory cwd (was read from the raw
+    cwd and missed — a false strict block) AND is NOT inherited across a
+    nested `.git` boundary (a child repo must not be downgraded to advisory
+    by a parent's marker — Event 148 fail-open closer).
+    """
+    return _canonical_project_root(cwd) / ".episteme" / "advisory-surface"
 
 
 def _read_surface(cwd: Path) -> dict | None:
@@ -1788,7 +1823,11 @@ def main() -> int:
 
     cwd = Path(payload.get("cwd") or os.getcwd())
     status, detail = _surface_status(cwd)
-    advisory_only = (cwd / ".episteme" / "advisory-surface").exists()
+    # Event 148 — resolve the advisory marker through the boundary-aware
+    # root helper (same as the surface), NOT the raw cwd: a subdir cwd must
+    # still see the root marker, and a nested child repo must NOT inherit
+    # the parent's marker.
+    advisory_only = _advisory_marker_path(cwd).exists()
     mode = "advisory" if advisory_only else "strict"
     # Default blueprint name — overridden by the layer-2/3 block when
     # the surface file exists and scenario detection runs. Declared

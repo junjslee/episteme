@@ -773,5 +773,192 @@ class Event146DedupTests(unittest.TestCase):
             )
 
 
+class Event148RootResolutionTests(unittest.TestCase):
+    """Event 148 — `.episteme` artifact discovery walks UP to the governed
+    root but STOPS at the first repo boundary (`.git` file or dir) and at
+    the filesystem root. The boundary directory itself IS inspected (a repo
+    root carries both `.git` and `.episteme`). A nested child repo without
+    its own `.episteme` must NOT inherit the parent's surface / advisory
+    marker — that would silently disarm the guard for an ungoverned repo
+    (fail-open). Pure path checks only: no `git rev-parse` subprocess."""
+
+    @staticmethod
+    def _mk(base: Path, rel: str, is_dir: bool = False, content: str = "") -> Path:
+        p = base / rel
+        if is_dir:
+            p.mkdir(parents=True, exist_ok=True)
+        else:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+        return p
+
+    def _run(self, cmd: str, cwd: Path, home: Path) -> tuple[int, str, str]:
+        payload = {"tool_name": "Bash", "tool_input": {"command": cmd},
+                   "cwd": str(cwd), "session_id": "sess-e148"}
+        with patch("sys.stdin", new=io.StringIO(json.dumps(payload))), \
+             patch("sys.stdout", new=io.StringIO()) as out, \
+             patch("sys.stderr", new=io.StringIO()) as err, \
+             patch.object(guard.Path, "home", return_value=home):
+            rc = guard.main()
+        return rc, out.getvalue(), err.getvalue()
+
+    # ----- resolver unit tests -----
+
+    def test_resolver_walks_up_to_episteme_root_from_subdir(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            sub = self._mk(root, "core/memory/global", is_dir=True)
+            self.assertEqual(guard._resolve_episteme_root(sub), root)
+
+    def test_resolver_repo_root_with_both_git_and_episteme_returns_itself(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            self.assertEqual(guard._resolve_episteme_root(root), root)
+
+    def test_resolver_git_file_worktree_boundary_is_checked(self):
+        # Linked worktrees have a `.git` FILE, not a dir; the boundary dir
+        # itself must still be inspected for `.episteme`.
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, ".git", content="gitdir: /somewhere/.git/worktrees/wt")
+            self._mk(root, ".episteme", is_dir=True)
+            sub = self._mk(root, "web", is_dir=True)
+            self.assertEqual(guard._resolve_episteme_root(sub), root)
+
+    def test_resolver_stops_at_git_boundary_no_cross_into_parent(self):
+        # THE fail-open closer — a child repo (own `.git`, NO `.episteme`)
+        # nested inside a governed parent must NOT resolve to the parent.
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            self._mk(td, "parent/.git", is_dir=True)
+            self._mk(td, "parent/.episteme", is_dir=True)
+            self._mk(td, "parent/child/.git", content="gitdir: /nowhere")
+            child = td / "parent" / "child"
+            childsub = self._mk(td, "parent/child/src/deep", is_dir=True)
+            self.assertIsNone(guard._resolve_episteme_root(child))
+            self.assertIsNone(guard._resolve_episteme_root(childsub))
+
+    def test_resolver_no_git_no_episteme_returns_none(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            sub = self._mk(root, "a/b/c", is_dir=True)
+            self.assertIsNone(guard._resolve_episteme_root(sub))
+
+    def test_resolver_no_subprocess_on_hot_path(self):
+        # Deliverable 5 — pure path checks; `git rev-parse` is forbidden.
+        import subprocess
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            sub = self._mk(root, "x/y", is_dir=True)
+            with patch.object(
+                subprocess, "run",
+                side_effect=AssertionError("subprocess forbidden on hot path"),
+            ):
+                self.assertEqual(guard._resolve_episteme_root(sub), root)
+                self.assertEqual(guard._canonical_project_root(sub), root)
+
+    def test_canonical_root_falls_back_to_cwd_when_ungoverned(self):
+        # Deliverable 3 — nothing found up to the boundary yields today's
+        # missing-artifact behavior: `_surface_path` points at a
+        # non-existent file so `_surface_status` reports "missing".
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            self._mk(root, "parent/.git", is_dir=True)
+            self._mk(root, "parent/.episteme", is_dir=True)
+            self._mk(root, "parent/child/.git", content="gitdir: /nowhere")
+            child = root / "parent" / "child"
+            self.assertEqual(guard._canonical_project_root(child), child)
+            self.assertEqual(guard._surface_status(child)[0], "missing")
+
+    # ----- end-to-end admission-path tests -----
+
+    def test_subdir_cwd_admits_with_root_surface(self):
+        # Deliverable 4(a) — governed root, valid surface, cwd = subdir.
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            home = self._mk(td, "home", is_dir=True)
+            root = self._mk(td, "proj", is_dir=True)
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            (root / ".episteme" / "reasoning-surface.json").write_text(
+                json.dumps(_fresh_surface_payload()), encoding="utf-8")
+            sub = self._mk(root, "core/memory/global", is_dir=True)
+            rc, out, err = self._run(_GP + " origin main", sub, home)
+        self.assertEqual(rc, 0, err)
+        self.assertEqual(err, "")
+
+    def test_subdir_cwd_advisory_marker_downgrades_from_subdir(self):
+        # Advisory opt-out lives at the root; a subdir cwd must still see
+        # it. Today the marker is read from the raw cwd and missed →
+        # false strict block. After fix it resolves through the root.
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            home = self._mk(td, "home", is_dir=True)
+            root = self._mk(td, "proj", is_dir=True)
+            self._mk(root, ".git", is_dir=True)
+            self._mk(root, ".episteme", is_dir=True)
+            (root / ".episteme" / "advisory-surface").write_text(
+                "", encoding="utf-8")
+            sub = self._mk(root, "web/app", is_dir=True)
+            rc, out, err = self._run(_GP + " origin main", sub, home)
+        self.assertEqual(rc, 0, "advisory opt-out from a subdir must not block")
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Advisory mode is active", ctx)
+
+    def test_nested_child_repo_does_not_inherit_parent_governance(self):
+        # Deliverable 4(b) — parent governed (valid surface + advisory
+        # marker); child repo inside with its own `.git` but NO
+        # `.episteme`. A high-impact op in the child must NOT be admitted
+        # via the parent's surface, nor downgraded via the parent's
+        # advisory marker — it stays STRICT (fail-closed).
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            home = self._mk(td, "home", is_dir=True)
+            self._mk(td, "parent/.git", is_dir=True)
+            self._mk(td, "parent/.episteme", is_dir=True)
+            (td / "parent" / ".episteme" / "reasoning-surface.json").write_text(
+                json.dumps(_fresh_surface_payload()), encoding="utf-8")
+            (td / "parent" / ".episteme" / "advisory-surface").write_text(
+                "", encoding="utf-8")
+            self._mk(td, "parent/child/.git", content="gitdir: /nowhere")
+            child = td / "parent" / "child"
+            rc, out, err = self._run(_GP + " origin main", child, home)
+        self.assertEqual(rc, 2, "child repo must not inherit parent governance")
+        self.assertIn("REASONING SURFACE MISSING", err)
+
+    def test_worktree_own_seeded_episteme_unchanged(self):
+        # Deliverable 4(c) — a worktree (`.git` FILE) with its OWN seeded
+        # `.episteme` + valid surface admits from the worktree root.
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            home = self._mk(td, "home", is_dir=True)
+            wt = self._mk(td, "wt", is_dir=True)
+            self._mk(wt, ".git", content="gitdir: /main/.git/worktrees/wt")
+            self._mk(wt, ".episteme", is_dir=True)
+            (wt / ".episteme" / "reasoning-surface.json").write_text(
+                json.dumps(_fresh_surface_payload()), encoding="utf-8")
+            rc, out, err = self._run(_GP + " origin main", wt, home)
+        self.assertEqual(rc, 0, err)
+        self.assertEqual(err, "")
+
+    def test_bare_tmp_dir_no_git_blocks_strict(self):
+        # Deliverable 4(d) — no `.git` and no `.episteme` anywhere: the
+        # walk terminates at the filesystem root / depth cap and the op
+        # gets today's fail-closed strict block.
+        with tempfile.TemporaryDirectory() as td:
+            td = Path(td).resolve()
+            home = self._mk(td, "home", is_dir=True)
+            bare = self._mk(td, "bare/a/b", is_dir=True)
+            rc, out, err = self._run(_GP + " origin main", bare, home)
+        self.assertEqual(rc, 2)
+        self.assertIn("REASONING SURFACE MISSING", err)
+
+
 if __name__ == "__main__":
     unittest.main()
