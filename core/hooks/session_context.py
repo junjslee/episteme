@@ -34,9 +34,22 @@ def _spot_check_line() -> str | None:
     if pending <= 0:
         return None
     noun = "surface" if pending == 1 else "surfaces"
-    return (
-        f"{pending} {noun} flagged for review — run `episteme review`"
-    )
+    line = f"{pending} {noun} flagged for review — run `episteme review`"
+    # Event 148 verification finding — at/over the enqueue cap the samplers
+    # skip silently (audit coverage degrades while only the sidecar counter
+    # records it); say so on the SAME line rather than adding a producer.
+    # Below cap — the normal state — the line is byte-identical to before.
+    try:
+        cap = _spot_check._resolve_pending_cap()
+        if cap and pending >= cap:
+            skipped = _spot_check.read_skip_counter().get("skipped_count", 0)
+            line += (
+                f" — queue AT CAP ({cap}): sampling paused, "
+                f"{skipped} op(s) skipped since last drain"
+            )
+    except Exception:
+        pass
+    return line
 
 
 def _last_session_path() -> Path:
