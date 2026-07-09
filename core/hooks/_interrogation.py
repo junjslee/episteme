@@ -87,14 +87,35 @@ def _is_lazy(text: str) -> bool:
     return collapsed.rstrip(".!?,;:") in _LAZY_TOKENS
 
 
+# Mirror of reasoning_surface_guard._ROOT_WALK_MAX_DEPTH — duplicated per the
+# hooks-stay-self-contained convention.
+_ROOT_WALK_MAX_DEPTH = 64
+
+
 def _canonical_project_root(cwd: Path) -> Path:
-    """Walk up to the nearest directory holding ``.episteme/``. Mirrors
-    reasoning_surface_guard._canonical_project_root minus the git probe —
-    the artifact lives beside the surface, so the walk target is the same."""
+    """Nearest ancestor holding ``.episteme/``, bounded by the repo boundary.
+
+    Mirrors ``reasoning_surface_guard._resolve_episteme_root`` (duplicated per
+    the hooks-stay-self-contained convention): walk UP for a directory holding
+    ``.episteme/``, STOPPING at the first directory carrying a ``.git`` entry
+    (dir in a normal checkout, FILE in a linked worktree) and at the
+    filesystem root. The boundary directory itself is inspected first — a repo
+    root carries both. NEVER cross the boundary into a parent repo.
+
+    Event 148 — the interrogation verdict is an admission-path artifact (an
+    alternative satisfier to the Reasoning Surface). Without the boundary a
+    nested child repo would inherit the parent's ``interrogation.json`` and a
+    governed op could be admitted via a verdict the child never authored
+    (fail-open). Returns ``cwd`` when nothing is found up to the boundary, so
+    ``artifact_path`` names a non-existent file and ``artifact_status`` reports
+    ``missing`` — the guard then falls through to the v1 (fail-closed) path.
+    """
     probe = cwd.resolve() if cwd.exists() else cwd
-    for _ in range(8):
+    for _ in range(_ROOT_WALK_MAX_DEPTH):
         if (probe / ".episteme").is_dir():
             return probe
+        if (probe / ".git").exists():
+            return cwd
         if probe.parent == probe:
             break
         probe = probe.parent
