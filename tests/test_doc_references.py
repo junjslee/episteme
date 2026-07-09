@@ -314,6 +314,57 @@ class FindDriftTests(unittest.TestCase):
             self.assertEqual([], findings)
 
 
+class ExternalRepoCitationGuard(unittest.TestCase):
+    """Event 148 · smallfix #4 (Event 146 finding): a path belonging to an
+    upstream project cited by its ``owner/repo`` slug on the same line is not a
+    citation of THIS tree and must not be flagged as local drift. The guard is
+    conservative — it only suppresses when the slug owner is not one of our own
+    source roots, so real in-repo drift is untouched."""
+
+    def _drift(self, citing, text):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            (root / "docs").mkdir()
+            (root / citing).write_text(text, encoding="utf-8")
+            return dr.find_drift(
+                root, doc_files=[citing], ignored_checker=lambda p: set()
+            )
+
+    def test_slug_prefixed_link_is_not_flagged(self):
+        # Shape A: markdown link to an upstream owner/repo/path. Without the
+        # guard this joins onto docs/ and dangles as a phantom local path.
+        findings = self._drift(
+            "docs/GUIDE.md",
+            "see upstream [readme](googleapis/release-please/README.md) for the flow\n",
+        )
+        self.assertEqual([], findings)
+
+    def test_bare_path_after_external_slug_is_not_flagged(self):
+        # Shape B: a bare source-root path immediately after an owner/repo slug.
+        findings = self._drift(
+            "docs/GUIDE.md",
+            "our reducer mirrors facebook/react src/react-dom/index.js exactly\n",
+        )
+        self.assertEqual([], findings)
+
+    def test_in_repo_path_with_slash_is_still_flagged(self):
+        # Control: owner `core` IS a source root, so this is an in-repo citation
+        # and real drift must still fire.
+        findings = self._drift(
+            "docs/GUIDE.md", "the gate lives in `core/hooks/DOES_NOT_EXIST.py`\n"
+        )
+        self.assertEqual(1, len(findings))
+        self.assertEqual("core/hooks/DOES_NOT_EXIST.py", findings[0].target)
+
+    def test_bare_path_without_preceding_slug_is_still_flagged(self):
+        # Control: same missing path but NO external slug on the line ⇒ drift.
+        findings = self._drift(
+            "docs/GUIDE.md", "config in src/episteme/DOES_NOT_EXIST.py somewhere\n"
+        )
+        self.assertEqual(1, len(findings))
+        self.assertEqual("src/episteme/DOES_NOT_EXIST.py", findings[0].target)
+
+
 class CitingScopeExemptions(unittest.TestCase):
     """Non-authored content (fixtures, scaffolds, install-relative templates,
     append-only ledgers) is excluded from the citing set by a named negative
