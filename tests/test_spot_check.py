@@ -717,5 +717,50 @@ class FatigueGate(unittest.TestCase):
             )
 
 
+class ProjectOverrideRootResolution(unittest.TestCase):
+    """FIX 2 (Event 148 follow-up): ``_project_override_path`` mirrors the
+    boundary-aware walk-up now used by the guard / interrogation path. A
+    ``spot_check_rate`` at the project root applies from any subdirectory, and
+    a nested child repo does NOT inherit the parent's override (the ``.git``
+    boundary stops the walk).
+    """
+
+    def _mk(self, base: Path, rel: str, text: str) -> None:
+        p = base / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+
+    def test_subdir_cwd_sees_root_override(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            (root / ".git").mkdir()
+            self._mk(root, ".episteme/spot_check_rate", "0.5\n")
+            deep = root / "a" / "b" / "c"
+            deep.mkdir(parents=True)
+            # Pre-fix: raw-cwd path -> deep/.episteme/... absent -> None.
+            self.assertAlmostEqual(
+                _spot_check._read_project_override(deep), 0.5
+            )
+
+    def test_nested_child_repo_does_not_see_parent_override(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            (root / ".git").mkdir()
+            self._mk(root, ".episteme/spot_check_rate", "0.5\n")
+            child = root / "child"
+            (child / ".git").mkdir(parents=True)  # child is its own repo
+            # The .git boundary must stop the walk before the parent's marker.
+            self.assertIsNone(_spot_check._read_project_override(child))
+
+    def test_root_cwd_still_sees_own_override(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td).resolve()
+            (root / ".git").mkdir()
+            self._mk(root, ".episteme/spot_check_rate", "0.25\n")
+            self.assertAlmostEqual(
+                _spot_check._read_project_override(root), 0.25
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

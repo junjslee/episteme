@@ -165,8 +165,45 @@ def _anchor_path() -> Path:
     return _episteme_home() / "sample_schedule_anchor.json"
 
 
+# Mirror of reasoning_surface_guard._ROOT_WALK_MAX_DEPTH / _interrogation's
+# copy — duplicated per the hooks-stay-self-contained convention.
+_ROOT_WALK_MAX_DEPTH = 64
+
+
+def _canonical_project_root(cwd: Path) -> Path:
+    """Nearest ancestor holding ``.episteme/``, bounded by the repo boundary.
+
+    Mirrors ``_interrogation._canonical_project_root`` /
+    ``reasoning_surface_guard._resolve_episteme_root`` (duplicated per the
+    hooks-stay-self-contained convention): walk UP for a directory holding
+    ``.episteme/``, STOPPING at the first directory carrying a ``.git`` entry
+    (dir in a normal checkout, FILE in a linked worktree) and at the filesystem
+    root. The boundary directory itself is inspected first — a repo root
+    carries both. NEVER cross the boundary into a parent repo.
+
+    Event 148 follow-up — the per-project ``spot_check_rate`` override must
+    resolve the same boundary the Event-148 admission path adopted. Without it
+    the raw ``<cwd>/.episteme/spot_check_rate`` read (a) missed a root override
+    when the op ran from a subdirectory and (b) would, under a naive walk-up,
+    let a nested child repo inherit the parent's sampling rate. Returns ``cwd``
+    unchanged when nothing is found up to the boundary, so the override path
+    names a non-existent file and ``_read_project_override`` falls back to the
+    schedule (raw-cwd behavior preserved on the no-marker path).
+    """
+    probe = cwd.resolve() if cwd.exists() else cwd
+    for _ in range(_ROOT_WALK_MAX_DEPTH):
+        if (probe / ".episteme").is_dir():
+            return probe
+        if (probe / ".git").exists():
+            return cwd
+        if probe.parent == probe:
+            break
+        probe = probe.parent
+    return cwd
+
+
 def _project_override_path(cwd: Path) -> Path:
-    return cwd / ".episteme" / "spot_check_rate"
+    return _canonical_project_root(cwd) / ".episteme" / "spot_check_rate"
 
 
 def _skip_counter_path() -> Path:
