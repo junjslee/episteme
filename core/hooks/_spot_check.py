@@ -218,6 +218,14 @@ def _reflective_dir() -> Path:
     return _episteme_home() / "memory" / "reflective"
 
 
+# Mirror of ``_cognitive_budget.HISTORY_FILENAME`` — the approval-history file
+# name. Duplicated (not imported) so the fatigue short-circuit below can stat
+# the file WITHOUT importing the budget module. Kept in sync by convention;
+# ``_cognitive_budget._resolve_path`` joins the same name onto the reflective
+# dir, so the two stay consistent.
+_CB_APPROVAL_HISTORY_FILENAME = "approval_times.jsonl"
+
+
 # ---------------------------------------------------------------------------
 # Rate computation
 # ---------------------------------------------------------------------------
@@ -462,7 +470,24 @@ def _fatigue_active(
     today (``_cognitive_budget`` auto-instrumentation is deferred), so an
     empty stream yields no signal and this gate is a no-op — the hard
     pending cap remains the safety net. Never raises; fails toward *not
-    fatigued* (enqueue) when the budget module is unavailable."""
+    fatigued* (enqueue) when the budget module is unavailable.
+
+    Cheap short-circuit (FIX 3, Event 148 follow-up): because capture is
+    manual today the approvals file is absent or empty on the overwhelming
+    majority of ops. Stat the file — resolved the same way
+    ``_cognitive_budget._resolve_path`` does (reflective dir + history file
+    name) — BEFORE importing the budget module or walking/chain-verifying the
+    stream, and return *not fatigued* immediately when it is absent or empty.
+    This keeps the sampled-op hot path free of the import + chain walk until
+    the stream actually has content."""
+    rdir = reflective_dir if reflective_dir is not None else _reflective_dir()
+    approvals = rdir / _CB_APPROVAL_HISTORY_FILENAME
+    try:
+        if not approvals.is_file() or approvals.stat().st_size == 0:
+            return False
+    except OSError:
+        return False
+
     try:
         from episteme import (  # type: ignore  # pyright: ignore[reportMissingImports]
             _cognitive_budget as cb,
@@ -470,7 +495,6 @@ def _fatigue_active(
     except Exception:
         return False
     try:
-        rdir = reflective_dir if reflective_dir is not None else _reflective_dir()
         window, p50, rate = cb.load_thresholds(
             cwd if cwd is not None else Path.cwd()
         )

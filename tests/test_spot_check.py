@@ -717,6 +717,72 @@ class FatigueGate(unittest.TestCase):
             )
 
 
+class FatigueShortCircuit(unittest.TestCase):
+    """FIX 3 (Event 148 follow-up): a ``stat()``-level short-circuit returns
+    False for an absent / empty approvals file WITHOUT importing or walking the
+    cognitive-budget stream — the per-op ``detect_fatigue`` → ``walk_approvals``
+    cost only pays out once the stream actually has content.
+    """
+
+    def _guard_detect_fatigue(self):
+        """Replace ``detect_fatigue`` with a sentinel that must NOT run on the
+        short-circuit path. Returns (call_counter, restore_fn)."""
+        from episteme import _cognitive_budget as cb
+        called = {"n": 0}
+        orig = cb.detect_fatigue
+
+        def _boom(*a, **k):
+            called["n"] += 1
+            raise AssertionError("detect_fatigue must not run on absent/empty file")
+
+        cb.detect_fatigue = _boom
+
+        def _restore():
+            cb.detect_fatigue = orig
+
+        return called, _restore
+
+    def test_absent_file_returns_false_without_detect_fatigue(self):
+        with EphemeralHome() as home:
+            rdir = home / "memory" / "reflective"  # no file at all
+            called, restore = self._guard_detect_fatigue()
+            try:
+                self.assertFalse(_spot_check._fatigue_active(None, rdir))
+            finally:
+                restore()
+            self.assertEqual(called["n"], 0)
+
+    def test_empty_file_returns_false_without_detect_fatigue(self):
+        with EphemeralHome() as home:
+            rdir = home / "memory" / "reflective"
+            rdir.mkdir(parents=True, exist_ok=True)
+            (rdir / "approval_times.jsonl").write_text("", encoding="utf-8")
+            called, restore = self._guard_detect_fatigue()
+            try:
+                self.assertFalse(_spot_check._fatigue_active(None, rdir))
+            finally:
+                restore()
+            self.assertEqual(called["n"], 0)
+
+    def test_nonempty_file_reaches_detect_fatigue(self):
+        with EphemeralHome() as home:
+            from episteme import _cognitive_budget as cb
+            rdir = home / "memory" / "reflective"
+            rdir.mkdir(parents=True, exist_ok=True)
+            # Seed a sub-second approval stream: non-empty file -> short-circuit
+            # passes -> detect_fatigue runs and fires attention_bottleneck.
+            for i in range(5):
+                cb.record_approval(
+                    correlation_id=f"appr-{i}",
+                    blueprint="unknown",
+                    op_class="bash",
+                    elapsed_seconds=0.2,
+                    reason="seeded approval observation for the short-circuit test",
+                    reflective_dir=rdir,
+                )
+            self.assertTrue(_spot_check._fatigue_active(None, rdir))
+
+
 class ProjectOverrideRootResolution(unittest.TestCase):
     """FIX 2 (Event 148 follow-up): ``_project_override_path`` mirrors the
     boundary-aware walk-up now used by the guard / interrogation path. A
