@@ -92,6 +92,57 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.9.0](https://github.com/junjslee/episteme/compare/episteme-v1.9.0-rc1...episteme-v1.9.0) (2026-07-09)
+
+
+### Features
+
+* doc/artifact lifecycle engine — markers, cascade gate, report sink, staleness banner (Event 147) ([abdd574](https://github.com/junjslee/episteme/commit/abdd574a7396728b1b491a1d0508f59db0c6a0f3))
+* **docs:** doc/artifact lifecycle engine + marker stamps + generated index ([855b8f0](https://github.com/junjslee/episteme/commit/855b8f09520b915089ffd62895349e0cd8d837c6))
+* **docs:** stale-citation cascade gate + report-sink lint rule (Event 147 A2) ([ef14782](https://github.com/junjslee/episteme/commit/ef1478259c96577ef384423b494e6f3504193074))
+* global memory v3 — runtime digest emission + volatile-fact stamping (Event 147) ([b8cd651](https://github.com/junjslee/episteme/commit/b8cd6510b436067eb313deb1a37670cf1454f51b))
+* **hooks:** doc-lifecycle staleness banner at SessionStart (Event 147 A3) ([4300222](https://github.com/junjslee/episteme/commit/4300222a7c1ffc7db64440b6d3a9f59b9af7d59f))
+* **memory:** global memory v3 generator + volatile-fact stamping ([372c605](https://github.com/junjslee/episteme/commit/372c605155ef0d504b01fe983da7191be4d70f0b))
+* **memory:** status writer + promote auto-transition (Event 147 A3) ([718a9c2](https://github.com/junjslee/episteme/commit/718a9c26bea03d3664908d9b220d62d9c4c856c0))
+* **spot-check:** backpressure on the operator-queue write-path (Event 148, M1) ([56e4f5d](https://github.com/junjslee/episteme/commit/56e4f5da86c766d976ee2a5a882394b9d22de475))
+* **spot-check:** bound enqueue write-path with pending cap + D11 fatigue gate ([30cd7b7](https://github.com/junjslee/episteme/commit/30cd7b732a333af60336af04429dec530121e411))
+
+
+### Bug Fixes
+
+* **adapters:** clear Pyright unreachable flags on live settings guards ([8d3991a](https://github.com/junjslee/episteme/commit/8d3991ac3b1bcba52a4a286af8d914133958bdd6))
+* anchor docs CLI root resolution at cwd, add --root override ([76d71f2](https://github.com/junjslee/episteme/commit/76d71f29c255cb3401372257e401a42006329404))
+* clear Pyright unreachable/unused flags in _spot_check ([323aee1](https://github.com/junjslee/episteme/commit/323aee1162183cae74783375f8902cc931c6f00a))
+* close two fail-open regressions in reasoning surface guard ([07afd90](https://github.com/junjslee/episteme/commit/07afd903b1ca75186b36ebe7e146609b7e4b92ad))
+* close two fail-open regressions in reasoning surface guard ([9d8b667](https://github.com/junjslee/episteme/commit/9d8b6671228476e5927c0e4ff66450098379a8cd))
+* **doc-references:** don't flag upstream-repo citations as local drift ([394d4e0](https://github.com/junjslee/episteme/commit/394d4e010ec376cda91b6a2b07d16386c5dbb81e))
+* **docs:** repair 9 confirmed content drifts (Event 147 A1) ([22eade7](https://github.com/junjslee/episteme/commit/22eade7bdc59b823b23a1adc2752296ce173df4d))
+* Event 148 bounded repair bundle (banner wording, argparse guard, inflections, upstream citations, Pyright) ([bd817da](https://github.com/junjslee/episteme/commit/bd817dac1d8a6cd66c5ee294dcad00591f5d1f74))
+* Event 148 follow-up — docs CLI cwd-root, rate-override boundary, fatigue short-circuit, Pyright ([8217774](https://github.com/junjslee/episteme/commit/82177740af731a976b7d5b3a712a7c841d43f0ae))
+* **examples:** add Justified-Irreversible Lane section to workflow_policy template ([f6aeef2](https://github.com/junjslee/episteme/commit/f6aeef2357d9c4f1612caafad28d1280a980d107))
+* **examples:** schema-parity for the Justified-Irreversible Lane section ([11dde7f](https://github.com/junjslee/episteme/commit/11dde7fb119d48fea15e0bcf893b95eeee81b992))
+* **guard:** resolve .episteme artifacts to governed root, stop at repo boundary ([550aa93](https://github.com/junjslee/episteme/commit/550aa93fb4144016e6345b38e6e913a4e1c32b1d))
+* **guard:** resolve .episteme artifacts to the governed root, stop at repo boundary (Event 148) ([59a9bfa](https://github.com/junjslee/episteme/commit/59a9bfaf3e9d9a20269bb268032b76209f523d2e))
+* **hooks:** TTL-reap orphaned pairing markers at SessionStart ([437c94a](https://github.com/junjslee/episteme/commit/437c94a983612581a0c9731b712325b3695fa570))
+* **hooks:** TTL-reap orphaned pairing markers at SessionStart (Event 146) ([2dde42e](https://github.com/junjslee/episteme/commit/2dde42e62f5f501e58ff8a00e1c433972b989674))
+* **memory:** clamp future-dated elicitation lines in staleness parser ([ca916a3](https://github.com/junjslee/episteme/commit/ca916a312e93828fa8ff96f8c2614ba809a68374))
+* **reasoning-surface-guard:** argv-position classification + per-session advisory dedup (Event 146) ([e16ba9c](https://github.com/junjslee/episteme/commit/e16ba9c2dbd61e3537c258910cf17b19375b56fd))
+* **reasoning-surface-guard:** classify high-impact ops by argv position + per-session advisory dedup ([64f8e0a](https://github.com/junjslee/episteme/commit/64f8e0a0aa3c2ac85aecf0447365bd3ffd09163c))
+* resolve spot-check rate override at the repo boundary ([8dc1cbd](https://github.com/junjslee/episteme/commit/8dc1cbdd5b2f919844033b6f608f1ca09ea3dfb1))
+* **session-context:** accurate doc-staleness threshold wording ([2ffe4c2](https://github.com/junjslee/episteme/commit/2ffe4c2a9a249e8460838c9f4e59432734f2ff9f))
+* **specificity:** match observable failure verbs across inflections ([aa5634e](https://github.com/junjslee/episteme/commit/aa5634e0400fe3ea7da3f20470bc7fd7afb5b6d9))
+* **tools:** guard fence_marker_cleanup with argparse before sweeping ([67ac0f6](https://github.com/junjslee/episteme/commit/67ac0f6743eecabfaa177a106af11b0f621dede1))
+
+
+### Performance Improvements
+
+* short-circuit fatigue gate on an absent/empty approvals stream ([0e2b6ed](https://github.com/junjslee/episteme/commit/0e2b6edb78552b4cdb3bc6292a9b9320569fb8d1))
+
+
+### Miscellaneous Chores
+
+* release 1.9.0 ([add7263](https://github.com/junjslee/episteme/commit/add726331a7bcded39f2d1648a5e27fad1ccf6b8))
+
 ## [1.9.0-rc1](https://github.com/junjslee/episteme/compare/episteme-v1.8.0-rc1...episteme-v1.9.0-rc1) (2026-07-08)
 
 
