@@ -527,5 +527,195 @@ class BuildPostContext(unittest.TestCase):
             self.assertIsNone(ctx)
 
 
+# ---------- Enqueue backpressure (Event 148, M1) ------------------------
+
+
+def _force_queue(correlation_id: str, cwd_dir, **overrides):
+    """Force-queue one entry at rate 1.0 (no cap) under the current
+    EphemeralHome. Caller supplies a project cwd carrying spot_check_rate."""
+    return _spot_check.maybe_sample(
+        **_sample_inputs(correlation_id=correlation_id, **overrides),
+        cwd=cwd_dir,
+    )
+
+
+class EnqueueBackpressure(unittest.TestCase):
+    def _cwd_rate_one(self, stack):
+        cwd = stack.enter_context(tempfile.TemporaryDirectory())
+        (Path(cwd) / ".episteme").mkdir()
+        (Path(cwd) / ".episteme" / "spot_check_rate").write_text("1.0\n")
+        return Path(cwd)
+
+    def test_at_cap_does_not_enqueue_and_bumps_skip_counter(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            # Seed one entry, then cap=1 → the second sample is at cap.
+            r0 = _force_queue("cid-0", cwd)
+            self.assertTrue(r0.queued)
+            self.assertEqual(_spot_check.count_pending(), 1)
+            r1 = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-1"), cwd=cwd, cap=1
+            )
+            self.assertFalse(r1.queued)
+            self.assertEqual(r1.reason, "cap_exceeded")
+            # No new entry — the existing entry is untouched.
+            self.assertEqual(len(_spot_check.list_entries()), 1)
+            # Skip counter incremented.
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 1
+            )
+
+    def test_skip_counter_is_monotonic(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            _force_queue("cid-0", cwd)
+            for i in range(3):
+                _spot_check.maybe_sample(
+                    **_sample_inputs(correlation_id=f"over-{i}"),
+                    cwd=cwd, cap=1,
+                )
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 3
+            )
+            self.assertEqual(len(_spot_check.list_entries()), 1)
+
+    def test_below_cap_enqueues_as_today(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            _force_queue("cid-0", cwd)
+            _force_queue("cid-1", cwd)
+            r2 = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-2"), cwd=cwd, cap=5
+            )
+            self.assertTrue(r2.queued)
+            self.assertEqual(r2.reason, "queued")
+            self.assertEqual(len(_spot_check.list_entries()), 3)
+            # No backpressure skip recorded.
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 0
+            )
+
+    def test_default_cap_is_100(self):
+        # Below the default cap, sampling behaves as today with no
+        # explicit cap argument.
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            r = _force_queue("cid-0", cwd)
+            self.assertTrue(r.queued)
+            self.assertEqual(_spot_check._resolve_pending_cap(), 100)
+
+    def test_env_var_overrides_cap(self):
+        import contextlib
+        orig = os.environ.get("EPISTEME_SPOT_CHECK_CAP")
+        os.environ["EPISTEME_SPOT_CHECK_CAP"] = "1"
+        try:
+            with EphemeralHome(), contextlib.ExitStack() as stack:
+                cwd = self._cwd_rate_one(stack)
+                _force_queue("cid-0", cwd)
+                r1 = _force_queue("cid-1", cwd)
+                self.assertFalse(r1.queued)
+                self.assertEqual(r1.reason, "cap_exceeded")
+        finally:
+            if orig is None:
+                os.environ.pop("EPISTEME_SPOT_CHECK_CAP", None)
+            else:
+                os.environ["EPISTEME_SPOT_CHECK_CAP"] = orig
+
+    def test_malformed_cap_env_falls_back_to_default(self):
+        orig = os.environ.get("EPISTEME_SPOT_CHECK_CAP")
+        os.environ["EPISTEME_SPOT_CHECK_CAP"] = "not-a-number"
+        try:
+            self.assertEqual(_spot_check._resolve_pending_cap(), 100)
+        finally:
+            if orig is None:
+                os.environ.pop("EPISTEME_SPOT_CHECK_CAP", None)
+            else:
+                os.environ["EPISTEME_SPOT_CHECK_CAP"] = orig
+
+    def test_malformed_queue_file_failsafe(self):
+        # A corrupt queue file must never raise past the boundary and
+        # must never spuriously block (cap check fails toward enqueue).
+        import contextlib
+        with EphemeralHome() as home, contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            qpath = home / "state" / "spot_check_queue.jsonl"
+            qpath.parent.mkdir(parents=True, exist_ok=True)
+            qpath.write_text("{ this is not valid json\n@@@garbage@@@\n")
+            # Must not raise; must not falsely report cap_exceeded.
+            result = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-x"), cwd=cwd, cap=1
+            )
+            self.assertIsInstance(result, _spot_check.SampleResult)
+            self.assertNotEqual(result.reason, "cap_exceeded")
+
+    def test_read_skip_counter_absent_returns_zero(self):
+        with EphemeralHome():
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 0
+            )
+
+
+class FatigueGate(unittest.TestCase):
+    """D11 wiring — a live operator-fatigue signal is an additional
+    enqueue-skip condition."""
+
+    def _cwd_rate_one(self, stack):
+        cwd = stack.enter_context(tempfile.TemporaryDirectory())
+        (Path(cwd) / ".episteme").mkdir()
+        (Path(cwd) / ".episteme" / "spot_check_rate").write_text("1.0\n")
+        return Path(cwd)
+
+    def _seed_fatigue(self, home: Path, count: int = 5):
+        from episteme import _cognitive_budget as cb
+        rdir = home / "memory" / "reflective"
+        rdir.mkdir(parents=True, exist_ok=True)
+        for i in range(count):
+            cb.record_approval(
+                correlation_id=f"appr-{i}",
+                blueprint="unknown",
+                op_class="bash",
+                elapsed_seconds=0.2,  # sub-second → attention_bottleneck
+                reason="operator approval observation seeded for the fatigue gate test",
+                reflective_dir=rdir,
+            )
+
+    def test_fatigue_signal_skips_enqueue(self):
+        import contextlib
+        with EphemeralHome() as home, contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            self._seed_fatigue(home)
+            result = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-f"), cwd=cwd, cap=100
+            )
+            self.assertFalse(result.queued)
+            self.assertEqual(result.reason, "fatigue_skip")
+            self.assertEqual(len(_spot_check.list_entries()), 0)
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 1
+            )
+
+    def test_no_fatigue_history_enqueues_normally(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            # Empty approval stream → detect_fatigue returns None → no skip.
+            result = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-g"), cwd=cwd, cap=100
+            )
+            self.assertTrue(result.queued)
+            self.assertEqual(result.reason, "queued")
+
+    def test_fatigue_check_never_raises_on_bad_reflective_dir(self):
+        # A non-existent reflective dir must degrade to "not fatigued".
+        with EphemeralHome():
+            self.assertFalse(
+                _spot_check._fatigue_active(None, Path("/nonexistent/xyz"))
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

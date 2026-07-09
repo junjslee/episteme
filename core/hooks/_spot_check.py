@@ -74,6 +74,7 @@ import json
 import os
 import random
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -82,6 +83,13 @@ from typing import Any, Iterable, Literal
 _HOOKS_DIR = Path(__file__).resolve().parent
 if str(_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_HOOKS_DIR))
+
+# src/episteme — for the D11 cognitive-budget fatigue signal (Event 148).
+# Mirrors _arm_a_post.py's path bootstrap. The import stays lazy (inside
+# _fatigue_active) so module load never hard-depends on the package.
+_SRC_DIR = _HOOKS_DIR.parent.parent / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
 from _chain import (  # noqa: E402  # pyright: ignore[reportMissingImports]
     ChainError,
@@ -110,6 +118,22 @@ MULTIPLIER_SYNTHESIS_PRODUCED = 2.0
 MULTIPLIER_BLUEPRINT_D_RESOLUTION = 2.0
 
 SKIP_TTL_SECONDS = 7 * 24 * 60 * 60
+
+# Enqueue backpressure (Event 148, M1). The spot-check queue is
+# operator-facing and drained manually; automatic enqueue paired with a
+# manual-only drain is unbounded-accumulation-prone (the live queue
+# reached ~490 pending / 0 verdicts). ``maybe_sample`` consults
+# ``count_pending()`` before every append and declines silently once the
+# pending set reaches the cap.
+#
+# Config choice: a global env var ``EPISTEME_SPOT_CHECK_CAP`` (integer)
+# overrides ``DEFAULT_PENDING_CAP``. Chosen over the per-project
+# ``.episteme/spot_check_rate`` file idiom deliberately — the sampling
+# *rate* is a per-project tuning knob (how much to sample in this repo),
+# but the pending *cap* is a global safety bound on operator review
+# load, so it takes a global knob rather than a per-project one.
+DEFAULT_PENDING_CAP = 100
+_SKIP_COUNTER_FILENAME = "spot_check_skipped.json"
 
 # Enum allow-lists — enforced by the CLI verdict writer.
 SURFACE_VALIDITY_VALUES = frozenset({"real", "vapor", "wrong_blueprint"})
@@ -143,6 +167,18 @@ def _anchor_path() -> Path:
 
 def _project_override_path(cwd: Path) -> Path:
     return cwd / ".episteme" / "spot_check_rate"
+
+
+def _skip_counter_path() -> Path:
+    return _episteme_home() / "state" / _SKIP_COUNTER_FILENAME
+
+
+def _reflective_dir() -> Path:
+    """Cognitive-budget approval-history dir, resolved EPISTEME_HOME-aware
+    so test ``EphemeralHome`` isolation and production both land correctly.
+    Equals ``_cognitive_budget.DEFAULT_REFLECTIVE_DIR`` when EPISTEME_HOME
+    is unset."""
+    return _episteme_home() / "memory" / "reflective"
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +307,7 @@ class SampleResult:
     effective_rate: float
     multipliers: tuple[str, ...]
     entry_hash: str | None
-    reason: str  # "queued" | "rate_zero" | "already_queued" | "random_miss" | "error"
+    reason: str  # "queued" | "rate_zero" | "already_queued" | "random_miss" | "cap_exceeded" | "fatigue_skip" | "error"
 
 
 def _correlation_already_queued(
@@ -291,6 +327,127 @@ def _correlation_already_queued(
     return False
 
 
+# ---------------------------------------------------------------------------
+# Enqueue backpressure (Event 148, M1)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_pending_cap(explicit: int | None = None) -> int:
+    """Resolve the pending-queue cap. Precedence: explicit arg (test
+    seam) > ``EPISTEME_SPOT_CHECK_CAP`` env var > ``DEFAULT_PENDING_CAP``.
+    Non-parseable / negative values fall back to the default — a bad knob
+    must never break the admit path. Never raises."""
+    if explicit is not None:
+        try:
+            return max(0, int(explicit))
+        except (TypeError, ValueError):
+            return DEFAULT_PENDING_CAP
+    raw = os.environ.get("EPISTEME_SPOT_CHECK_CAP", "").strip()
+    if raw:
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            pass
+    return DEFAULT_PENDING_CAP
+
+
+def read_skip_counter(path: Path | None = None) -> dict:
+    """Read the backpressure skip sidecar. Returns
+    ``{"skipped_count": int, ...}`` — ``{"skipped_count": 0}`` when the
+    sidecar is absent or unreadable. Never raises.
+
+    SessionStart may later surface this counter; emitting that banner is
+    OUT OF SCOPE for Event 148 (follow-up) — this reader exists so the
+    counter is inspectable/testable now."""
+    target = path if path is not None else _skip_counter_path()
+    try:
+        if target.is_file():
+            data = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(
+                data.get("skipped_count"), int
+            ):
+                return data
+    except (OSError, json.JSONDecodeError, ValueError):
+        pass
+    return {"skipped_count": 0}
+
+
+def _bump_skip_counter(
+    reason: str, now: datetime, *, path: Path | None = None
+) -> int | None:
+    """Monotonically increment the backpressure skip counter via an
+    atomic temp+rename (same discipline as the fence/cascade markers).
+    Returns the new count, or None if the write degraded. Never raises —
+    a counter-write failure must not block the admit path (the entry is
+    already being skipped for backpressure regardless)."""
+    target = path if path is not None else _skip_counter_path()
+    current = read_skip_counter(target).get("skipped_count", 0)
+    if not isinstance(current, int) or current < 0:
+        current = 0
+    payload = {
+        "skipped_count": current + 1,
+        "last_skipped_at": _iso(now),
+        "last_reason": reason,
+    }
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(
+            prefix=target.name + ".tmp-", dir=str(target.parent)
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, target)
+        except OSError:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            return None
+    except OSError:
+        return None
+    return current + 1
+
+
+def _fatigue_active(
+    cwd: Path | None, reflective_dir: Path | None
+) -> bool:
+    """D11 wiring (Event 148). True when the operator cognitive-budget
+    stream currently shows an ``attention_bottleneck`` fatigue signal —
+    the operator is approving too fast to be reviewing carefully. Piling
+    more review items onto a fatigued operator is exactly the
+    accumulation this lane bounds, so a live fatigue signal is an
+    additional enqueue-skip condition.
+
+    Evidence-gated and inert by default: approval-time capture is manual
+    today (``_cognitive_budget`` auto-instrumentation is deferred), so an
+    empty stream yields no signal and this gate is a no-op — the hard
+    pending cap remains the safety net. Never raises; fails toward *not
+    fatigued* (enqueue) when the budget module is unavailable."""
+    try:
+        from episteme import (  # type: ignore  # pyright: ignore[reportMissingImports]
+            _cognitive_budget as cb,
+        )
+    except Exception:
+        return False
+    try:
+        rdir = reflective_dir if reflective_dir is not None else _reflective_dir()
+        window, p50, rate = cb.load_thresholds(
+            cwd if cwd is not None else Path.cwd()
+        )
+        signal = cb.detect_fatigue(
+            window=window,
+            p50_threshold_seconds=p50,
+            sub_second_rate_threshold=rate,
+            reflective_dir=rdir,
+        )
+        return signal is not None
+    except Exception:
+        return False
+
+
 def maybe_sample(
     *,
     correlation_id: str,
@@ -304,6 +461,9 @@ def maybe_sample(
     now: datetime | None = None,
     rng: random.Random | None = None,
     path: Path | None = None,
+    cap: int | None = None,
+    reflective_dir: Path | None = None,
+    skip_counter_path: Path | None = None,
 ) -> SampleResult:
     """Decide whether to sample this admitted op and queue the entry
     if so. Idempotent by ``correlation_id`` — a second call with the
@@ -350,6 +510,34 @@ def maybe_sample(
                 entry_hash=None, reason="random_miss",
             )
 
+        target = path if path is not None else _queue_path()
+
+        # Backpressure (Event 148, M1). Consult the pending set BEFORE
+        # appending. count_pending only runs on the sampled path (post
+        # dice-roll, ~base-rate of ops), and the cap keeps the pending
+        # set bounded going forward so this read stays cheap. A count
+        # error fails toward enqueue — the cap must NEVER block the hook
+        # or lose an existing entry.
+        cap_value = _resolve_pending_cap(cap)
+        try:
+            pending = count_pending(path=target, now=now_dt)
+        except Exception:
+            pending = None
+        if pending is not None and pending >= cap_value:
+            _bump_skip_counter("cap_exceeded", now_dt, path=skip_counter_path)
+            return SampleResult(
+                queued=False, correlation_id=correlation_id,
+                effective_rate=rate, multipliers=tuple(multipliers),
+                entry_hash=None, reason="cap_exceeded",
+            )
+        if _fatigue_active(cwd, reflective_dir):
+            _bump_skip_counter("fatigue", now_dt, path=skip_counter_path)
+            return SampleResult(
+                queued=False, correlation_id=correlation_id,
+                effective_rate=rate, multipliers=tuple(multipliers),
+                entry_hash=None, reason="fatigue_skip",
+            )
+
         payload = {
             "type": ENTRY_TYPE,
             "correlation_id": correlation_id,
@@ -361,7 +549,6 @@ def maybe_sample(
             "multipliers_applied": multipliers,
             "effective_rate_at_sample": rate,
         }
-        target = path if path is not None else _queue_path()
         envelope = _chain_append(target, payload)
         return SampleResult(
             queued=True, correlation_id=correlation_id,
