@@ -78,6 +78,20 @@ If these cannot be answered, do not escalate execution scope.
 For paid hosted-model runs, estimate cost before triggering and ask:
 > `acknowledge the cost and proceed? [y/n]`
 
+## Justified-Irreversible Lane
+
+Reversible-first over-applied is itself a failure mode: perpetual deferral silently costs time, velocity, and truth-freshness (release treadmills, zero-drain queues, deprecation-without-deletion).
+
+An irreversible action executes through ONE decisive checkpoint when all three hold:
+
+1. Necessity: no reversible equivalent achieves the objective — name why.
+2. Preparation: recovery story stated — archive/backup where possible; otherwise explicit no-rollback acceptance with the blast radius named.
+3. Single gate: one review checkpoint (operator sign-off when high-blast-radius). Once passed, execute without re-litigation; re-opening a passed gate requires NEW evidence, not renewed discomfort.
+
+Reclassification: deletion of a version-controlled file, branch deletion with a recorded SHA, and archive-then-remove of an unversioned file (after the archive copy exists) are reversible by construction — do not route them through the irreversible gate.
+
+Anti-treadmill rule: a decision deferred 3+ times, or open more than 30 days with no new evidence, escalates to a mandatory decide-now checkpoint — decide, or explicitly accept-and-close with the cost of ignorance named.
+
 ## Project Memory Contract
 
 Authoritative truth lives in project docs and repo policy files:
