@@ -18,7 +18,7 @@ hand-edit between the markers; run the command and commit the result.
 <!-- episteme-docs-index:start -->
 - [`ADAPTER_PORTABILITY.md`](./ADAPTER_PORTABILITY.md) · report · Adapter Portability Audit
 - [`ANTHROPIC_MANAGED_AGENTS_BRIDGE.md`](./ANTHROPIC_MANAGED_AGENTS_BRIDGE.md) · living · Anthropic Managed Agents Bridge
-- [`ARCHITECTURE.md`](./ARCHITECTURE.md) · living · Architecture — The Sovereign Kernel (v1.3.0-rc1 shipped · 1066 tests + 54 subtests green)
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) · living · Architecture — The Sovereign Kernel (1.9.0-rc1)
 - [`COMMANDS.md`](./COMMANDS.md) · living · episteme — command reference
 - [`COMPLIANCE_CROSSWALK.md`](./COMPLIANCE_CROSSWALK.md) · living · Compliance Crosswalk — `signed-surface@1.0` → Regulatory Clauses
 - [`CONTRACT_GATE.md`](./CONTRACT_GATE.md) · living · Contract Gate — deterministic contract-test complement to the Reasoning Surface
