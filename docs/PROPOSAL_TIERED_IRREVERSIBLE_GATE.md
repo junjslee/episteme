@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=spec-implemented; reviewed_as_of=E147 -->
 # Proposal — Tiered Irreversible-Op Gate (v1.4.x candidate)
 
 > Status: **Stages 0 + 1 + 2 + 3 + 4 + FINAL all landed (Events 134, 134.1, 135).**

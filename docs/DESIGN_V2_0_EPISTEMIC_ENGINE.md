@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # DESIGN v2.0 — The Epistemic Engine
 
 Status: **ACTIVE — Event 138 (2026-06-10).** Supersedes the enforcement-geometry framing of

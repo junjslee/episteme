@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Contract Gate — deterministic contract-test complement to the Reasoning Surface
 
 **Operational summary:**

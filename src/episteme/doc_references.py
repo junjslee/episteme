@@ -417,13 +417,150 @@ def _format_findings(findings: Sequence[Finding]) -> str:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Stale-citation cascade gate (Event 147, Mechanism 2)                         #
+# --------------------------------------------------------------------------- #
+#
+# Counters FAILURE_MODES: stale-citation-cascade — a doc gets reclassified as
+# design-history or tombstone, but the living docs that cite it keep pointing
+# at it as though it were current, so a reader following the reference lands on
+# a superseded artifact with no signal that it was retired. The lifecycle
+# marker (Mechanism 1) makes each doc's status machine-readable; this gate makes
+# the *edges* honor it: a status=living doc may not cite a status ∈
+# {design-history, tombstone} doc unless the referencing line itself carries a
+# historical qualifier that tells the reader the target is not current.
+#
+# Mechanically checkable, no operator judgment (M1): the qualifier test is a
+# case-insensitive substring scan of the citing line against a fixed word set.
+# Reuses the same citation walk as the drift linter (``extract_references``) so
+# there is no second, divergent notion of "what a doc cites".
+
+#: Lifecycle statuses whose docs must not be cited bare by a living doc.
+HISTORICAL_STATUSES: frozenset[str] = frozenset({"design-history", "tombstone"})
+
+#: Words that, present anywhere on the citing line, mark the reference as a
+#: deliberate historical pointer (case-insensitive substring match). ``archive``
+#: also covers ``archived``; ``supersede`` covers ``superseded``/``supersedes``.
+HISTORICAL_QUALIFIERS: tuple[str, ...] = (
+    "supersede",
+    "retired",
+    "historical",
+    "archive",
+    "design-history",
+)
+
+
+@dataclass(frozen=True)
+class StaleCitation:
+    """A living doc citing a design-history/tombstone doc without a qualifier."""
+
+    citing_file: str
+    line: int
+    raw: str
+    target: str
+    target_status: str
+
+
+def _line_has_qualifier(line_text: str) -> bool:
+    """True iff the citing line carries a historical qualifier word."""
+    low = line_text.lower()
+    return any(q in low for q in HISTORICAL_QUALIFIERS)
+
+
+def _lifecycle_status_map(repo_root: Path) -> dict:
+    """Map tracked top-level doc paths -> lifecycle status (via doc_lifecycle).
+
+    Imported lazily so ``doc_references`` stays importable without the lifecycle
+    engine present, and so callers can inject an explicit ``status_map`` in tests
+    without touching git or the filesystem.
+    """
+    from episteme import doc_lifecycle  # local import: avoid import-time coupling
+
+    root = Path(repo_root)
+    out: dict = {}
+    for rel in doc_lifecycle.tracked_docs(root):
+        marker = doc_lifecycle.parse_marker(root / rel)
+        out[rel] = marker.status if marker is not None else None
+    return out
+
+
+def find_stale_citations(
+    repo_root: Path,
+    doc_files: Optional[Sequence[str]] = None,
+    status_map: Optional[dict] = None,
+) -> List[StaleCitation]:
+    """Return every living-doc citation of a historical doc lacking a qualifier.
+
+    Rule (Mechanism 2): a ``status=living`` doc may cite a doc whose status is in
+    :data:`HISTORICAL_STATUSES` only if the citing line carries a word from
+    :data:`HISTORICAL_QUALIFIERS`. Otherwise the citation is a ``stale-citation``
+    finding.
+
+    ``status_map`` (doc path -> status) is injectable for tests; when ``None`` it
+    is derived from the lifecycle markers of the tracked corpus. ``doc_files``
+    (the citing set) defaults to the docs that carry a ``living`` status in the
+    map — the only docs the rule constrains.
+    """
+    root = Path(repo_root)
+    smap = status_map if status_map is not None else _lifecycle_status_map(root)
+    historical = {
+        rel for rel, st in smap.items() if st in HISTORICAL_STATUSES
+    }
+    if doc_files is None:
+        doc_files = sorted(rel for rel, st in smap.items() if st == "living")
+
+    findings: List[StaleCitation] = []
+    for rel in doc_files:
+        if smap.get(rel) != "living":
+            continue
+        if rel in EXEMPT_CITING_FILES or rel.startswith(EXEMPT_CITING_PREFIXES):
+            continue
+        try:
+            text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except (OSError, UnicodeError):
+            continue
+        lines = text.splitlines()
+        for ref in extract_references(text, rel):
+            if ref.target not in historical:
+                continue
+            line_text = lines[ref.line - 1] if 0 <= ref.line - 1 < len(lines) else ""
+            if _line_has_qualifier(line_text):
+                continue
+            findings.append(
+                StaleCitation(
+                    citing_file=rel,
+                    line=ref.line,
+                    raw=ref.raw,
+                    target=ref.target,
+                    target_status=smap[ref.target],
+                )
+            )
+    return findings
+
+
+def _format_stale_citations(findings: Sequence[StaleCitation]) -> str:
+    return "\n".join(
+        f"  {f.citing_file}:{f.line}  cites  {f.raw!r}  ->  {f.target} "
+        f"({f.target_status}, no historical qualifier)"
+        for f in findings
+    )
+
+
 if __name__ == "__main__":  # pragma: no cover
     import sys
 
     root = Path(__file__).resolve().parents[2]
+    exit_code = 0
     result = find_drift(root)
     if result:
         print(f"{len(result)} dangling doc->code reference(s):")
         print(_format_findings(result))
-        sys.exit(1)
-    print("doc references: clean")
+        exit_code = 1
+    stale = find_stale_citations(root)
+    if stale:
+        print(f"{len(stale)} stale citation(s) of historical docs by living docs:")
+        print(_format_stale_citations(stale))
+        exit_code = 1
+    if exit_code == 0:
+        print("doc references: clean")
+    sys.exit(exit_code)

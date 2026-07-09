@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # How to verify a Regulator Evidence Packet
 
 **Audience:** external auditor / Internal Audit / Notified Body assessor receiving a `regulator-evidence-packet-<ISO>.zip` from an episteme operator.
@@ -40,8 +41,9 @@ If any link in this chain is broken, the verifier exits with a specific code (§
 You need Python 3.10+ and the `episteme` package (any version ≥ Phase 3). Install:
 
 ```bash
-pip install episteme              # zero hard deps
-pip install 'episteme[signing]'   # adds PyNaCl for Ed25519 verification
+git clone https://github.com/junjslee/episteme ~/episteme
+cd ~/episteme && pip install -e .            # editable install from the cloned kernel (PyPI is NOT an install path — see INSTALL.md)
+pip install -e '.[signing]'                  # adds PyNaCl for Ed25519 verification
 ```
 
 Unzip the packet and run:

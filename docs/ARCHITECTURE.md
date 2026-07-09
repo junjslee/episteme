@@ -1,8 +1,9 @@
-# Architecture — The Sovereign Kernel (v1.3.0-rc1 shipped · 1066 tests + 54 subtests green)
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
+# Architecture — The Sovereign Kernel (<!-- episteme-fact:version -->1.9.0-rc1<!-- /episteme-fact:version -->)
 
 > Mermaid flowchart. Renders natively on GitHub, Obsidian, and any CommonMark viewer with Mermaid support. **Five** subgraphs trace the full lifecycle from agent intention through the three-pillar kernel — Cognitive Blueprints, Append-Only Hash Chain, Framework Synthesis & Active Guidance — into praxis, the learning loop, and the post-v1.0-RC behavior-conformance extensions (Event 130 — Contract Gate; Event 131 — FAILURE_MODES mode 12 + CALIBRATION_TELEMETRY).
 >
-> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21) plus the v1.2-RC behavior-conformance extensions in Subgraph ⑤. All ten RC checkpoints shipped with paused-review-before-commit discipline. Current head: v1.3.0-rc1 (cut 2026-05-23 via release-please PR #80); 1066 tests + 54 subtests green. v1.3.0-rc2 stages from this Event's `feat:` commits; release-please regenerates the staging PR automatically — no manual version edit.
+> **State.** This diagram depicts the **v1.0 RC shipped state** (spec: [`./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./DESIGN_V1_0_SEMANTIC_GOVERNANCE.md), status *approved (reframed, third pass)* 2026-04-21) plus the v1.2-RC behavior-conformance extensions in Subgraph ⑤. All ten RC checkpoints shipped with paused-review-before-commit discipline. Current head: <!-- episteme-fact:version -->1.9.0-rc1<!-- /episteme-fact:version --> (via release-please; test counts are owned by CI, not this prose). v1.3.0-rc2 stages from this Event's `feat:` commits; release-please regenerates the staging PR automatically — no manual version edit.
 
 ---
 

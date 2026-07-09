@@ -13,16 +13,27 @@ content-key dedup + compaction. Two invariants:
 Registered against FAILURE_MODES: unbounded-accumulation (Event 145). The
 generation rate of doc artifacts had exceeded their consumption rate at every
 class; this test is the standing counter for the tracked-doc class.
+
+Event 147 reseat: the doc-lifecycle marker contract (``src/episteme/doc_lifecycle.py``)
+subsumes the ad-hoc corpus walk. This module now BOUNDS that engine — it runs
+``doc_lifecycle.lint()`` over the tracked corpus as the standing gate that every
+tracked ``docs/*.md`` carries a valid lifecycle marker (positive system), rather
+than duplicating a second parallel walk. The 32-file ceiling and the
+no-planning-state invariant are retained unchanged.
 """
 
 from __future__ import annotations
 
 import re
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_REPO_ROOT / "src"))
+
+from episteme import doc_lifecycle  # noqa: E402
 
 # Ceiling for tracked top-level ``docs/*.md``. Current tracked count is 31.
 # Bumping this is a deliberate act — change the number here and the edit is the
@@ -85,6 +96,25 @@ class NoPlanningStateInTrackedTree(unittest.TestCase):
             "private-only working memory (symlink to ~/episteme-private/docs, "
             "gitignore the symlink) — they may not be tracked anywhere in the "
             "tree. Found tracked:\n  " + "\n  ".join(offenders),
+        )
+
+
+class TrackedDocsCarryLifecycleMarker(unittest.TestCase):
+    """Reseat (Event 147): every tracked ``docs/*.md`` carries a valid marker.
+
+    This runs the portable lifecycle linter over the real corpus. A missing or
+    malformed marker (positive system — only the five enumerated statuses
+    validate) is a hard failure, so a new tracked doc cannot enter the tree
+    without a conscious lifecycle classification at creation.
+    """
+
+    def test_corpus_lint_is_clean(self):
+        findings = doc_lifecycle.lint(_REPO_ROOT)
+        self.assertEqual(
+            findings,
+            [],
+            "doc lifecycle marker violations in the tracked corpus:\n"
+            + doc_lifecycle.format_findings(findings),
         )
 
 

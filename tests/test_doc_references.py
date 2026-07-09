@@ -421,5 +421,104 @@ class RealCorpusHasNoNewDrift(unittest.TestCase):
             )
 
 
+class StaleCitationCascadeTests(unittest.TestCase):
+    """Cascade gate (Event 147, Mechanism 2): a status=living doc may cite a
+    design-history/tombstone doc only if the citing LINE carries a historical
+    qualifier. status_map + doc_files are injectable so fixtures need no git."""
+
+    def _repo(self, d):
+        root = Path(d)
+        (root / "docs").mkdir()
+        return root
+
+    def test_living_citing_historical_without_qualifier_is_flagged(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._repo(d)
+            (root / "docs" / "OLD.md").write_text("# old\n")
+            (root / "docs" / "LIVE.md").write_text(
+                "current design lives in `docs/OLD.md`\n"
+            )
+            findings = dr.find_stale_citations(
+                root,
+                doc_files=["docs/LIVE.md"],
+                status_map={"docs/LIVE.md": "living", "docs/OLD.md": "design-history"},
+            )
+            self.assertEqual(1, len(findings))
+            self.assertEqual("docs/OLD.md", findings[0].target)
+            self.assertEqual("design-history", findings[0].target_status)
+            self.assertEqual("docs/LIVE.md", findings[0].citing_file)
+
+    def test_living_citing_historical_with_qualifier_is_clean(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._repo(d)
+            (root / "docs" / "OLD.md").write_text("# old\n")
+            (root / "docs" / "LIVE.md").write_text(
+                "superseded by v2; see the historical `docs/OLD.md`\n"
+            )
+            findings = dr.find_stale_citations(
+                root,
+                doc_files=["docs/LIVE.md"],
+                status_map={"docs/LIVE.md": "living", "docs/OLD.md": "design-history"},
+            )
+            self.assertEqual([], findings)
+
+    def test_tombstone_target_is_also_gated(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._repo(d)
+            (root / "docs" / "GONE.md").write_text("# gone\n")
+            (root / "docs" / "LIVE.md").write_text("see `docs/GONE.md`\n")
+            findings = dr.find_stale_citations(
+                root,
+                doc_files=["docs/LIVE.md"],
+                status_map={"docs/LIVE.md": "living", "docs/GONE.md": "tombstone"},
+            )
+            self.assertEqual(1, len(findings))
+            self.assertEqual("tombstone", findings[0].target_status)
+
+    def test_non_living_citer_is_not_gated(self):
+        # A design-history doc citing another historical doc is not a living
+        # edge; the rule only constrains living citers.
+        with tempfile.TemporaryDirectory() as d:
+            root = self._repo(d)
+            (root / "docs" / "OLD.md").write_text("# old\n")
+            (root / "docs" / "ALSO_OLD.md").write_text("see `docs/OLD.md`\n")
+            findings = dr.find_stale_citations(
+                root,
+                doc_files=["docs/ALSO_OLD.md"],
+                status_map={
+                    "docs/ALSO_OLD.md": "design-history",
+                    "docs/OLD.md": "design-history",
+                },
+            )
+            self.assertEqual([], findings)
+
+    def test_living_citing_living_is_not_gated(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = self._repo(d)
+            (root / "docs" / "OTHER.md").write_text("# other\n")
+            (root / "docs" / "LIVE.md").write_text("see `docs/OTHER.md`\n")
+            findings = dr.find_stale_citations(
+                root,
+                doc_files=["docs/LIVE.md"],
+                status_map={"docs/LIVE.md": "living", "docs/OTHER.md": "living"},
+            )
+            self.assertEqual([], findings)
+
+
+class RealCorpusHasNoStaleCitations(unittest.TestCase):
+    """THE cascade guardrail on the real corpus: no living doc cites a
+    design-history/tombstone doc without a historical qualifier."""
+
+    def test_no_stale_citations_in_corpus(self):
+        findings = dr.find_stale_citations(_REPO_ROOT)
+        if findings:
+            self.fail(
+                f"{len(findings)} stale citation(s) of historical docs by living "
+                f"docs:\n{dr._format_stale_citations(findings)}\n\n"
+                "Add a historical qualifier (superseded / retired / historical / "
+                "archive / design-history) to the citing line, or repoint it."
+            )
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

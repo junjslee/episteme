@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=design-history; reviewed_as_of=E147; superseded_by=docs/DESIGN_V2_0_EPISTEMIC_ENGINE.md -->
 # Live transparency-log substrate — decision research
 
 **Status:** operator-gated decision. Phase 3 ships only the shape (typed inclusion-proof field; mock test mode that round-trips). The live append + verification is its own Event.

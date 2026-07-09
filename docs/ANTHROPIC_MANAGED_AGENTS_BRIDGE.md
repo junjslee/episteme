@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Anthropic Managed Agents Bridge
 
 Purpose: import Managed Agents runtime event logs into `episteme` Memory Contract v1 envelopes as `episodic` records.

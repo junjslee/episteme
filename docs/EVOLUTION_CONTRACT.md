@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Evolution Contract v1
 
 Purpose: define a safe, auditable self-evolution loop for the episteme cognitive+execution harness.

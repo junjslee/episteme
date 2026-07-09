@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=spec-implemented; reviewed_as_of=E147 -->
 # Spec — Reasoning Surface branching
 
 **Status:** proposed (Tier 2.3 design spec, Event 110, 2026-05-08). Implementation deferred to Tier 3 — see § Implementation path below for decomposition.

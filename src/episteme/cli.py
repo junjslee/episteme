@@ -1744,6 +1744,53 @@ def _memory_search(query: str) -> int:
     return 0
 
 
+def _find_memory_record(record_id: str) -> Path | None:
+    """Locate the ``.memory.json`` file backing ``record_id`` across the three
+    tiers, or None. Matches on the record's ``id`` field (the stored UUID),
+    which is authoritative — the filename mirrors it but the field is the
+    contract the reader keys on."""
+    for cls in ("global", "project", "episodic"):
+        cls_dir = MEMORY_RECORDS_DIR / cls
+        if not cls_dir.is_dir():
+            continue
+        for f in cls_dir.glob("*.memory.json"):
+            try:
+                rec = json.loads(f.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            if isinstance(rec, dict) and str(rec.get("id", "")) == record_id:
+                return f
+    return None
+
+
+def _memory_set_status(record_id: str, status: str) -> int:
+    """Writer for the memory-record status lifecycle (Event 147, A3).
+
+    Closes the D11 gap: the status enum {active, archived, superseded} existed
+    on every ``.memory.json`` record and ``memory list --status`` already
+    filtered on it, but nothing could transition a record between states. This
+    is the explicit writer. It rewrites only the ``status`` field, preserving
+    the rest of the record verbatim."""
+    path = _find_memory_record(record_id)
+    if path is None:
+        print(f"No memory record found with id {record_id!r}", file=sys.stderr)
+        return 1
+    try:
+        rec = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        print(f"Could not read record {path}: {exc}", file=sys.stderr)
+        return 1
+    old_status = rec.get("status", "active")
+    rec["status"] = status
+    try:
+        path.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        print(f"Could not write record {path}: {exc}", file=sys.stderr)
+        return 1
+    print(f"Memory record {record_id} status: {old_status} -> {status}")
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # doctor
 # ---------------------------------------------------------------------------
@@ -5398,7 +5445,7 @@ command map (grouped by lifecycle phase):
     start                    launch the preferred agent surface for this project
     doctor                   verify runtime wiring (Conda, core tools, optional tools)
     audit                    check whether the current session addressed its unknowns
-    memory                   record, list, search, promote memory records
+    memory                   record, list, search, set-status, promote memory records
 
   setup & admin
     init                     seed kernel global memory from examples (one-shot after clone)
@@ -5453,6 +5500,15 @@ def build_parser() -> argparse.ArgumentParser:
     m_list.add_argument("--limit", type=int, default=20)
     m_search = memory_sub.add_parser("search", help="Search active memory records by text")
     m_search.add_argument("query", help="Text to search for (case-insensitive)")
+
+    m_setstatus = memory_sub.add_parser(
+        "set-status",
+        help="Transition a memory record's lifecycle status (active/archived/superseded)",
+    )
+    m_setstatus.add_argument("record_id", help="Record id (UUID) to transition")
+    m_setstatus.add_argument(
+        "status", choices=["active", "archived", "superseded"], help="New status"
+    )
 
     m_promote = memory_sub.add_parser(
         "promote",
@@ -5663,6 +5719,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     audit = sub.add_parser("audit", help="Reasoning check: verify the current project session has addressed cognitive unknowns")
     audit.add_argument("--fix", action="store_true", help="Append stub Reasoning Surface blocks to files that are missing them")
+
+    docs_cmd = sub.add_parser("docs", help="Doc/artifact lifecycle — marker lint + generated index")
+    docs_sub = docs_cmd.add_subparsers(dest="docs_action", required=True)
+    docs_sub.add_parser("lint", help="Validate lifecycle markers on every tracked docs/*.md (positive system)")
+    d_index = docs_sub.add_parser("index", help="Regenerate the docs/README.md index from lifecycle markers")
+    d_index.add_argument("--check", action="store_true", help="Verify the committed index is up to date (CI gate); do not write")
 
     kernel = sub.add_parser("kernel", help="Kernel integrity manifest + ledger maintenance operations")
     kernel_sub = kernel.add_subparsers(dest="kernel_action", required=True)
@@ -6448,6 +6510,13 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _init_memory()
     if args.command == "doctor":
         return _doctor()
+    if args.command == "docs":
+        from . import doc_lifecycle as _dl
+        if args.docs_action == "lint":
+            return _dl.run_lint_cli()
+        if args.docs_action == "index":
+            return _dl.run_index_cli(check=getattr(args, "check", False))
+        return 0
     if args.command == "memory":
         if args.memory_action == "record":
             return _memory_record(
@@ -6464,6 +6533,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             )
         if args.memory_action == "search":
             return _memory_search(args.query)
+        if args.memory_action == "set-status":
+            return _memory_set_status(args.record_id, args.status)
         if args.memory_action == "promote":
             from pathlib import Path as _Path
             from . import _memory_promote as _mp
@@ -6472,6 +6543,7 @@ def main(argv: Iterable[str] | None = None) -> int:
                 reflective_dir=_Path(args.reflective_dir) if args.reflective_dir else None,
                 output_path=_Path(args.output) if args.output else None,
                 min_cluster_size=args.min_cluster,
+                records_dir=MEMORY_RECORDS_DIR,
             )
             print(report)
             if written_to is not None:

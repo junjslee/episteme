@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Demos
 
 Five demos. Each one targets a different class of LLM failure mode. The

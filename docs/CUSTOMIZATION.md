@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Customization
 
 Three places you can shape episteme to your own working life: personal memory, skills, and hooks.
@@ -13,7 +14,7 @@ Recommended additions:
 
 To keep your system explainable in your own head (and to teammates), add:
 - **Global:** `core/memory/global/build_story.md` — your stable builder narrative.
-- **Project:** `docs/DECISION_STORY.md` — what/why/how trace for major decisions in a specific repository.
+- **Project:** `docs/EVENTS.md` — what/why/how trace for major decisions in a specific repository.
 
 ```bash
 cp core/memory/global/examples/build_story.example.md core/memory/global/build_story.md
@@ -62,7 +63,7 @@ docs/
   PROGRESS.md        completed work and decisions
   NEXT_STEPS.md      next-session handoff
   RUN_CONTEXT.md     runtime assumptions, APIs, execution profiles
-  DECISION_STORY.md  narratable what/why/how for major decisions
+  EVENTS.md          narratable what/why/how for major decisions
 .claude/
   settings.json          permission rules
   settings.local.json    machine-local overrides (gitignored)

@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Compliance Crosswalk — `signed-surface@1.0` → Regulatory Clauses
 
 **What this document is.** A **downstream structural mapping**. Not the primary identity of episteme. Not the primary positioning. Not a sales artifact.

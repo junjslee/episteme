@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Open Source Your Profile
 
 Your personal episteme files — `cognitive_profile.md`, `operator_profile.md`, `workflow_policy.md`, `overview.md`, `python_runtime_policy.md` — are the deepest expression of what episteme is meant to do.

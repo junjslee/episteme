@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Sync and Memory Model
 
 How the kernel + operator profile reach every runtime, and how memory is structured, scoped, and reconciled.

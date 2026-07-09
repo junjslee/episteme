@@ -380,6 +380,54 @@ def render_promotion_report(
     return "\n".join(lines)
 
 
+# ----- Source lifecycle transition (Event 147, A3) --------------------
+
+def supersede_promoted_sources(
+    proposals: Sequence[dict],
+    records_dir: Path,
+) -> int:
+    """Mark the source ``.memory.json`` records copied into these proposals as
+    ``status=superseded`` (the D11 promote-path auto-transition).
+
+    When a promotion lifts an episodic record's evidence into a semantic
+    proposal, the source record has been superseded by the higher-tier
+    generalization; this transitions it so ``memory list --status active`` stops
+    surfacing it as a live standalone. Matches a proposal's ``evidence_refs``
+    (episodic record ids) against the ``id`` field of records under
+    ``records_dir/{global,project,episodic}``. Idempotent (records already
+    ``superseded`` are skipped) and never raises — a bookkeeping transition must
+    not break the promote run. Returns the number of records transitioned.
+    """
+    refs: set[str] = set()
+    for p in proposals:
+        for r in p.get("evidence_refs", []) or []:
+            r = str(r).strip()
+            if r:
+                refs.add(r)
+    if not refs:
+        return 0
+    transitioned = 0
+    for cls in ("global", "project", "episodic"):
+        cls_dir = records_dir / cls
+        if not cls_dir.is_dir():
+            continue
+        for f in sorted(cls_dir.glob("*.memory.json")):
+            try:
+                rec = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(rec, dict):
+                continue
+            if str(rec.get("id", "")) in refs and rec.get("status") != "superseded":
+                rec["status"] = "superseded"
+                try:
+                    f.write_text(json.dumps(rec, indent=2) + "\n", encoding="utf-8")
+                except OSError:
+                    continue
+                transitioned += 1
+    return transitioned
+
+
 # ----- Public entry point --------------------------------------------
 
 def run_promote(
@@ -389,10 +437,19 @@ def run_promote(
     output_path: Path | None = None,
     min_cluster_size: int = DEFAULT_MIN_CLUSTER_SIZE,
     now_iso: str | None = None,
+    records_dir: Path | None = None,
 ) -> tuple[str, int, Path | None]:
     """Read episodic records, compute proposals, write to reflective tier,
     render a report. Returns (report_markdown, proposal_count,
     proposals_file_path_or_None).
+
+    When ``records_dir`` is provided, the promote path also transitions any
+    source ``.memory.json`` record copied into a proposal to
+    ``status=superseded`` (Event 147 D11 wiring). ``records_dir`` is injected
+    rather than hardcoded so the module stays portable — the CLI passes the
+    repo's ``core/memory/records`` and tests pass a fixture dir. Left None (the
+    default) the promote run is read-only against the record tiers, preserving
+    prior behaviour.
 
     CLI wrapper prints the markdown and/or writes it to ``output_path``.
     """
@@ -401,6 +458,8 @@ def run_promote(
     records = load_episodic_records(ed)
     proposals = build_proposals(records, min_cluster_size=min_cluster_size)
     written_to = write_proposals(proposals, rd, now_iso=now_iso)
+    if records_dir is not None:
+        supersede_promoted_sources(proposals, records_dir)
     report = render_promotion_report(
         proposals, total_records=len(records), min_cluster_size=min_cluster_size
     )

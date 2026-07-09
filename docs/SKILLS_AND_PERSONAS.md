@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
 # Skills and Agent Personas
 
 Two extension surfaces shipped with episteme: **skills** (reusable operator capabilities) and **personas** (subagent definitions). Both propagate via `episteme sync`.
