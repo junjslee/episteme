@@ -332,6 +332,25 @@ def lint(root: Path, config: Optional[Config] = None) -> List[Finding]:
                     ),
                 )
             )
+        # Report sink (Event 147, Mechanism 4): status=report is a bounded
+        # grandfather set, not an open accretion channel. A tracked report doc
+        # is allowed only if it is on the config grandfather list; new reports
+        # must land in ``archive/reports/YYYY-MM/`` (gitignored) or attach to an
+        # EVENTS entry rather than accrete as tracked top-level docs.
+        if marker.status == "report" and rel not in cfg.report_grandfather:
+            findings.append(
+                Finding(
+                    file=rel,
+                    line=1,
+                    kind="report-sink",
+                    message=(
+                        "status=report is only permitted for grandfathered docs "
+                        f"({sorted(cfg.report_grandfather)}); a new report must "
+                        "land in archive/reports/YYYY-MM/ (gitignored) or attach "
+                        "to an EVENTS entry, not accrete as a tracked doc"
+                    ),
+                )
+            )
     return findings
 
 

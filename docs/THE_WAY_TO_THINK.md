@@ -180,7 +180,7 @@ The practice maps to artifacts that fall into three lanes:
 |---|---|---|
 | Standalone `episteme verify` CLI | Independent verification of any signed surface; runs without trusting the episteme runtime | `src/episteme/verify/` |
 | `episteme evidence packet build` | On-demand ZIP packet for auditor / regulator / future-self / new-teammate review | `src/episteme/evidence/_packet.py` |
-| Sigstore Rekor inclusion-proof shape | Append-only off-system witness (live integration deferred per `docs/LIVE_REKOR_DECISION.md`) | `core/signing/transparency.py` |
+| Sigstore Rekor inclusion-proof shape | Append-only off-system witness (live integration deferred per the design-history record `docs/LIVE_REKOR_DECISION.md`) | `core/signing/transparency.py` |
 | RFC 3161 TSA timestamps | Independent third-party time-binding | `core/signing/tsa.py` |
 
 ---

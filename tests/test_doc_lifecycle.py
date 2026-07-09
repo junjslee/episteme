@@ -134,6 +134,54 @@ class LintFixtureTests(unittest.TestCase):
             self.assertEqual(dl.lint(root), [])
 
 
+class ReportSinkFixtureTests(unittest.TestCase):
+    """RED/GREEN: status=report is bounded to the config grandfather list
+    (Event 147, Mechanism 4). A non-grandfathered report doc is flagged; a
+    grandfathered one passes."""
+
+    def test_non_grandfathered_report_is_flagged(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
+            _add(
+                root,
+                "docs/NEW_REPORT.md",
+                "<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->\n# R\n",
+            )
+            findings = dl.lint(root)
+            kinds = {(f.file, f.kind) for f in findings}
+            self.assertIn(("docs/NEW_REPORT.md", "report-sink"), kinds)
+
+    def test_grandfathered_report_is_clean(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
+            _add(
+                root,
+                "docs/EVALUATION_METHOD.md",
+                "<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->\n# R\n",
+            )
+            # docs/EVALUATION_METHOD.md is in the default grandfather list.
+            self.assertEqual(dl.lint(root), [])
+
+    def test_config_can_extend_grandfather_list(self):
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
+            (root / ".episteme").mkdir()
+            (root / ".episteme" / "config.json").write_text(
+                '{"report_grandfather": ["docs/NEW_REPORT.md"]}', encoding="utf-8"
+            )
+            _add(
+                root,
+                "docs/NEW_REPORT.md",
+                "<!-- episteme-lifecycle: status=report; reviewed_as_of=E147 -->\n# R\n",
+            )
+            # With NEW_REPORT.md grandfathered via config, no report-sink finding.
+            kinds = {(f.file, f.kind) for f in dl.lint(root)}
+            self.assertNotIn(("docs/NEW_REPORT.md", "report-sink"), kinds)
+
+
 class GenerateIndexTests(unittest.TestCase):
     def test_index_lists_docs_with_status_and_purpose(self):
         with TemporaryDirectory() as td:
