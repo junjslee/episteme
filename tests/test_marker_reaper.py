@@ -322,6 +322,47 @@ class CliTool(unittest.TestCase):
             self.assertFalse(stale.exists(), "tool must reap the stale marker")
             self.assertIn("marker_cleanup:", proc.stderr)
 
+    def _run_with_stale_marker(self, args):
+        """Run the tool with `args` against a temp home holding one stale
+        marker; return (proc, marker_path). The caller asserts on whether the
+        marker survived (survived ⇒ no sweep ran)."""
+        td = tempfile.mkdtemp()
+        home = Path(td)
+        now = datetime.now(timezone.utc)
+        stale = home / "state" / "fence_pending" / "old.json"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text(
+            json.dumps({"written_at": (now - timedelta(days=2)).isoformat()}),
+            encoding="utf-8",
+        )
+        env = dict(os.environ, EPISTEME_HOME=str(home))
+        proc = subprocess.run(
+            [sys.executable, str(_REPO_ROOT / "tools" / "fence_marker_cleanup.py"), *args],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        return proc, stale
+
+    def test_help_flag_prints_usage_and_does_not_sweep(self):
+        # Event 148 · smallfix #3: --help must exit 0 without running the sweep.
+        proc, stale = self._run_with_stale_marker(["--help"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("usage", proc.stdout.lower())
+        self.assertTrue(stale.exists(), "--help must NOT reap markers (no sweep)")
+        self.assertNotIn("vanished=", proc.stderr)  # sweep-summary token, absent ⇒ no sweep
+
+    def test_short_help_flag_does_not_sweep(self):
+        proc, stale = self._run_with_stale_marker(["-h"])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(stale.exists(), "-h must NOT reap markers (no sweep)")
+
+    def test_unknown_flag_exits_2_and_does_not_sweep(self):
+        proc, stale = self._run_with_stale_marker(["--bogus"])
+        self.assertEqual(proc.returncode, 2, proc.stdout)
+        self.assertTrue(stale.exists(), "unknown flag must NOT reap markers (no sweep)")
+        self.assertNotIn("vanished=", proc.stderr)  # sweep-summary token, absent ⇒ no sweep
+
 
 if __name__ == "__main__":
     unittest.main()

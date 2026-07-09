@@ -178,6 +178,46 @@ _BARE_PATH_RE = re.compile(
 _LINE_SUFFIX_RE = re.compile(r"^(.*\.[A-Za-z0-9]+):\d+(?::\d+)?$")
 _TEMPLATE_RE = re.compile(r"YYYY|(?<![A-Za-z])NN(?![A-Za-z])|MM-DD")
 
+# A GitHub-style ``owner/repo`` slug: two path-name segments. Used only to
+# recognize *external-project* citations (Event 146 false-positive): a path
+# that belongs to an upstream repo named on the same line is not a citation of
+# THIS tree. ``owner`` must NOT be one of our own source roots
+# (:data:`ALLOWLIST_PREFIXES`), so an in-repo path like ``core/hooks/x.py``
+# (owner ``core`` is a real root) is never mistaken for an external slug.
+_SLUG_SEG = r"[A-Za-z0-9][A-Za-z0-9._-]*"
+_EXTERNAL_SLUG_PREFIX_RE = re.compile(rf"^({_SLUG_SEG})/{_SLUG_SEG}/")
+_EXTERNAL_SLUG_BEFORE_RE = re.compile(rf"({_SLUG_SEG})/{_SLUG_SEG}[\s/`'\"(]*$")
+
+
+def _cites_external_repo(line_text: str, raw: str) -> bool:
+    """True if ``raw`` belongs to an upstream project cited by its
+    ``owner/repo`` slug, not to this repo (Event 148 · smallfix #4).
+
+    Two shapes are recognized, both conservative (they only ever suppress a
+    finding, never create one, so the drift baseline cannot grow):
+
+    * **slug-prefixed token** — the token itself begins ``owner/repo/…``
+      (e.g. ``googleapis/release-please/README.md``); as a markdown link this
+      would otherwise be joined onto the citing dir and flagged as a phantom
+      local path.
+    * **slug immediately preceding** — a bare source-root path (``src/foo.ts``)
+      that appears right after an ``owner/repo`` slug on the line
+      (``… facebook/react src/foo.ts``).
+
+    In both shapes the slug ``owner`` must not be one of our allowlisted source
+    roots, so genuine in-repo citations are never suppressed.
+    """
+    tok = raw.strip().strip("\"'")
+    m = _EXTERNAL_SLUG_PREFIX_RE.match(tok)
+    if m is not None and (m.group(1) + "/") not in ALLOWLIST_PREFIXES:
+        return True
+    idx = line_text.find(raw)
+    if idx > 0:
+        mb = _EXTERNAL_SLUG_BEFORE_RE.search(line_text[:idx])
+        if mb is not None and (mb.group(1) + "/") not in ALLOWLIST_PREFIXES:
+            return True
+    return False
+
 
 def extract_references(text: str, citing: str) -> List[Reference]:
     """Return the validatable path/directory citations in ``text``.
@@ -201,26 +241,31 @@ def _scan_line(line: str, citing: str, lineno: int, out: List[Reference]) -> Non
     residual = line
     # Markdown links / images first (link context resolves relative to citing dir).
     for m in _LINK_RE.finditer(line):
-        _consider(m.group(1), citing, lineno, link=True, out=out)
+        _consider(m.group(1), citing, lineno, link=True, out=out, line_text=line)
     residual = _LINK_RE.sub(" ", residual)
     for m in _HTML_SRC_RE.finditer(residual):
-        _consider(m.group(1), citing, lineno, link=True, out=out)
+        _consider(m.group(1), citing, lineno, link=True, out=out, line_text=line)
     residual = _HTML_ANY_ATTR_RE.sub(" ", residual)
     # Inline code spans: only a single whitespace-free token is a citation; a
     # span with spaces is an example command/expression, not a path.
     for m in _INLINE_CODE_RE.finditer(residual):
         content = m.group(1).strip()
         if content and not any(c.isspace() for c in content):
-            _consider(content, citing, lineno, link=False, out=out)
+            _consider(content, citing, lineno, link=False, out=out, line_text=line)
     residual = _INLINE_CODE_RE.sub(" ", residual)
     # Bare prose paths in what remains.
     for m in _BARE_PATH_RE.finditer(residual):
-        _consider(m.group(1), citing, lineno, link=False, out=out)
+        _consider(m.group(1), citing, lineno, link=False, out=out, line_text=line)
 
 
 def _consider(
-    raw: str, citing: str, lineno: int, link: bool, out: List[Reference]
+    raw: str, citing: str, lineno: int, link: bool, out: List[Reference],
+    line_text: str = "",
 ) -> None:
+    # Event 148 · smallfix #4: a path that belongs to an upstream project cited
+    # by its owner/repo slug on the same line is not a citation of THIS tree.
+    if _cites_external_repo(line_text, raw):
+        return
     ref = _classify(raw, citing, link, lineno)
     if ref is not None and not any(
         r.target == ref.target and r.line == ref.line and r.kind == ref.kind

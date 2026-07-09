@@ -297,7 +297,14 @@ def _doc_staleness_line() -> str | None:
             latest_event = None
 
         today = datetime.now(timezone.utc).date()
-        stale = 0
+        # Split the count by which threshold fired so the banner names the
+        # actual staleness class. A doc can be stale by event-lag (its marker
+        # carries an ``E<n>`` tag and the corpus has advanced past the lag) or
+        # by the date fallback (its marker carries an ISO date > the day
+        # threshold). Reporting ">15 events" when only the date rule fired is
+        # inaccurate (Event 148 · smallfix #1).
+        stale_events = 0
+        stale_date = 0
         for path in docs_dir.glob("*.md"):
             # Skip symlinks (private planning docs are symlinked, lifecycle-exempt).
             if path.is_symlink():
@@ -322,7 +329,7 @@ def _doc_staleness_line() -> str | None:
                 if latest_event is None:
                     continue  # event-tagged but no corpus latest to compare
                 if latest_event - int(ev.group(1)) > _DOC_STALENESS_EVENT_LAG:
-                    stale += 1
+                    stale_events += 1
                 continue
 
             dm = date_re.match(reviewed)
@@ -334,15 +341,26 @@ def _doc_staleness_line() -> str | None:
                 except ValueError:
                     continue
                 if (today - reviewed_date).days > _DOC_STALENESS_DATE_DAYS:
-                    stale += 1
+                    stale_date += 1
                 continue
             # Unparseable reviewed_as_of: leave for `episteme docs lint`.
 
+        stale = stale_events + stale_date
         if stale <= 0:
             return None
+        # Name only the threshold class(es) that actually fired.
+        if stale_events and stale_date:
+            thresh = (
+                f">{_DOC_STALENESS_EVENT_LAG} events or "
+                f">{_DOC_STALENESS_DATE_DAYS} days"
+            )
+        elif stale_date:
+            thresh = f">{_DOC_STALENESS_DATE_DAYS} days"
+        else:
+            thresh = f">{_DOC_STALENESS_EVENT_LAG} events"
         return (
             f"doc-staleness: {stale} living docs unreviewed "
-            f">15 events — episteme docs lint"
+            f"{thresh} — episteme docs lint"
         )
     except Exception:
         return None
