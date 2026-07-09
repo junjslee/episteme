@@ -3063,7 +3063,7 @@ _ELICITATION_LINE_RE = re.compile(
 _ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
-def _read_last_elicited(profile_path: Path) -> date | None:
+def _read_last_elicited(profile_path: Path, *, today: date | None = None) -> date | None:
     """Return the NEWEST elicitation date declared in the operator profile.
 
     Event 147 — the v2 profile carries a multi-date `Last elicited:` header
@@ -3074,6 +3074,12 @@ def _read_last_elicited(profile_path: Path) -> date | None:
     ISO date on it, and returns the maximum — a single refreshed axis makes the
     profile fresh, which matches the operator's mental model of "last touched".
 
+    Future-dated lines are ignored (fail-closed on the drift signal: a typo
+    like `last_observed: 2099-01-01` must not silently suppress the
+    stale-profile warning). Valid past dates on other lines still count; if
+    ONLY future dates exist, returns None — callers treat `None` as
+    stale-unknown (still warn).
+
     Tolerant to surrounding italics / backticks / bullet markers so
     hand-editing doesn't break detection. Returns None when no parseable date
     is present — callers treat `None` as stale-unknown (still warn). Malformed
@@ -3083,13 +3089,16 @@ def _read_last_elicited(profile_path: Path) -> date | None:
         text = profile_path.read_text(encoding="utf-8")
     except OSError:
         return None
+    today = today or date.today()
     dates: list[date] = []
     for line_match in _ELICITATION_LINE_RE.finditer(text):
         for iso in _ISO_DATE_RE.finditer(line_match.group(0)):
             try:
-                dates.append(date.fromisoformat(iso.group(0)))
+                parsed = date.fromisoformat(iso.group(0))
             except ValueError:
                 continue
+            if parsed <= today:
+                dates.append(parsed)
     if not dates:
         return None
     return max(dates)
@@ -3111,10 +3120,10 @@ def _profile_staleness(
     path = profile_path if profile_path is not None else (GLOBAL_MEMORY_DIR / "operator_profile.md")
     if not path.exists():
         return "missing", None, None
-    elicited = _read_last_elicited(path)
+    today = today or date.today()
+    elicited = _read_last_elicited(path, today=today)
     if elicited is None:
         return "unknown", None, None
-    today = today or date.today()
     age = (today - elicited).days
     return ("stale" if age > PROFILE_STALE_DAYS else "fresh", age, elicited)
 

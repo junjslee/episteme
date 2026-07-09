@@ -86,6 +86,38 @@ class ReadLastElicitedMaxTests(unittest.TestCase):
                 cli._read_last_elicited(self._prof(td, "# t\n\nLast elicited: 2026-13-40\n"))
             )
 
+    def test_future_dates_ignored_when_valid_past_date_exists(self):
+        # Fail-closed on the drift signal (Event 147 검수 finding): a
+        # future-dated typo on one axis must not mask real elicitation dates
+        # or silently suppress the stale-profile warning.
+        body = (
+            "# p\n\nLast elicited: 2026-07-08\n\n"
+            "```\naxis:\n  last_observed: 2099-01-01\n```\n"
+        )
+        with tempfile.TemporaryDirectory() as td:
+            self.assertEqual(
+                cli._read_last_elicited(self._prof(td, body), today=date(2026, 7, 8)),
+                date(2026, 7, 8),
+            )
+
+    def test_only_future_dates_returns_none(self):
+        body = "# t\n\nLast elicited: 2099-01-01\n"
+        with tempfile.TemporaryDirectory() as td:
+            self.assertIsNone(
+                cli._read_last_elicited(self._prof(td, body), today=date(2026, 7, 8))
+            )
+
+    def test_staleness_warns_on_future_only_profile(self):
+        # A future-only profile is stale-unknown, not fresh — the warning fires
+        # instead of being suppressed by the bogus date.
+        body = "# p\n\nLast elicited: 2099-01-01\n"
+        with tempfile.TemporaryDirectory() as td:
+            status, _age, elicited = cli._profile_staleness(
+                profile_path=self._prof(td, body), today=date(2026, 7, 8)
+            )
+            self.assertEqual(status, "unknown")
+            self.assertIsNone(elicited)
+
     def test_staleness_fresh_from_newest_date(self):
         body = "# p\n\nLast elicited: 2026-04-13; 2026-07-08\n"
         with tempfile.TemporaryDirectory() as td:
