@@ -189,7 +189,12 @@ def normalize_hook_command(cmd: str) -> str:
     return c
 
 
-def dedupe_hooks_map(hooks: dict) -> dict:
+def dedupe_hooks_map(hooks: object) -> dict:
+    # `object`, not `dict`: this runs against user-controlled settings.json,
+    # where `hooks` can be a non-dict (e.g. `episteme doctor` passes
+    # `settings.get("hooks", {})` verbatim). The isinstance guard is the live
+    # fail-safe; annotating the param `dict` made Pyright flag it as
+    # unreachable dead code (Event 147 v3 generator; Event 148 · smallfix #2).
     if not isinstance(hooks, dict):
         return {}
     out: dict = {}
@@ -340,7 +345,10 @@ def prune_managed_hook_entries(settings: dict, governance_mode: str) -> dict:
     return settings
 
 
-def _is_default_permission_allow_hook(hook: dict) -> bool:
+def _is_default_permission_allow_hook(hook: object) -> bool:
+    # `object`, not `dict`: a settings.json hook list can hold non-dict
+    # elements, so the isinstance guard is a live fail-safe (not dead code —
+    # annotating `dict` made Pyright flag it unreachable). Event 148 · smallfix #2.
     if not isinstance(hook, dict):
         return False
     if str(hook.get("type", "command")) != "command":
