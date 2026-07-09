@@ -67,13 +67,40 @@ _CONDITIONAL_TRIGGER_PATTERNS: tuple[re.Pattern, ...] = (
     re.compile(r"\bunless\b", re.I),
 )
 
+# Failure/observable verbs, matched across their regular inflections.
+# Event 146 finding: the v0.11.0 lexicon matched base + ``-s`` only
+# (``fails`` matched, ``failed`` / ``crashing`` did not), so an author who
+# wrote a perfectly specific observable in an inflected form was rejected.
+def _verb_inflections(stem: str) -> str:
+    """Alternation body matching ``stem`` across base / -s / -es / -ed / -ing.
+
+    A strict superset of a bare ``stem s?``: never drops a previously-matched
+    form, and adds the ``-ed`` / ``-ing`` forms the old lexicon missed. Only
+    the ``has_observable`` boolean is consumed downstream, so alternation
+    order is irrelevant. Irregular stems (``throw``→``threw``,
+    ``panic``→``panicked``) match their regular forms only — this is a bounded
+    suffix-stem widen (Event 148 · smallfix #5), not a lemmatizer.
+    """
+    return rf"{re.escape(stem)}(?:es|ed|ing|s)?"
+
+
+_FAILURE_VERB_STEMS: tuple[str, ...] = (
+    "fail", "error", "crash", "exit", "panic", "throw", "reject",
+)
+_FAILURE_VERB_RE_BODY = "|".join(_verb_inflections(s) for s in _FAILURE_VERB_STEMS)
+
 # Specific observables — numeric thresholds, metric references, failure
 # verbs naming something that can be watched for.
 _OBSERVABLE_PATTERNS: tuple[re.Pattern, ...] = (
     re.compile(r"\d+\s*%"),
     re.compile(r"\d+\s*(?:ms|sec|seconds?|min|minutes?|h|hours?|MB|GB|KB|rps|qps|errors?)\b", re.I),
     re.compile(r"\b(?:exceeds?|drops?|rises?|passes?|crosses?|hits?|reaches?|exceeds?)\s+\d"),
-    re.compile(r"\b(?:fails?|errors?|times?\s*out|crashes?|exits?|panics?|throws?|rejects?|returns?\s+non-?zero|non-?zero\s+exit)\b", re.I),
+    re.compile(
+        r"\b(?:" + _FAILURE_VERB_RE_BODY
+        + r"|tim(?:e|es|ed|ing)\s*out"
+        + r"|return(?:s|ed|ing)?\s+non-?zero|non-?zero\s+exit)\b",
+        re.I,
+    ),
     re.compile(r"\b(?:log\s+shows?|query[- ]log|telemetry|ci|pipeline|build|test\s+suite|audit\s+log)\b", re.I),
     re.compile(r"\bexit\s*code\b", re.I),
     re.compile(r"\bwithin\s+\d", re.I),

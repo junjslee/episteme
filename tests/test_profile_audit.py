@@ -1028,6 +1028,31 @@ class DisconfirmationClassifierTests(unittest.TestCase):
         text = "the pipeline fails on non-zero exit codes"
         self.assertEqual(pa._classify_disconfirmation(text), "tautological")
 
+    def test_inflected_failure_verbs_are_observable(self):
+        # Event 148 · smallfix #5: the observable lexicon matched base + -s
+        # only, so an author who wrote the observable in an inflected form
+        # (-ed / -ing / -es) was wrongly rejected. Each inflection paired
+        # with a conditional trigger must now classify as fire.
+        cases = [
+            "if the deploy failed on the canary host we roll back",
+            "when the worker is crashing under load, page the on-call",
+            "if the request timed out after the retry budget, mark it dead",
+            "once the process exited non-cleanly, capture the core dump",
+            "if the schema validator rejected the payload, quarantine it",
+            "when the parser throwing on the third field, halt ingestion",
+        ]
+        for text in cases:
+            with self.subTest(text=text):
+                self.assertEqual(pa._classify_disconfirmation(text), "fire")
+
+    def test_base_and_s_forms_still_observable(self):
+        # Regression guard: the widen must be a strict superset — the forms
+        # the old lexicon already matched keep matching.
+        for verb in ("fail", "fails", "crash", "crashes", "exit", "rejects"):
+            text = f"if the job {verb} on the primary shard, abort the run"
+            with self.subTest(verb=verb):
+                self.assertEqual(pa._classify_disconfirmation(text), "fire")
+
 
 class LexiconHitCounterTests(unittest.TestCase):
     def test_single_word_term_counts(self):
