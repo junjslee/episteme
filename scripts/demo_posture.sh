@@ -158,7 +158,7 @@ guide_line() {
 clear 2>/dev/null || printf '\033[2J\033[H'
 echo
 printf '%s%s  episteme · the sovereign cognitive kernel%s\n' "$BOLD" "$CYAN" "$RESET"
-printf '  %sv1.0 RC · CP1–CP10 · 565/565 green · three pillars shipped%s\n' "$DIM" "$RESET"
+printf '  %sv1.9.0 GA · suite green · three pillars + doc-lifecycle engine%s\n' "$DIM" "$RESET"
 echo
 sleep "$PAUSE_M"
 printf '  %sA four-act demo of the Cognitive Cascade:%s\n' "$ITAL" "$RESET"
