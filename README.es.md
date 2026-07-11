@@ -123,7 +123,7 @@ Regraba tú mismo la demo estrella: `scripts/demo_posture.sh` (la receta está e
 
 ## Bajo el capó
 
-Estado: **<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** · La práctica es Frame → Decompose → Execute → Verify → Handoff, anclada en contadores nombrados a failure modes específicos del System-1 (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — la operacionalización completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), y los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Estado: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · La práctica es Frame → Decompose → Execute → Verify → Handoff, anclada en contadores nombrados a failure modes específicos del System-1 (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — la operacionalización completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), y los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
