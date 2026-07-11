@@ -261,6 +261,72 @@ def _reaper_line() -> str | None:
     return summary
 
 
+def _sync_selfheal_line(claude_root: Path | None = None) -> str | None:
+    """Event 150 · sync self-heal — close the forgotten-`episteme sync` gap.
+
+    Failure mode countered: hook CODE updates flow automatically (settings
+    point at repo paths; merge = deploy), but the REGISTRATION SET and the
+    CLAUDE.md emission shape only update when someone re-runs `episteme
+    sync` — a manual step operators forget, so every project on the machine
+    silently runs a stale hook registration. Mechanism bounded: the manual
+    re-sync step itself. M1-compliant: drift arrives automatically, so the
+    drain is automatic too (a banner-only advisory would just be another
+    ignorable queue). D11-compliant: wired to the live SessionStart path.
+
+    Faithfulness rule: auto-heal ONLY when the deployed governance pack is
+    known from the sync sidecar (written by every E150+ sync). Guessing a
+    pack could silently downgrade a strict deployment, so a pre-sidecar or
+    unreadable deployment gets the advisory line instead of a write.
+
+    Detection is sync's own idempotence transform (``settings_in_sync``) +
+    a managed-block compare on CLAUDE.md — no duplicated merge logic.
+    Settings written mid-session apply from the NEXT session (Claude Code
+    reads settings at start); the line says so. Never raises; any failure
+    degrades to silence — session open must not break on heal bookkeeping.
+    """
+    try:
+        from episteme.adapters import claude as _claude  # type: ignore
+        from episteme import cli as _ecli  # type: ignore
+
+        root = claude_root if claude_root is not None else (_ecli.HOME / ".claude")
+
+        # CLAUDE.md managed-block parity.
+        claude_md = root / "CLAUDE.md"
+        expected_md = _claude.render_user_claude_md().rstrip()
+        current_md = None
+        if claude_md.exists():
+            current_md = _ecli._extract_managed_block(
+                claude_md.read_text(encoding="utf-8")
+            )
+        md_in_sync = current_md is not None and current_md == expected_md
+
+        # settings.json idempotence parity.
+        meta = _claude.read_sync_meta(root)
+        pack = str(meta.get("governance_pack") or "").strip().lower()
+        settings_path = root / "settings.json"
+        try:
+            existing = json.loads(settings_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+        settings_ok = bool(pack) and _claude.settings_in_sync(existing, pack)
+
+        if md_in_sync and settings_ok:
+            return None
+        if not pack:
+            # Pre-E150 deployment (no sidecar): cannot heal faithfully.
+            return (
+                "sync drift detected — run `episteme sync` once "
+                "(governance pack unknown to the self-heal; not auto-written)"
+            )
+        _claude.sync(pack)
+        return (
+            f"sync-selfheal: Claude runtime re-synced ({pack} pack) — "
+            f"settings/hook registration changes apply from the next session"
+        )
+    except Exception:
+        return None
+
+
 _DOC_STALENESS_EVENT_LAG = 15
 _DOC_STALENESS_DATE_DAYS = 45
 
