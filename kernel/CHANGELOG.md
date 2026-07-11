@@ -92,6 +92,28 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.10.0-rc](https://github.com/junjslee/episteme/compare/episteme-v1.9.0...episteme-v1.10.0-rc) (2026-07-11)
+
+
+### Features
+
+* **hooks:** extend marker reaper to GC four unbounded data-growth sinks (E148) ([8af753a](https://github.com/junjslee/episteme/commit/8af753a772774cef5c73efdfa353a17c1d54dec7))
+* **hooks:** extend marker reaper to GC the four unbounded data-growth sinks (Event 148) ([a0c42dd](https://github.com/junjslee/episteme/commit/a0c42ddba9e3913182fea31b67b3117e90352a8f))
+* **hooks:** SessionStart sync self-heal — close the forgotten-sync gap ([1d80c73](https://github.com/junjslee/episteme/commit/1d80c7355d7a2d1decc025125557e1dcd967562b))
+* **hooks:** SessionStart sync self-heal — updates reach every project without remembering to re-sync ([1162b72](https://github.com/junjslee/episteme/commit/1162b722c1c1b9fcd34678d33d141e433c2f740b))
+* **hooks:** surface at-cap sampling degradation on the spot-check line ([6df5b0d](https://github.com/junjslee/episteme/commit/6df5b0de7c02fd8fb5c20aa98df73236b08d309d))
+* public-surface refresh — tangible README, re-recorded hero demo, stale-asset deletion (Event 149) ([74c4d26](https://github.com/junjslee/episteme/commit/74c4d26acae7e471affb5d578f3c6a8ad2c626ab))
+* **public-surface:** rewrite README tangible-first; refresh hero demo; delete stale assets (Event 149) ([cf4f384](https://github.com/junjslee/episteme/commit/cf4f384b396a8667cdce7d0d63344a9f1a9f8d89))
+* scaffold v2 — seed the cured doc pattern (EVENTS index + REPLACE-form), retire PROGRESS (Event 150) ([de35188](https://github.com/junjslee/episteme/commit/de3518858b0b4c4438522fb27037d1ddad12cc0a))
+* **scaffold:** seed cured EVENTS+REPLACE doc pattern, retire PROGRESS (Event 150) ([694491b](https://github.com/junjslee/episteme/commit/694491bb142e1d198ee8d8ffd86e443d8cb648a4))
+
+
+### Bug Fixes
+
+* **cli,kernel:** drop retired PROGRESS from the reasoning audit; truth-fix HOOKS_MAP advisory row ([f0651f8](https://github.com/junjslee/episteme/commit/f0651f83c2b977db41dbf3c33cae688e8b7f8c86))
+* **docs:** close the index-freshness carrier gap ([d0974b6](https://github.com/junjslee/episteme/commit/d0974b664ad8b7bc7cca55dd37f819fe6bbc0c47))
+* E148 Fable-direct verification findings — index carrier gap, at-cap surfacing, policy-mirror drift ([1a4f006](https://github.com/junjslee/episteme/commit/1a4f006ada1720dcb69b3b83c58e6057c41aaa85))
+
 ## [1.9.0](https://github.com/junjslee/episteme/compare/episteme-v1.9.0-rc1...episteme-v1.9.0) (2026-07-09)
 
 
