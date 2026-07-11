@@ -5186,7 +5186,7 @@ def _deferred_print_list(args, envelopes: list) -> int:
     noun = "discovery" if len(envelopes) == 1 else "discoveries"
     print(f"\n{len(envelopes)} open deferred {noun}. Resolve with: "
           f"episteme deferred resolve <ref> --verdict "
-          f"resolved OR noise OR duplicate --why '...'")
+          f"resolved OR noise OR duplicate OR accepted --why '...'")
     return 0
 
 
@@ -6267,12 +6267,13 @@ def build_parser() -> argparse.ArgumentParser:
         "ref", help="entry_hash of the discovery, or a unique >= 8-char prefix",
     )
     deferred_resolve.add_argument(
-        "--verdict", required=True, choices=["resolved", "noise", "duplicate"],
-        help="resolved: addressed · noise: not a real finding · duplicate: covered by another entry",
+        "--verdict", required=True,
+        choices=["resolved", "noise", "duplicate", "accepted"],
+        help="resolved: addressed · noise: not a real finding · duplicate: covered by another entry · accepted: real finding, consciously not acting — name the cost of ignorance",
     )
     deferred_resolve.add_argument(
         "--why", required=True,
-        help="What was done, or why it is noise/duplicate (>= 15 chars)",
+        help="What was done, why it is noise/duplicate, or (accepted) the cost of ignorance (>= 15 chars)",
     )
 
     # CP9 — Pillar 3 active guidance query.
