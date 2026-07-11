@@ -67,6 +67,36 @@ class ResolutionSemantics(unittest.TestCase):
             open_now[0]["payload"]["description"], "beta finding"
         )
 
+    def test_bare_hex_prefix_matches_scheme_prefixed_hash(self):
+        # Event 152: entries are stored as `sha256:<hex>` but `episteme
+        # deferred list` also shows the bare hex; a copy-paste of EITHER
+        # must resolve. Pre-fix the scheme-only startswith rejected bare
+        # hex, forcing operators to hand-prepend `sha256:`.
+        a = _write_discovery(self.path, "alpha finding")
+        full = a["entry_hash"]
+        self.assertTrue(full.startswith("sha256:"))
+        bare = full.split(":", 1)[1]
+        _framework.append_discovery_verdict(
+            bare[:12], "resolved",
+            "resolved via a bare-hex prefix ref (no sha256: scheme)",
+            path=self.path,
+        )
+        self.assertEqual(
+            len(_framework.open_deferred_discoveries(path=self.path)), 0
+        )
+
+    def test_scheme_prefixed_ref_still_matches(self):
+        # The fix must not regress the scheme-prefixed path.
+        a = _write_discovery(self.path, "alpha finding")
+        _framework.append_discovery_verdict(
+            a["entry_hash"][:19], "noise",
+            "still resolves with the full sha256: scheme prefix",
+            path=self.path,
+        )
+        self.assertEqual(
+            len(_framework.open_deferred_discoveries(path=self.path)), 0
+        )
+
     def test_chain_remains_verifiable_after_verdicts(self):
         a = _write_discovery(self.path, "alpha finding")
         _framework.append_discovery_verdict(

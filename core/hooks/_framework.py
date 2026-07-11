@@ -556,9 +556,20 @@ def append_discovery_verdict(
             f"ref must be an entry_hash or a >= {_REF_PREFIX_FLOOR}-char "
             f"prefix (got {ref!r})"
         )
+    # Match the full `sha256:<hex>` entry_hash OR a bare hex prefix: entries
+    # are stored scheme-prefixed but `episteme deferred list` also shows the
+    # bare hex, so a copy-paste of either must resolve (Event 152 — the
+    # scheme-only startswith rejected bare hex, forcing operators to prepend
+    # `sha256:` by hand).
+    def _ref_matches(entry_hash: str) -> bool:
+        if entry_hash.startswith(ref):
+            return True
+        _, _, bare = entry_hash.partition(":")
+        return bool(bare) and bare.startswith(ref)
+
     matches = [
         d for d in open_deferred_discoveries(path=target)
-        if str(d.get("entry_hash") or "").startswith(ref)
+        if _ref_matches(str(d.get("entry_hash") or ""))
     ]
     if not matches:
         raise ChainError(
