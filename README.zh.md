@@ -123,7 +123,7 @@ episteme doctor    # verify wiring
 
 ## 底层原理
 
-状态：**<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** · 这套实践是 Frame → Decompose → Execute → Verify → Handoff，锚定于针对特定 System-1 failure modes（question substitution、WYSIATI、anchoring、narrative fallacy、planning fallacy、overconfidence）的具名反制 —— 完整的操作化在 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)，四个 Cognitive Blueprints（Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade）在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) 中给出规格。
+状态：**<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · 这套实践是 Frame → Decompose → Execute → Verify → Handoff，锚定于针对特定 System-1 failure modes（question substitution、WYSIATI、anchoring、narrative fallacy、planning fallacy、overconfidence）的具名反制 —— 完整的操作化在 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)，四个 Cognitive Blueprints（Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade）在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) 中给出规格。
 
 ```mermaid
 graph TD

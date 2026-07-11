@@ -123,7 +123,7 @@ Re-record the hero demo yourself: `scripts/demo_posture.sh` (recipe in the scrip
 
 ## Under the hood
 
-Status: **<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** · The practice is Frame → Decompose → Execute → Verify → Handoff, grounded in named counters to specific System-1 failure modes (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — the full operationalization is [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), and the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specified in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is Frame → Decompose → Execute → Verify → Handoff, grounded in named counters to specific System-1 failure modes (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — the full operationalization is [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), and the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specified in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
