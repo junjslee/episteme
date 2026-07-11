@@ -261,7 +261,7 @@ def _reaper_line() -> str | None:
     return summary
 
 
-def _sync_selfheal_line(claude_root: Path | None = None) -> str | None:
+def _sync_selfheal_line() -> str | None:
     """Event 150 · sync self-heal — close the forgotten-`episteme sync` gap.
 
     Failure mode countered: hook CODE updates flow automatically (settings
@@ -288,7 +288,10 @@ def _sync_selfheal_line(claude_root: Path | None = None) -> str | None:
         from episteme.adapters import claude as _claude  # type: ignore
         from episteme import cli as _ecli  # type: ignore
 
-        root = claude_root if claude_root is not None else (_ecli.HOME / ".claude")
+        # Root comes from episteme.cli.HOME (no separate seam): detection and
+        # heal MUST target the same tree — a divergent test-only root would
+        # let detection pass on one tree while sync() writes another.
+        root = _ecli.HOME / ".claude"
 
         # CLAUDE.md managed-block parity.
         claude_md = root / "CLAUDE.md"
@@ -721,6 +724,14 @@ def main() -> int:
     reaper_line = _reaper_line()
     if reaper_line:
         lines.append(reaper_line)
+
+    # Event 150 · sync self-heal — if the deployed Claude runtime (settings
+    # hook registration / CLAUDE.md emission) drifted from the repo's current
+    # render, re-sync it automatically when the governance pack is known
+    # (sidecar), else advise. Silent when everything is in sync.
+    selfheal_line = _sync_selfheal_line()
+    if selfheal_line:
+        lines.append(selfheal_line)
 
     # Event 147 · doc-lifecycle staleness — count living docs whose
     # reviewed_as_of lags the corpus by >15 events (or >45 days when dated).
