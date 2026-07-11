@@ -54,7 +54,7 @@ Operator-defined policy derived from top-down cognitive principles. This file is
 - Evaluate hypothesis result: validated, refined, or invalidated.
 
 5) **Handoff**
-- Update authoritative docs (`docs/PLAN.md`, `docs/PROGRESS.md`, `docs/NEXT_STEPS.md`).
+- Update authoritative docs: REPLACE `docs/NEXT_STEPS.md`, append one line to `docs/EVENTS.md`, and update `docs/PLAN.md` when the plan changed.
 - Capture unresolved risks and exact next action.
 
 ## Signal-over-Noise Rules
@@ -98,8 +98,8 @@ Authoritative truth lives in project docs and repo policy files:
 
 - `docs/REQUIREMENTS.md` — what is being built.
 - `docs/PLAN.md` — staged execution.
-- `docs/PROGRESS.md` — completed work and decisions.
-- `docs/NEXT_STEPS.md` — next-session handoff.
+- `docs/EVENTS.md` — one-line-per-event history index.
+- `docs/NEXT_STEPS.md` — next-session handoff (REPLACE-form).
 - `docs/RUN_CONTEXT.md` — runtime assumptions, execution profiles, API env vars.
 
 Tool-native memory (Claude / Hermes / Codex / Cursor) is acceleration only — never the source of truth.
