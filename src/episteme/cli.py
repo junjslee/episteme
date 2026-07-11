@@ -5463,7 +5463,10 @@ def _run_interactive_review(_spot_check, entry, *, revise: bool) -> int:
 def _audit(fix: bool = False) -> int:
     """Reasoning audit: verify the current project session has addressed cognitive unknowns."""
 
-    TARGET_FILES = ["PROGRESS.md", "PLAN.md", "NEXT_STEPS.md"]
+    # PROGRESS.md dropped at Event 150: the append-log is retired (E145
+    # tombstone pattern) and its Reasoning Surface duty lives in
+    # NEXT_STEPS.md, which is already audited below.
+    TARGET_FILES = ["PLAN.md", "NEXT_STEPS.md"]
     REASONING_SECTIONS = ["## Knowns", "## Unknowns", "## Assumptions", "## Disconfirmation"]
     REASONING_SURFACE_HEADER = "## Reasoning Surface"
     SOWATNOW_PATTERNS = ["## So-What Now?", "## TL;DR", "## So What Now?"]
