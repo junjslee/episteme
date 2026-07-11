@@ -7,6 +7,8 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
 from .. import cli as _cli
 
@@ -395,6 +397,36 @@ def enforce_governance_overrides(settings: dict, governance_mode: str) -> dict:
 # Sync entry point
 # ---------------------------------------------------------------------------
 
+SYNC_META_FILENAME = ".episteme-sync-meta.json"
+
+
+def settings_in_sync(existing: dict, governance_mode: str) -> bool:
+    """True when applying sync's settings transform to ``existing`` is a
+    no-op — i.e. the deployed settings already carry the current managed
+    hook set for ``governance_mode``. This is the idempotence check the
+    SessionStart self-heal uses to detect registration drift without
+    duplicating the merge pipeline (Event 150)."""
+    managed = build_settings(governance_mode)
+    candidate = merge_settings(json.loads(json.dumps(existing)), managed)
+    candidate = prune_managed_hook_entries(candidate, governance_mode)
+    candidate = enforce_governance_overrides(candidate, governance_mode)
+    candidate["hooks"] = dedupe_hooks_map(candidate.get("hooks", {}))
+    return candidate == existing
+
+
+def read_sync_meta(claude_root: Path | None = None) -> dict:
+    """Read the sync sidecar (governance pack + timestamp). ``{}`` when
+    absent/unreadable — pre-E150 deployments have no sidecar, and the
+    self-heal treats that as mode-unknown (advise, never guess a pack:
+    healing with the wrong pack could silently downgrade strict)."""
+    root = claude_root if claude_root is not None else (_cli.HOME / ".claude")
+    try:
+        data = json.loads((root / SYNC_META_FILENAME).read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def sync(governance_mode: str = "balanced") -> None:
     claude_root = _cli.HOME / ".claude"
 
@@ -425,9 +457,28 @@ def sync(governance_mode: str = "balanced") -> None:
     for skill_dir in _cli._managed_skills():
         _cli._copy_tree(skill_dir, claude_root / "skills" / skill_dir.name)
 
+    # Event 150 — record which governance pack this deployment carries so
+    # the SessionStart self-heal can re-sync faithfully on registration
+    # drift. Without the sidecar the pack is unrecoverable from
+    # settings.json alone, and guessing could silently downgrade strict.
+    _cli._write_text(
+        claude_root / SYNC_META_FILENAME,
+        json.dumps(
+            {
+                "governance_pack": (governance_mode or "balanced").strip().lower(),
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+
 
 __all__ = [
     "sync",
+    "settings_in_sync",
+    "read_sync_meta",
+    "SYNC_META_FILENAME",
     "build_settings",
     "render_user_claude_md",
     "merge_settings",
