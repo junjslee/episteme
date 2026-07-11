@@ -1,3 +1,4 @@
+<!-- episteme-lifecycle: status=living; reviewed_as_of={{DATE}} -->
 # Plan
 
 ## Current Goal

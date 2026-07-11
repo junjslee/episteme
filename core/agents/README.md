@@ -13,7 +13,7 @@ Each role is narrow and composable. Composability is the point — you don't wan
 | `researcher.md` | Primary-source technical research before implementation decisions |
 | `reviewer.md` | Code review for correctness, regressions, edge cases, deploy risk |
 | `test-runner.md` | Targeted verification, failure isolation, smallest-fix identification |
-| `docs-handoff.md` | Project continuity — updates PROGRESS.md and NEXT_STEPS.md |
+| `docs-handoff.md` | Project continuity — replaces NEXT_STEPS.md and appends one line to EVENTS.md |
 
 ## Structural governance roles
 

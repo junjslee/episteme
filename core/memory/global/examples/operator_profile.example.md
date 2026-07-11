@@ -62,7 +62,7 @@ documentation_rigor:
   evidence_refs: []
   note: |
     0 = code-first, docs follow; 3 = docs updated alongside changes;
-    5 = docs-first operating contract (PLAN/PROGRESS/NEXT_STEPS updated
+    5 = docs-first operating contract (PLAN/EVENTS/NEXT_STEPS updated
     in-flight; advisory hooks emit when drift). The whole `docs/*` authority
     hierarchy assumes ≥ 3.
 

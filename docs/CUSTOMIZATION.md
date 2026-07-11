@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E150 -->
 # Customization
 
 Three places you can shape episteme to your own working life: personal memory, skills, and hooks.
@@ -60,10 +60,9 @@ CLAUDE.md            Claude-native memory index
 docs/
   REQUIREMENTS.md    what is being built
   PLAN.md            staged execution
-  PROGRESS.md        completed work and decisions
-  NEXT_STEPS.md      next-session handoff
+  EVENTS.md          one-line-per-event history index (append one row per handoff)
+  NEXT_STEPS.md      next-session handoff (REPLACE-form, capped)
   RUN_CONTEXT.md     runtime assumptions, APIs, execution profiles
-  EVENTS.md          narratable what/why/how for major decisions
 .claude/
   settings.json          permission rules
   settings.local.json    machine-local overrides (gitignored)

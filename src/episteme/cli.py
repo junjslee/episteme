@@ -2679,7 +2679,7 @@ def _profile_survey_questions() -> list[dict]:
             "choices": [
                 "Nothing — the code is the documentation.",
                 "A brief note in a commit message or quick comment.",
-                "Update the relevant PLAN/PROGRESS/DECISIONS docs with key choices.",
+                "Update the relevant PLAN/EVENTS/NEXT_STEPS docs with key choices.",
                 "Full session debrief: decisions, rejected alternatives, open risks — treated as a mandatory contract.",
             ],
         },
@@ -2964,7 +2964,7 @@ def _profile_infer(project_root: Path) -> dict:
     docs_files = [
         project_root / "docs" / "REQUIREMENTS.md",
         project_root / "docs" / "PLAN.md",
-        project_root / "docs" / "PROGRESS.md",
+        project_root / "docs" / "EVENTS.md",
         project_root / "docs" / "NEXT_STEPS.md",
     ]
     docs_present = sum(1 for p in docs_files if p.exists())
@@ -2992,7 +2992,7 @@ def _profile_infer(project_root: Path) -> dict:
 
     scores["planning_strictness"], evidence["planning_strictness"] = _score_from_flags([
         (docs_present >= 2 and (project_root / "docs" / "PLAN.md").exists() and (project_root / "docs" / "NEXT_STEPS.md").exists(), "PLAN and NEXT_STEPS detected"),
-        (docs_present >= 4, "full staged docs set detected (REQUIREMENTS/PLAN/PROGRESS/NEXT_STEPS)"),
+        (docs_present >= 4, "full staged docs set detected (REQUIREMENTS/PLAN/EVENTS/NEXT_STEPS)"),
         ("plan" in commit_text or "phase" in commit_text or "milestone" in commit_text, "commit history references planning/milestones"),
     ])
 
@@ -3347,7 +3347,7 @@ def _compile_workflow_policy(scores: dict[str, int], mode: str) -> str:
 
     lines += ["", "## Documentation Policy"]
     if docs >= 3:
-        lines += ["- Treat docs updates (`PLAN`, `PROGRESS`, `NEXT_STEPS`) as mandatory every substantial session."]
+        lines += ["- Treat docs updates (`PLAN`, `EVENTS`, `NEXT_STEPS`) as mandatory every substantial session."]
     elif docs >= 2:
         lines += ["- Keep authoritative docs consistently updated through milestones."]
     elif docs >= 1:
@@ -4229,7 +4229,7 @@ def _cognition_infer(project_root: Path) -> dict:
     docs_files = [
         project_root / "docs" / "REQUIREMENTS.md",
         project_root / "docs" / "PLAN.md",
-        project_root / "docs" / "PROGRESS.md",
+        project_root / "docs" / "EVENTS.md",
         project_root / "docs" / "NEXT_STEPS.md",
     ]
     docs_present = sum(1 for p in docs_files if p.exists())
@@ -4649,7 +4649,7 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
         "CLAUDE.md",
         "docs/REQUIREMENTS.md",
         "docs/PLAN.md",
-        "docs/PROGRESS.md",
+        "docs/EVENTS.md",
         "docs/RUN_CONTEXT.md",
         "docs/NEXT_STEPS.md",
         ".claude/settings.json",
@@ -5463,7 +5463,10 @@ def _run_interactive_review(_spot_check, entry, *, revise: bool) -> int:
 def _audit(fix: bool = False) -> int:
     """Reasoning audit: verify the current project session has addressed cognitive unknowns."""
 
-    TARGET_FILES = ["PROGRESS.md", "PLAN.md", "NEXT_STEPS.md"]
+    # PROGRESS.md dropped at Event 150: the append-log is retired (E145
+    # tombstone pattern) and its Reasoning Surface duty lives in
+    # NEXT_STEPS.md, which is already audited below.
+    TARGET_FILES = ["PLAN.md", "NEXT_STEPS.md"]
     REASONING_SECTIONS = ["## Knowns", "## Unknowns", "## Assumptions", "## Disconfirmation"]
     REASONING_SURFACE_HEADER = "## Reasoning Surface"
     SOWATNOW_PATTERNS = ["## So-What Now?", "## TL;DR", "## So What Now?"]

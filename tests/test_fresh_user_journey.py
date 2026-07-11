@@ -28,6 +28,8 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from episteme.doc_lifecycle import parse_marker_text, VALID_STATUSES  # noqa: E402
 
 _IGNORE = shutil.ignore_patterns(
     ".git", ".venv", "node_modules", "__pycache__", ".pytest_cache",
@@ -153,7 +155,7 @@ class FreshUserJourney(unittest.TestCase):
         rc, out = self._run("bootstrap", str(project))
         self.assertEqual(rc, 0, out)
         for rel in ("AGENTS.md", "CLAUDE.md", "docs/REQUIREMENTS.md",
-                    "docs/PLAN.md", "docs/PROGRESS.md",
+                    "docs/PLAN.md", "docs/EVENTS.md",
                     "docs/RUN_CONTEXT.md", "docs/NEXT_STEPS.md",
                     ".claude/settings.json"):
             with self.subTest(scaffold=rel):
@@ -211,6 +213,53 @@ class FreshUserJourney(unittest.TestCase):
         self.assertFalse(
             (Path(self.tmp.name) / ".episteme").exists(),
             "state written outside the sandboxed HOME",
+        )
+
+    def test_scaffold_docs_carry_lifecycle_markers(self):
+        """Event 150: a fresh scaffold hands the adopter the cured doc pattern.
+
+        Every seeded ``docs/*.md`` ships a valid lifecycle marker on line 1
+        (so the adopter's own ``episteme docs lint`` is green from day one),
+        ``EVENTS.md`` carries its seeded one-line history row, and the retired
+        pre-E145 append-log ``PROGRESS.md`` is NOT scaffolded.
+        """
+        project = Path(self.tmp.name) / "proj-markers"
+        rc, out = self._run("bootstrap", str(project))
+        self.assertEqual(rc, 0, out)
+
+        seeded_docs = (
+            "REQUIREMENTS.md", "PLAN.md", "EVENTS.md",
+            "NEXT_STEPS.md", "RUN_CONTEXT.md",
+        )
+        for name in seeded_docs:
+            with self.subTest(marker=name):
+                path = project / "docs" / name
+                self.assertTrue(path.exists(), f"docs/{name} missing")
+                first_line = path.read_text(encoding="utf-8").splitlines()[0]
+                marker = parse_marker_text(first_line)
+                self.assertIsNotNone(
+                    marker,
+                    f"docs/{name} line 1 carries no lifecycle marker: "
+                    f"{first_line!r}",
+                )
+                self.assertIn(
+                    marker.status, VALID_STATUSES,
+                    f"docs/{name} marker status={marker.status!r} is not a "
+                    f"valid lifecycle status",
+                )
+                self.assertTrue(
+                    marker.reviewed_as_of,
+                    f"docs/{name} marker is missing reviewed_as_of",
+                )
+
+        events = (project / "docs" / "EVENTS.md").read_text(encoding="utf-8")
+        self.assertIn(
+            "| E1 |", events,
+            "EVENTS.md must ship its seeded one-line history row",
+        )
+        self.assertFalse(
+            (project / "docs" / "PROGRESS.md").exists(),
+            "retired docs/PROGRESS.md must not be scaffolded (Event 150)",
         )
 
 
