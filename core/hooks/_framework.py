@@ -87,8 +87,27 @@ DEFERRED_DISCOVERY_TYPE = "deferred_discovery"
 # the pending->verdict pair IS the audit trail). Readers derive
 # openness: open = status in OPEN_STATUSES AND no verdict references
 # the entry_hash.
+#
+# Four first-class verdicts, each closing an entry identically (openness
+# keys on has-any-verdict, not on which verdict):
+#   - resolved  : the finding was addressed; the rationale names what was
+#                 done (commit/test).
+#   - noise     : NOT a real finding — false positive or non-issue; the
+#                 rationale names why the pattern cannot occur.
+#   - duplicate : a real finding already covered by another entry; the
+#                 rationale points at the covering entry.
+#   - accepted  : a REAL finding the operator/agent consciously decides
+#                 NOT to act on, closed with the COST OF IGNORANCE named
+#                 (Event 152). Distinct from `noise` — the finding is
+#                 genuine; the ledger records a deliberate wontfix rather
+#                 than falsifying it into noise. Required because the
+#                 anti-treadmill rule (workflow_policy.md) makes
+#                 "accept-and-close with the cost of ignorance named" a
+#                 first-class disposition; without it, real-but-wontfix
+#                 findings either rot the open-count signal forever or get
+#                 mislabeled `noise`, corrupting the record.
 DISCOVERY_VERDICT_TYPE = "deferred_discovery_verdict"
-RESOLUTION_VERDICTS = frozenset({"resolved", "noise", "duplicate"})
+RESOLUTION_VERDICTS = frozenset({"resolved", "noise", "duplicate", "accepted"})
 _VERDICT_RATIONALE_FLOOR = 15  # same lazy-value bar as surface fields
 _REF_PREFIX_FLOOR = 8
 CP5_FORMAT_VERSION = "cp5-pre-chain"
@@ -528,7 +547,8 @@ def append_discovery_verdict(
     if len(rationale) < _VERDICT_RATIONALE_FLOOR:
         raise ChainError(
             f"rationale must be >= {_VERDICT_RATIONALE_FLOOR} chars — "
-            "name what was done or why the finding is noise"
+            "name what was done, why the finding is noise/duplicate, or "
+            "(accepted) the cost of ignorance"
         )
     ref = (ref or "").strip()
     if len(ref) < _REF_PREFIX_FLOOR:

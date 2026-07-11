@@ -84,6 +84,53 @@ class ResolutionSemantics(unittest.TestCase):
         )
         self.assertEqual(verdict.total_entries, 2)
 
+    def test_accepted_verdict_closes_a_discovery(self):
+        # Event 152: `accepted` is a fourth first-class verdict — a REAL
+        # finding the operator consciously decides NOT to act on, closed
+        # with the cost of ignorance named. It must close an open
+        # discovery exactly like resolved/noise/duplicate (openness =
+        # has-any-verdict), and still enforce the rationale floor so the
+        # cost of ignorance cannot be an empty gesture.
+        a = _write_discovery(self.path, "alpha finding")
+        _write_discovery(self.path, "beta finding")
+        self.assertEqual(
+            len(_framework.open_deferred_discoveries(path=self.path)), 2
+        )
+        _framework.append_discovery_verdict(
+            a["entry_hash"], "accepted",
+            "real gap; not acting this cycle — cost: stale doc ref lingers",
+            path=self.path,
+        )
+        open_now = _framework.open_deferred_discoveries(path=self.path)
+        self.assertEqual(len(open_now), 1)
+        self.assertEqual(
+            open_now[0]["payload"]["description"], "beta finding"
+        )
+        # Too-short rationale is rejected for `accepted` just like the
+        # other verdicts (the cost of ignorance must actually be named).
+        b = _write_discovery(self.path, "gamma finding")
+        with self.assertRaises(ChainError):
+            _framework.append_discovery_verdict(
+                b["entry_hash"], "accepted", "meh", path=self.path,
+            )
+
+    def test_chain_remains_verifiable_after_accepted_verdict(self):
+        a = _write_discovery(self.path, "alpha finding")
+        _framework.append_discovery_verdict(
+            a["entry_hash"], "accepted",
+            "real finding; deferred by decision — cost of ignorance named",
+            path=self.path,
+        )
+        verdict = _framework.verify_chains(
+            deferred_discoveries_path=self.path,
+            protocols_path=self.path.with_name("protocols.jsonl"),
+        )["deferred_discoveries"]
+        self.assertTrue(
+            verdict.intact,
+            f"chain broken after accepted verdict: {verdict}",
+        )
+        self.assertEqual(verdict.total_entries, 2)
+
     def test_double_verdict_rejected(self):
         a = _write_discovery(self.path, "alpha finding")
         _framework.append_discovery_verdict(
@@ -288,6 +335,21 @@ class CliDrain(unittest.TestCase):
         ])
         self.assertEqual(rc, 0, err)
         self.assertIn("[ok] verdict 'resolved' chained", out)
+        self.assertIn("0 open deferred discoveries remain", out)
+        rc2, out2, _ = self._main(["deferred", "list", "--json"])
+        self.assertEqual(rc2, 0)
+        self.assertEqual(json.loads(out2), [])
+
+    def test_resolve_accepted_verdict(self):
+        # Event 152: the CLI must admit `--verdict accepted` and chain it
+        # like any other verdict, dropping the entry from the open count.
+        rc, out, err = self._main([
+            "deferred", "resolve", self.entry["entry_hash"][:12],
+            "--verdict", "accepted",
+            "--why", "real gap; consciously not acting — cost of ignorance named",
+        ])
+        self.assertEqual(rc, 0, err)
+        self.assertIn("[ok] verdict 'accepted' chained", out)
         self.assertIn("0 open deferred discoveries remain", out)
         rc2, out2, _ = self._main(["deferred", "list", "--json"])
         self.assertEqual(rc2, 0)
