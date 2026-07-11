@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/junjslee/episteme/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/junjslee/episteme?include_prereleases&label=release&logo=github"></a>
-  <a href="https://github.com/junjslee/episteme/blob/master/LICENSE"><img alt="License" src="https://img.shields.io/github/license/junjslee/episteme?color=informational"></a>
+  <a href="https://github.com/junjslee/episteme/blob/master/LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue"></a>
   <a href="https://github.com/junjslee/episteme"><img alt="Unique Clones" src="https://img.shields.io/badge/dynamic/json?color=success&label=Unique%20Clones&query=uniques&url=https://gist.githubusercontent.com/junjslee/0a171c9a54b11948bbd1562f4f040465/raw/clone.json&logo=github"></a>
 </p>
 
@@ -20,179 +20,223 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme 是一种思考方式 —— 생각의 틀 —— 一台让 AI 辅助决策在落地之前先挣得自身置信度的认识引擎（epistemic engine）。**
+> **episteme 让 AI 代理在行动之前先展示它的推理 —— 并让你仓库里的文档不再对你的代码撒谎。**
 >
-> 一套五阶段的认知实践 —— **Frame（立框）→ Decompose（分解）→ Execute（执行）→ Verify（验证）→ Handoff（交接）** —— 锚定于 Kahneman 的 System-2 强制、Dalio 的 Radical Transparency、Boyd 的 OODA Orientation、Munger 的 Latticework of Mental Models。v2.0 把它交付为三层。**认知（Cognition）** —— 资深研究者式的审问（interrogation）：把承重决策分解为分级的主张（`measured / cited / inferred / assumed`），在*从未见过草稿的全新上下文中、针对外部证据*验证承重主张，论证最强的反方立场，指出最薄弱的一环，并预先承诺一个反证条件。**结构（Structure）** —— 确定性 hooks：路由决策形态、校验裁决工件（`stop` 裁决以关闭状态失败）、只对真正破坏性的操作硬阻断；由操作者签名的 Reasoning Surface（Ed25519，在结构上位于代理无法触及之处）仍是操作者侧的立框工件。**记忆（Memory）** —— 来自已验证审问的经验教训成为哈希链接、按上下文限定的协议，在下一个匹配的决策处重新浮现。这套分工不是我们定的，而是研究记录定的：评判自己草稿的模型会*变得更差*，形式检查会被推理形状的 token 攻破，只有架构性约束能把认识上的自觉转化为行为。
->
-> MIRROR 基准（[arXiv 2604.19809](https://arxiv.org/abs/2604.19809)）了结了这个经验问题：在 8 个实验室的 16 个模型、约 250,000 个实例上，*"向模型提供其自身的校准分数不会带来显著改善；只有架构性约束才有效。"* 在外部架构性约束下，Confident Failure Rate 从 0.60 降到 0.14。**实践本身就是产品。** `core/` 与 `src/episteme/` 之下的产物，是让实践在前沿模型强度下、当*作为意志力的警惕*崩溃时仍能存活的强制几何（enforcement geometry）。
->
-> **→ [`docs/THE_WAY_TO_THINK.md`](docs/THE_WAY_TO_THINK.md)** —— 被操作化的实践。
+> 它安装进你已经在用的编码工具里（今天是 Claude Code；其余通过一个厂商中立的适配器层）。在任何高影响操作之前 —— `git push`、一次部署、一次迁移、删除一条约束 —— 代理必须在磁盘上写下：它知道什么、不知道什么、以及什么可观测事件会证明它错了。一个确定性 hook 检查这个工件，在它变得真实之前拒绝继续（`exit 2`）。来自已验证决策的经验教训成为防篡改（tamper-evident）、按上下文限定的协议，在下一个匹配的决策处重新浮现 —— 于是代理随时间对*你的*代码库变得更敏锐，而你的文档会像你的代码对照测试被 lint 一样，对照你的代码被 lint。
+
+**[它是什么样子 ↓](#它是什么样子)** · **[安装 ↓](#安装)** · **[演示 ↓](#演示)** · **[如何对比 ↓](#如何对比)** · **[底层原理 ↓](#底层原理)** · **[它有效吗？ ↗](docs/EVALUATION_METHOD.md)**
 
 ---
 
-## 为什么 prompt 不是真理
+## 它是什么样子
 
-你对代理说：*"评估我们的 retrieval-augmented memory（RAG）系统是否真的在提升响应质量。"*
+你问你的代理：*"评估我们的 retrieval-augmented memory 系统是否真的在提升响应质量。"*
 
-代理把你的 prompt 当作测量任务。它从过去 30 天的指标里取数据，对比有/无记忆系统的响应样本，发现 thumbs-up 率上有 7% 的正向 lift，写出一份备忘录结论："记忆系统有效；继续推进。"你读完它。
+**没有 episteme 时** —— 代理把这当作一件测量杂务。它取来 30 天的指标，发现 thumbs-up 率有 7% 的 lift，然后写下一份自信的备忘录：*"记忆有帮助；继续推进。"* 你读了它。它以三种方式、流畅地错着：
 
-代理没有问你在不那么疲惫的时候本来会问的问题：
+- Thumbs-up 追踪的是响应的*自信度*，不是*正确性* —— 它测量的是问题的代理指标（proxy），不是问题本身。
+- 带记忆的响应长 30%，而长度会独立地拉高 thumbs-up —— 那个 "lift" 可能是长度效应。
+- 从未命名过任何一个能判定结论为错的条件 —— 所以它无法被判错。
 
-- **什么 (What)** 在这里被当作"质量"测量了？代理选的指标是 *thumbs-up 率*。但 thumbs-up 与响应的*自信度*相关，而不是与响应的*正确性*相关——一个带记忆引用的、自信地错误的答案，会比一个正确地保留了不确定性的答案得到更高的分数。代理测量的是问题的*代理指标（proxy）*，不是问题本身。
-- **为什么 (Why)** 记忆系统会有帮助？声称的机制是跨会话的稳定上下文。但有/无对比没有控制响应长度——带记忆的响应平均长 30%，而长度本身就与 thumbs-up 独立相关。所谓的 "lift" 可能是长度效应，而不是记忆效应。
-- **怎么 (How)** 这个结论会被证明是错的？在控制响应长度后重跑。如果 lift 仍然存在，结论成立。如果消失了，那记忆只是加了 token，没有加信号。那就是代理从未明示的反证条件。
+**有 episteme 时** —— 在备忘录落地之前，代理必须把这些提交到磁盘：
 
-天真的代理因为 prompt 要求测量，就给出听起来像测量的答案。`episteme` 强制代理在备忘录提交之前——在磁盘上——写下：测量实际在测什么、声称的是什么机制、什么可观察的结果会推翻这个声称。写下来这个行为本身把"代理指标不等于问题本身"这件事浮上来。
-
-近期学术工作把代理在上下文中实际所知、你的意图、与系统真实状态之间累积的差距称为 **Epistemic Drift（认识论漂移）**。`episteme` 通过结构化地要求代理在行动前推理 *什么 · 为什么 · 怎么* 来弥合这个差距。
-
----
-
-## 为什么 prompt 还不够
-
-- 系统提示里的提醒**只活一次调用**。下一次会话里它就不存在了。
-- `CLAUDE.md` 里写的规则**一到 deadline 就会被忽视**——人类如此，代理也如此。
-- **Know-how**——*"在这种形状的问题里，这样做"* 这种不可还原地依赖上下文的规则——无法靠更好的措辞来教。它必须被**提取、存储、再次显现**。
-
-更深的问题是：代理**即便在用户自己的请求是错的时候，也照样执行**。用户也可能缺乏深度、产生误解、从错误的前提出发。好的系统*不止监督代理，还要验证用户的提问本身*。Prompt 层的补丁无法结构化这种双向验证。
-
----
-
-## 解法——在文件系统层的 Thinking Framework
-
-`episteme` 拦截**意图遇见状态变更的那一刻**。在任何高影响操作（`git push`、`npm publish`、`terraform apply`、DB 迁移、lockfile 编辑）之前——无论这个请求是*谁*发出的（用户本人，还是代理自己）——代理都必须把自己的推理明确地投射到磁盘上的一个四字段 **Reasoning Surface** 里：
-
-| 字段 | 代理必须声明的内容 |
+| 字段 | 代理必须写下的内容 |
 |---|---|
-| **Core Question** | 这个动作**真正在回答**的那一个问题（对抗 question substitution）|
-| **Knowns** | 已核实的事实、引用、测量值——不是听起来合理的猜测 |
-| **Unknowns** | 已命名、可分类的缺口——不是含糊的 *"可能有风险"* |
+| **Core Question** | 这项工作真正回答的那一个问题 —— *"在控制长度后，记忆是否提升正确性？"* |
+| **Knowns** | 有出处的已核实事实 —— 不是听起来合理的猜测 |
+| **Unknowns** | 已命名的缺口（*"lift 在长度控制后是否还在"*）—— 这里留空就会让 gate 失败 |
 | **Assumptions** | 承重的信念，标注出来以便被证伪 |
-| **Disconfirmation** | 能*证明此计划错了*的可观测事件——在行动前预先承诺 |
+| **Disconfirmation** | 预先承诺的可观测量 —— *"如果在控制长度的重跑下 lift 消失，那记忆加的是 token，不是信号"* |
 
-有效性**结构化**校验：最小内容长度、禁止懒惰占位符（`none`、`n/a`、`tbd`、`해당 없음`）、规范化命令扫描。如果 surface 缺失或空洞，操作以 `exit 2` 被拒绝。
+懒惰的 token（`none`、`n/a`、`tbd`、`해당 없음`）被拒绝。含糊的搪塞（*"如果出现问题"*）被拒绝 —— 只有具体的证伪条件才能通过。写下 surface 这个行为本身，就揭示了那个代理指标并不是问题本身。这就是产品：**在后果存在之前，代理被强制以一种你可以审计的方式思考。**
 
-**这就是 prompt 提醒和编译器的区别：一个在请求，一个在拒绝推进。**
+![episteme —— 运转中的 thinking framework](docs/assets/demo_posture.gif)
 
----
+*录制自 `scripts/demo_posture.sh` —— 一次被阻断的约束移除、一次通过验证的重写、一次被强制声明其 blast radius 的重构，以及在之后的决策上触发的合成协议。*
 
-## ABCD——四个 Cognitive Blueprints
+## 你会得到什么
 
-每个高影响操作会触发四个 Blueprint 之一，每一个都对应一类特定的失败模式：
+- **一道设在不可回头之处的推理 gate。** Hooks 拦截高影响操作，并在结构上校验 Reasoning Surface —— 规范化命令扫描能抓住各种绕过形态（`subprocess.run(['git','push'])`、代理编写的 shell 脚本、被包装的执行器）。surface 缺失或空洞 → 操作被拒绝。默认 strict；advisory 模式按项目 opt-in。
+- **对承重决策的审问。** 单靠结构无法区分思考与表演，所以 gate 还接受一种更强的工件：把决策分解为主张，每个承重主张都由一个**从未见过草稿推理的全新上下文**来验证，论证最强的反方，指出最薄弱的一环。`stop` 裁决以关闭状态失败。
+- **会累积而非衰减的记忆。** 每一条已验证的教训都成为哈希链接、按上下文限定的协议 —— append-only 且防篡改，因此代理无法悄悄改写它学到的东西。在下一个匹配的决策处，kernel 会主动浮现该协议：`[episteme guide] … · overlap 5/6 · Protocol: In context X, do Y`。你不必记得去问。
+- **对照现实被 lint 的文档。** 每个被跟踪的文档都带着机器可读的生命周期标记（`living / spec-implemented / design-history / report / tombstone`）。当一个新文档未经分类就落地、当一个 living 文档把已退役的文档当作现行来引用、或当一份时点报告试图强占 `docs/` 时，CI 都会失败。版本字符串从 release 清单中盖印，绝不手抄。陈旧的文档在会话开始时浮现 —— 悄无声息，只在确实陈旧时。**单一事实来源（single source of truth），是被强制的，而非仅仅被向往。**
+- **一个会自己收拾的系统。** 审查队列有上限并带可见的背压，日志在大小上限处轮转，过期标记和旧遥测在会话开始时被回收。工件不会堆积；删除是一项被设计的操作，不是疏忽的意外。
+- **跨工具的单一身份。** 你的工作风格、风险姿态和推理偏好，都活在受治理、带版本的 markdown 里 —— 一条命令即可同步到每个适配器。kernel 比工具活得更久。
 
-- **A · Axiomatic Judgment** — 解决可信但相互矛盾的信息源之间的冲突。强制代理说出*为什么*它们有冲突，以及*当前上下文的哪个特征*做出选择。
-- **B · Fence Reconstruction** — 保护继承下来的约束。在移除某个约束之前，必须先重建它的*原始目的*。**Chesterton's fence** 被文件系统强制执行。
-- **C · Consequence Chain** — 分解不可逆操作（一阶效应、二阶效应、failure-mode 反转、基准率、margin of safety）。
-- **D · Architectural Cascade** — 捕捉那些会留下陈旧引用的重构和重命名。在编辑之前，强制代理枚举完整的 blast radius。
+## 安装
 
-每一次 Blueprint 触发、以及它所验证的每一个决定，都会被提交到一条**防篡改的哈希链（tamper-evident hash chain）**。这条链不是日志——它是 kernel 之后提供 **Active Guidance** 的方式：在下一次匹配的决策点，相关的合成 protocol 会在代理退回到训练分布之前，**主动**浮现出来。
-
-结果是**随你的项目不断累积的 Thinking Framework**。每次代理解决一次冲突，它对你的代码库都变得更敏锐——不是因为你训练它，而是因为链替你记住了。
-
----
-
-## 零信任执行
-
-[**OWASP Top 10 for Agentic Applications (2026)**](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) — 由 100 多位业界专家同行评议 — 将 prompt injection、goal hijacking、overreach、memory poisoning、unbounded action 列为自主代理的主要风险类别。Knowns / Unknowns / Assumptions / Disconfirmation 结构对每一项都是*结构性*反制：
-
-| OWASP Agentic Risk (2026) | episteme 的反制 |
-|---|---|
-| 直接目标操纵 / prompt injection | 执行前声明 Core Question；偏差以 Unknowns 形式浮现 |
-| 间接指令注入 | Knowns / Disconfirmation 将可信状态与 prompt 内容分离；代理在依据检索到的输入行动之前承诺一个可证伪的结果 |
-| Overreach / unbounded action | 在 Frame 中声明约束规则；强制 reversible-first 策略 |
-| 流畅幻觉 | Unknowns 字段不可为空；行动前必须命名假设 |
-| 内存投毒 | Pillar 2 hash-chained protocols — append-only、tamper-evident；对先前状态的静默重写由 `verify_chain` 检测 |
-| 无限规划循环 | Disconfirmation 条件必填；证据触发时循环退出 |
-
-未命名的假设不被信任。未声明前提条件 (Knowns) 与约束规则之前不采取任何行动。kernel 是意图与执行之间的验证层。
-
-### 业界收敛 — 2025–2026
-
-同一时间窗内的主要框架与学术论文，正向 kernel 已交付的相同架构模式收敛：文件系统层的 pre-invocation checkpoint ([Capsule Security ClawGuard](https://www.businesswire.com/news/home/20260415670902/), 2026)、hash-chained 防篡改内存 ([SSGM](https://arxiv.org/abs/2603.11768) — Lam et al., 2026)、基于理由而非规则清单的对齐 ([Anthropic Claude Constitution](https://www.anthropic.com/constitution), 2026-01-22)、带治理层的五阶段认知循环 ([SCL R-CCAM](https://arxiv.org/abs/2511.17673) — Kim, 2025)、五支柱 agent integrity ([Proofpoint Agent Integrity Framework 2026](https://www.proofpoint.com/us/resources/white-papers/agent-integrity-framework))。kernel 早于这些出版物 (CP1 于 2026-04-21 交付；v1.0.0 GA 于 2026-04-28)；这种收敛是独立验证，并非血统。完整 attribution map 见 [`kernel/REFERENCES.md`](./kernel/REFERENCES.md) 中 *Convergent contemporary work* 章节。
-
----
-
-## Cognitive Arms — v1.1+
-
-上述四个 Blueprint 和三个 Pillar — Cognitive Blueprints · Append-Only Hash Chain · Framework Synthesis & Active Guidance — 是 v1.0 *不变的结构基础*。Pillar 不会移动。v1.1 在其之上加入了 **3 Cognitive Arms**：随着时间推移、不断重构 kernel 自身知识的流动型主动引擎。
-
-- **Arm A · Temporal Integrity** — 协议会衰退。经操作员确认的 retire 会 supersede 一条陈旧规则，而不是静默覆盖它。验证窗口：CP-DECAY-03 之后 30 天。
-- **Arm B · Causal Synthesis** — 对 deferred-discovery 流进行零-LLM 实体抽取，产生 framework 可以据此行动的聚类提案。验证窗口：60 天。
-- **Arm C · Self-Consistency Convergence** — 协议升级为以结构化方式推导 disconfirmation 的模型。验证窗口：90 天。
-
-这个区分承载结构性意义 — Pillar 是已沉淀的术语，Arm 是系统跨越时间审计和打磨自己输出的方式。状态：**v1.4.0-rc1 于 2026-05-23 切出**，1170 tests + 54 subtests 通过。Arm A 基础设施已交付（supersede-with-history 基础设施 + 将 operator profile / policy 编辑自动记录到 chain stream 的 hook）；Arm A 剩余工作伺机恢复。**Arm B substrate-facing 形态在 Event 129 正式 SUNSET** — 其前提（稳定的模型能力差距）已被 Event 119–120 饱和发现证伪。其 operator-facing 残留（`core/ptsp/` typed Fact/Inference 提升门）通过 `episteme practice trace` 保留可达。Arm C 已 scope 到未来周期，等待 substrate-gap 主张存活的证据。
-
----
-
-## 快速开始
-
-### 方式 A — Claude Code 插件市场
-
-在 Claude Code 里：
+**方式 A —— Claude Code 插件（两条命令，自包含）：**
 
 ```
 /plugin marketplace add junjslee/episteme
 /plugin install episteme@episteme
 ```
 
-然后在任意 shell：
+Hooks、代理和 skills 在你的会话中即刻生效；不涉及 pip。
 
-```bash
-episteme init     # 从模板种子化个人记忆文件
-episteme setup    # 对工作风格 + 认知风格进行打分
-episteme sync     # 传播到 Claude Code 和 Hermes
-episteme doctor   # 验证连接
-```
-
-### 方式 B — 直接克隆 kernel
+**方式 B —— 克隆 kernel（CLI + 可编辑源码）：**
 
 ```bash
 git clone https://github.com/junjslee/episteme ~/episteme
-cd ~/episteme
-pip install -e .
+cd ~/episteme && pip install -e .
 
-episteme init
-episteme setup . --write
-episteme sync
-episteme doctor
+episteme init      # generate personal memory files from templates
+episteme setup .   # score working style + reasoning posture
+episteme sync      # push identity to every adapter
+episteme doctor    # verify wiring
 ```
 
-更深入的 onboarding：**[`docs/SETUP.md`](./docs/SETUP.md)**。完整命令参考：**[`docs/COMMANDS.md`](./docs/COMMANDS.md)**。
+在既有仓库中采用：`episteme docs lint` 会强制对每个被跟踪的文档做一次生命周期分类 —— 那第一次 lint 运行，就是大多数仓库从未拥有过的诚实清单。细节、项目 harness 与完整命令参考：[`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md)。
 
----
+## 演示
 
-## 哲学——doxa · episteme · praxis · 결
+每个演示都随附它真实的工件 —— 在任何哲学之前先读它们。
 
-仓库名来自希腊语：
+| 演示 | 它证明了什么 |
+|---|---|
+| [`demos/04_symbiosis/`](./demos/04_symbiosis/) | **来自真实历史的论点（2026-04-27，Events 65–67）：** 操作者提出了一个由焦虑驱动的不可逆捆绑包；kernel 的对抗式审查浮现出 3 个 Critical 发现；被分解后的路径在 `AGENTS.md` 中成为了宪法。代理与人类在调试*彼此的*意图。[`DIFF.md`](./demos/04_symbiosis/DIFF.md) 把那个另一种世界并排展示出来。 |
+| [`demos/03_differential/`](./demos/03_differential/) | **同一个 prompt，框架 off vs on。** off 回答*怎么做*；on 回答*该不该*。[`DIFF.md`](./demos/03_differential/DIFF.md) 点名了被抓住的 failure modes。 |
+| [`demos/02_debug_slow_endpoint/`](./demos/02_debug_slow_endpoint/) | 一次 p95 回归，流畅却错误的*"加个 cache"* 死在 Core Question gate 上；取而代之产出的是一个 schema 层面的根因。 |
+| [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) | 正典的四工件形态（reasoning-surface → decision-trace → verification → handoff）—— kernel 在审计它自己的归属。 |
+| [`demos/05_contract_gate/`](./demos/05_contract_gate/) | 行为层面的补充：声明的契约在回合结束时运行。 |
 
-- **Doxa** (δόξα) — 默认产出的流畅意见。[`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md) 里的 11 个 failure mode 是一个*把 doxa 误认为 episteme* 的分类学。
-- **Episteme** (ἐπιστήμη) — 可辩护的知识：具体的 Knowns、被命名的 Unknowns、可证伪的 Disconfirmation。执行的前置条件。
-- **Praxis** (πρᾶξις) — 带着授权纪律的行动：效果落地时纪律完好无损。
+自己重新录制这段主打演示：`scripts/demo_posture.sh`（配方在脚本头部）。实时仪表板对照 kernel 自己的哈希链渲染 —— [`web/README.md`](./web/README.md)。
 
-韩语 **결**（*gyeol*）命名木材或石头的纹理——潜在的模式结构，顺着它切会形成连贯的形态，逆着它切则会断裂。Reasoning Surface 的字段顺序正是认识论纪律的 *gyeol*：**已确立 → 开放 → 暂定 → 证伪条件**。
+## 如何对比
 
----
+| 维度 | episteme | Memory APIs (mem0, OpenMemory) | Agent 运行时 (Agno, opencode) |
+|---|---|---|---|
+| **它是什么** | 架在你现有工具之上的推理治理 + 身份层 | 嵌入某个应用里的记忆 API | 一个执行代理的运行时 |
+| **身份住在哪里** | 受治理、带版本的 markdown/JSON —— 跨工具 | 向量/图存储，按应用 | 系统提示，按会话 |
+| **Know-how** | 在文件系统边界处抽取、哈希链接、按上下文重新浮现 | 不透明的检索 | 按会话做 prompt 调优 |
+| **文档/状态卫生** | 生命周期 lint、GC、CI 中做 drift 门控 | N/A | N/A |
 
-## 下一步阅读
+**这不就是 contract testing 吗？** 契约测试抓的是*行为*回归 —— 代码有没有照 spec 说的做。Reasoning Surface 抓的是*认识论*回归 —— 我们有没有写对 spec、框对问题、说清楚什么会证明我们错了。一个通过的测试套件无法告诉你，你正在流畅地解决错误的问题；那种失败发生在 spec 存在之前。episteme 交付两层（[`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)）。
+
+**为什么 prompt 做不到这个？** Prompt 是建议性的：只活一次调用，一到 deadline 就被跳过，然后从上下文里消失。一个以非零退出的 hook 无法被跳过。MIRROR 基准（[arXiv 2604.19809](https://arxiv.org/abs/2604.19809)；16 个模型、8 个实验室、约 25 万个实例）发现，向模型展示它自己的校准并没有帮助 —— *只有架构性约束才有效*（Confident Failure Rate 0.60 → 0.14）。姿态高于 prompt（Posture over prompt）。
+
+## 诚实的边界
+
+- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) 点名了这个 kernel 何时是错的工具。*没有边界的纪律，只是一种信条。*
+- kernel 会度量它自己的主张：协议合成循环在 2026-06 触发了它自己的可证伪条件（49 天，零条合成协议），随后被重建为从已验证的审问中合成 —— 审计轨迹是公开的（[`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md)、[`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)）。一个对你的决策强制 disconfirmation 的 kernel，也欠你对它自己做同样的事。
+- 对每一个借用概念的归属，以及 2025–26 年独立收敛到相同模式的业界工作：[`kernel/REFERENCES.md`](./kernel/REFERENCES.md)。
+
+## 底层原理
+
+状态：**<!-- episteme-fact:version -->1.9.0<!-- /episteme-fact:version -->** · 这套实践是 Frame → Decompose → Execute → Verify → Handoff，锚定于针对特定 System-1 failure modes（question substitution、WYSIATI、anchoring、narrative fallacy、planning fallacy、overconfidence）的具名反制 —— 完整的操作化在 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)，四个 Cognitive Blueprints（Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade）在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) 中给出规格。
+
+```mermaid
+graph TD
+    subgraph SG1["① The Agentic Mind — Intention"]
+        A["Agent\nGenerating intent for a high-impact op"]
+        B["Reasoning Surface\ncore_question · knowns · unknowns\nassumptions · disconfirmation"]
+        D["Doxa\nFluent hallucination\nnone / n/a / tbd / 해당 없음\n< 15 chars · missing fields"]
+        E["Episteme\nJustified true belief\nconcrete knowns · named unknowns\ndisconfirmation ≥ 15 chars · no placeholders"]
+    end
+
+    subgraph SG2["② The Sovereign Kernel — Interception"]
+        F["Stateful Interceptor\ncore/hooks/reasoning_surface_guard.py\nnormalises cmd · deep-scans agent-written files\ncross-call stateful memory"]
+        G["Hard Block · exit 2\nExecution denied\nAgent forced to re-author surface"]
+        H["PASS · exit 0\nPrecondition satisfied\nExecution admitted to Praxis"]
+    end
+
+    subgraph SG3["③ Praxis & Reality — Execution"]
+        I["Tool Execution\ngit push · bash script.sh · npm publish\nterraform apply · DB migrations · lockfile edits"]
+        J["Observed Outcome\ncore/hooks/calibration_telemetry.py\nexit_code 0 or non-zero · stderr captured"]
+    end
+
+    subgraph SG4["④ 결 · Gyeol — Cognitive Texture & Evolution"]
+        K["Prediction Record\ncorrelation_id stamped at PASS\n~/.episteme/telemetry/YYYY-MM-DD-audit.jsonl"]
+        L["Outcome Record\ncorrelation_id · exit_code · stderr\n~/.episteme/telemetry/YYYY-MM-DD-audit.jsonl"]
+        M["episteme evolve friction\nsrc/episteme/cli.py · _evolve_friction\npairs prediction ↔ outcome by correlation_id\nranks under-named unknowns · flags exit_code ≠ 0"]
+        N["결 · Gyeol\nRefined cognitive grain\nfriction hotspots · calibrated profile axes"]
+        O["Operator Profile\ncore/memory/global/operator_profile.md\nlast_elicited axes updated · confidence rescored"]
+        P["kernel/CONSTITUTION.md\nFour principles recalibrated\nfailure-mode counters sharpened"]
+    end
+
+    A --> B
+    B --> D
+    B --> E
+    D --> F
+    E --> F
+    F --> G
+    F --> H
+    G -.->|"cognitive retry"| A
+    H --> I
+    I --> J
+    E -.->|"correlation_id stamped at PASS"| K
+    J --> L
+    K --> M
+    L --> M
+    M --> N
+    N --> O
+    N --> P
+    O -.->|"posture loop closed"| A
+    P -.->|"posture loop closed"| A
+
+    classDef doxaStyle fill:#c0392b,stroke:#922b21,color:#fff
+    classDef episteStyle fill:#1e8449,stroke:#145a32,color:#fff
+    classDef passStyle fill:#27ae60,stroke:#1e8449,color:#fff
+    classDef praxisStyle fill:#2ecc71,stroke:#27ae60,color:#000
+    classDef gyeolStyle fill:#1a5276,stroke:#154360,color:#fff
+    classDef kernelStyle fill:#6c3483,stroke:#512e5f,color:#fff
+    classDef neutralStyle fill:#2c3e50,stroke:#1a252f,color:#fff
+
+    class D,G doxaStyle
+    class E episteStyle
+    class H,I passStyle
+    class J praxisStyle
+    class K,L,M,N,O,P gyeolStyle
+    class F kernelStyle
+    class A,B neutralStyle
+```
+
+**Doxa**（红色）—— 流畅但未经验证的输出 —— 是 kernel 存在以阻止的失败状态。**Episteme**（绿色）—— 一个经过验证的 surface —— 是执行的前置条件。**Praxis** —— 被准入的行动及其被观测到的结果。**결 · Gyeol**（蓝色）—— 跨越周期打磨框架的校准循环。适用于任何技术栈：kernel 是纯 markdown，profile 是普通 JSON，适配器层（Claude Code、Hermes、OMO/OMX）可插拔。
+
+kernel 本身 —— 纯 markdown，无代码，无厂商锁定 —— 从 [`kernel/`](./kernel/) 开始：
+
+| 文件 | 它定义了什么 |
+|---|---|
+| [`SUMMARY.md`](./kernel/SUMMARY.md) | 30 行的运行蒸馏 |
+| [`CONSTITUTION.md`](./kernel/CONSTITUTION.md) | 根主张、四条原则、推理者 failure modes |
+| [`FAILURE_MODES.md`](./kernel/FAILURE_MODES.md) | 完整的 12 模式分类学 ↔ 反制工件 |
+| [`REASONING_SURFACE.md`](./kernel/REASONING_SURFACE.md) | Knowns / Unknowns / Assumptions / Disconfirmation 协议 |
+| [`MEMORY_ARCHITECTURE.md`](./kernel/MEMORY_ARCHITECTURE.md) | 五个记忆层级（working → reflective） |
+| [`KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) | kernel 何时是错的工具 |
+| [`REFERENCES.md`](./kernel/REFERENCES.md) | 归属 + 收敛的同期工作 |
+
+```
+episteme/
+├── kernel/          philosophy (markdown; travels across runtimes)
+├── core/hooks/      deterministic gates + session automation
+├── src/episteme/    CLI + core library (doc lifecycle, sync, telemetry)
+├── adapters/        delivery layers (Claude Code, Hermes, …)
+├── demos/           end-to-end reference deliverables
+├── skills/          reusable operator skills
+├── templates/       project scaffolds
+└── docs/            architecture, contracts, runtime docs — lifecycle-linted
+```
+
+权威层级：**项目文档 > 操作者 profile > kernel 默认值 > 运行时默认值。** 仓库对代理的运营契约：[`AGENTS.md`](./AGENTS.md) · 面向 LLM 的站点地图：[`llms.txt`](./llms.txt)。
+
+## 继续阅读
 
 | 主题 | 位置 |
 |---|---|
-| Kernel 30 行蒸馏 | [`kernel/SUMMARY.md`](./kernel/SUMMARY.md) |
-| v1.0 RC 设计方向 | [`docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md`](./docs/DESIGN_V1_0_SEMANTIC_GOVERNANCE.md) |
-| 11 个 failure mode 及其反制 artifact | [`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md) |
-| 同一个 prompt，Thinking Framework *关 vs. 开* | [`demos/03_differential/`](./demos/03_differential/) |
-| 何时 kernel 是错的工具 | [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) |
-| 每一个借用概念的出处 | [`kernel/REFERENCES.md`](./kernel/REFERENCES.md) |
-| 仓库对代理的运营契约 | [`AGENTS.md`](./AGENTS.md) |
+| 被操作化的实践 | [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md) |
+| 架构 + blueprint 规格 | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) |
+| 它有效吗？（评估方法） | [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md) |
+| 安装路径（marketplace、CLI、开发） | [`INSTALL.md`](./INSTALL.md) |
+| 文档生命周期 + 记忆契约 | [`docs/MEMORY_CONTRACT.md`](./docs/MEMORY_CONTRACT.md) · [`docs/SYNC_AND_MEMORY.md`](./docs/SYNC_AND_MEMORY.md) |
+| Hooks + governance packs | [`docs/HOOKS.md`](./docs/HOOKS.md) |
+| 安全姿态（OWASP Agentic 2026 映射） | [`docs/COMPLIANCE_CROSSWALK.md`](./docs/COMPLIANCE_CROSSWALK.md) |
+| 个性化定制 | [`docs/CUSTOMIZATION.md`](./docs/CUSTOMIZATION.md) |
+| 完整文档索引（生成的） | [`docs/README.md`](./docs/README.md) |
+
+## 商业授权
+
+如需商业授权或咨询，[联系我](mailto:junseong.lee652@gmail.com)。
 
 ---
 
-## 为什么是 `episteme`——一句话
-
-**姿态高于 prompt（Posture over prompt）**。不是寻找更好的措辞，而是在文件系统层面建立 *AI 代理思考的框架*。一个可以像编译器那样*拒绝继续推进*的 Thinking Framework。它不是让你的代理更聪明——而是让这份聪明*落地到你的上下文里*。
-
-**Built as a Sovereign Cognitive Kernel — 생각의 틀**.
-
----
-
-> **Note on translation.** This README is a focused-scope Chinese adaptation maintained alongside the canonical English [`README.md`](./README.md). For deepest documentation, demo walkthroughs, and architectural diagrams, refer to the English docs tree. Technical terms (Thinking Framework, Reasoning Surface, Blueprint, Core Question, Chesterton's fence, Pillar 3, flaw_classification, etc.) are kept in English because they are load-bearing kernel vocabulary.
+> **关于翻译的说明。** 本 README 是与权威英文版 [`README.md`](./README.md) 一同维护的中文翻译。若需最深入的文档、演示走查与架构图，请参阅英文文档树。承重的 kernel 术语（Reasoning Surface、Core Question、Blueprint、hook、kernel、doxa/episteme/praxis 等）刻意保留英文。
