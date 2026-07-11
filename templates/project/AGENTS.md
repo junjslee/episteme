@@ -11,7 +11,7 @@ This document is the **Soul-binding** contract for any agent operating in this r
 ## 📚 Required Memory Files
 Read in this order at session start:
 - `docs/NEXT_STEPS.md` — immediate priority and the "So-What Now?"
-- `docs/PROGRESS.md` — causal history of state and key decisions
+- `docs/EVENTS.md` — one-line-per-event history index (append one row per handoff)
 {{HARNESS_MEMORY_LINE}}
 Read on demand:
 - `CLAUDE.md`
@@ -100,7 +100,7 @@ Review required before merge for:
 ## Logging
 Use `agent_logs/action_log.md` for substantive runs only:
 remote executions, cleanup passes, bounded loops, major audits, branch handoffs.
-Do not log every shell command. The source of truth remains `docs/PROGRESS.md`.
+Do not log every shell command. The source of truth remains `docs/EVENTS.md` (one-line-per-event index) and `docs/NEXT_STEPS.md`.
 
 ## Publication Boundary
 Safe to commit:
