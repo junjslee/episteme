@@ -1,6 +1,6 @@
 ---
 name: swing-mortem
-description: Prospective failure analysis using Gary Klein's swing-mortem technique. Assumes complete failure, works backward to identify risks, leading indicators, and circuit breakers. Counters optimism bias by forcing systematic exploration of failure modes before they materialize. Use for project plans, architecture decisions, technology adoption, business strategy, or feature launches. Triggers on "리스크", "위험", "실패하면", "swing-mortem", "뭐가 잘못될 수 있어", "risk", "what could go wrong", "걱정되는 점", "failure modes", "리스크 분석", "위험 분석".
+description: Prospective failure analysis using Gary Klein's pre-mortem technique (adapted here as swing-mortem). Assumes complete failure, works backward to identify risks, leading indicators, and circuit breakers. Counters optimism bias by forcing systematic exploration of failure modes before they materialize. Use for project plans, architecture decisions, technology adoption, business strategy, or feature launches. Triggers on "리스크", "위험", "실패하면", "swing-mortem", "뭐가 잘못될 수 있어", "risk", "what could go wrong", "걱정되는 점", "failure modes", "리스크 분석", "위험 분석".
 argument-hint: "[plan, decision, or initiative to stress-test for future failure]"
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---
@@ -9,7 +9,7 @@ allowed-tools: Read, Grep, Glob, Bash, Agent
 
 Prospective failure analysis that defeats optimism bias by assuming failure first, then working backward to surface risks, early warnings, and escape hatches.
 
-**Based on Gary Klein's swing-mortem technique:** Instead of asking "will this work?" (which triggers optimism bias), this skill forces the question: "It's 6 months from now and this has completely failed. What went wrong?"
+**Based on Gary Klein's pre-mortem technique:** Instead of asking "will this work?" (which triggers optimism bias), this skill forces the question: "It's 6 months from now and this has completely failed. What went wrong?"
 
 **Key distinction from swing-review:**
 - `swing-review` examines the **CURRENT** state — "what's wrong NOW?"

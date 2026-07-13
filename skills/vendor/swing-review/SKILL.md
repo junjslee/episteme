@@ -1,6 +1,6 @@
 ---
 name: swing-review
-description: Devil's Advocate stress-testing for code, architecture, PRs, and decisions. Surfaces hidden flaws through structured adversarial analysis with metacognitive depth. Use for high-stakes review, stress-testing choices, or when the user wants problems found deliberately. NOT for routine code review (use engineering:code-review). Triggers on "스트레스 테스트", "stress test", "devil's advocate", "반론", "이거 괜찮아", "문제 없을까", "깊은 리뷰", "critical review", "adversarial".
+description: Devil's Advocate stress-testing for code, architecture, PRs, and decisions. Surfaces hidden flaws through structured adversarial analysis with metacognitive depth. Use for high-stakes review, stress-testing choices, or when the user wants problems found deliberately. NOT for routine code review (use /code-review). Triggers on "스트레스 테스트", "stress test", "devil's advocate", "반론", "이거 괜찮아", "문제 없을까", "깊은 리뷰", "critical review", "adversarial".
 argument-hint: "[code/decision/PR to stress-test]"
 allowed-tools: Read, Grep, Glob, Bash, Agent
 ---

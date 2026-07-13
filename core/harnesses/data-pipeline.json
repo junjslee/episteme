@@ -68,5 +68,5 @@
     "Never run a full-scale pipeline without a passing smoke test on sample data."
   ],
   "recommended_agents": ["planner", "researcher", "implementer", "reviewer"],
-  "recommended_skills": ["bounded-loop-runner", "review-gate", "requirements-to-plan"]
+  "recommended_skills": ["overnight-loop", "swing-review", "swing-clarify"]
 }

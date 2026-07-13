@@ -2,26 +2,15 @@
   "vendor_skills": [
     "swing-clarify",
     "swing-mortem",
-    "swing-options",
     "swing-research",
-    "swing-review",
-    "swing-trace",
-    "create-prd",
-    "sprint-plan",
-    "pre-mortem",
-    "test-scenarios",
-    "prioritization-frameworks",
-    "retro",
-    "release-notes"
+    "swing-review"
   ],
   "custom_skills": [
     "epistemic-interrogation",
     "repo-bootstrap",
-    "requirements-to-plan",
     "progress-handoff",
-    "worktree-split",
-    "bounded-loop-runner",
-    "review-gate",
-    "research-synthesis"
+    "reasoning-surface",
+    "episteme-event",
+    "overnight-loop"
   ]
 }
