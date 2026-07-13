@@ -64,5 +64,5 @@
     "Backup intermediate results to a stable artifact store before destructive re-runs."
   ],
   "recommended_agents": ["researcher", "planner"],
-  "recommended_skills": ["research-synthesis", "requirements-to-plan"]
+  "recommended_skills": ["swing-research", "swing-clarify"]
 }

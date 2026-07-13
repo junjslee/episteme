@@ -21,5 +21,5 @@
     "Review before merge for any logic changes that affect shared state."
   ],
   "recommended_agents": ["planner", "implementer", "reviewer"],
-  "recommended_skills": ["requirements-to-plan", "progress-handoff"]
+  "recommended_skills": ["swing-clarify", "progress-handoff"]
 }

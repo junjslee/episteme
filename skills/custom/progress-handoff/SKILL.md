@@ -4,6 +4,11 @@ description: Update progress and next-step docs so the next agent or session can
 ---
 Use this skill near the end of a work session or after substantial progress.
 
+**Convention check first:** if the project's `AGENTS.md` (or operating contract)
+declares its own handoff convention — different file names, a different form —
+**follow the project's declaration**. Repo files own repo mechanics; the two
+moves below are the episteme default for projects that declare none.
+
 Handoff is two moves, and only two:
 
 1. **REPLACE `docs/NEXT_STEPS.md`.** Overwrite it with the current state — do not

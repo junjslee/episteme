@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E153 -->
 # Skills and Agent Personas
 
 Two extension surfaces shipped with episteme: **skills** (reusable operator capabilities) and **personas** (subagent definitions). Both propagate via `episteme sync`.
@@ -7,11 +7,15 @@ Two extension surfaces shipped with episteme: **skills** (reusable operator capa
 
 ### Custom (your own)
 
-`repo-bootstrap` · `requirements-to-plan` · `progress-handoff` · `worktree-split` · `bounded-loop-runner` · `review-gate` · `research-synthesis`
+`epistemic-interrogation` · `reasoning-surface` · `episteme-event` · `overnight-loop` · `progress-handoff` · `repo-bootstrap`
+
+(E153 usage-based triage: `requirements-to-plan`, `worktree-split`, `bounded-loop-runner`, `review-gate`, `research-synthesis` retired — absorbed by `kickoff`, `episteme-event`, `overnight-loop`, or dormant with zero invocations.)
 
 ### Vendor (curated upstream)
 
-`swing-clarify` · `swing-options` · `swing-research` · `swing-review` · `swing-trace` · `swing-mortem` · `create-prd` · `sprint-plan` · `pre-mortem` · `test-scenarios` · `prioritization-frameworks` · `retro` · `release-notes`
+`swing-clarify` · `swing-research` · `swing-review` · `swing-mortem`
+
+(E153: the zero-use vendor tail — `swing-options`, `swing-trace`, and the seven-skill PM pack — was pruned; `swing-mortem` absorbs `pre-mortem`, which was the same Gary Klein technique imported twice.)
 
 ### Adding your own
 

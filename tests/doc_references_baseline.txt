@@ -40,4 +40,3 @@ kernel/FALSIFIABILITY_CONDITIONS.md	core/hooks/_reasoning_surface_validator.py
 # ── contract placeholders: per-project memory-contract docs, never instantiated ─
 docs/HARNESSES.md	docs/RUN_CONTEXT.md
 docs/LAYER_MODEL.md	docs/RUN_CONTEXT.md
-skills/custom/requirements-to-plan/SKILL.md	docs/REQUIREMENTS.md

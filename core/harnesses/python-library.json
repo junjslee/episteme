@@ -49,5 +49,5 @@
     "Audit dependencies before adding new ones — supply chain risk applies."
   ],
   "recommended_agents": ["planner", "implementer", "reviewer", "test-runner"],
-  "recommended_skills": ["review-gate", "requirements-to-plan", "repo-bootstrap"]
+  "recommended_skills": ["swing-review", "swing-clarify", "repo-bootstrap"]
 }

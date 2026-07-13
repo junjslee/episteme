@@ -68,5 +68,5 @@
     "Test safety constraints (block_dangerous.py equivalents) before deploying new hooks."
   ],
   "recommended_agents": ["planner", "researcher", "implementer", "reviewer"],
-  "recommended_skills": ["bounded-loop-runner", "requirements-to-plan", "research-synthesis"]
+  "recommended_skills": ["overnight-loop", "swing-clarify", "swing-research"]
 }

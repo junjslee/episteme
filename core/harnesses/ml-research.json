@@ -72,5 +72,5 @@
     "Treat GPU quota as a shared resource — record usage in action_log."
   ],
   "recommended_agents": ["planner", "researcher", "implementer"],
-  "recommended_skills": ["bounded-loop-runner", "requirements-to-plan", "research-synthesis"]
+  "recommended_skills": ["overnight-loop", "swing-clarify", "swing-research"]
 }

@@ -71,5 +71,5 @@
     "Validate all data at system boundaries (user input, external APIs) — never in the middle."
   ],
   "recommended_agents": ["planner", "implementer", "reviewer"],
-  "recommended_skills": ["review-gate", "requirements-to-plan", "worktree-split"]
+  "recommended_skills": ["swing-review", "swing-clarify", "episteme-event"]
 }
