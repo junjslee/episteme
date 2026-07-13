@@ -41,7 +41,9 @@
     "Every new function or class needs a corresponding test.",
     "Use `episteme worktree feat/<name>` for any non-trivial feature branch.",
     "Run `pytest` before every merge.",
-    "Keep the `CHANGELOG` or release notes current."
+    "Keep the `CHANGELOG` or release notes current.",
+    "Config discipline: collect tunable defaults into one config module (env-overridable, resolved at call time, argparse-wired for CLIs); classify before centralizing — some values stay coupled or frozen deliberately, record why.",
+    "Hard-pin dependencies only where a known incompatibility exists; every pin carries its reason in a comment."
   ],
   "safety_notes": [
     "Never publish to PyPI without passing a review gate.",

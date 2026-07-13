@@ -262,7 +262,9 @@ When reviewing code (files, PRs, diffs):
   unknown provenance; polish is not evidence of correctness. Elevated-scrutiny
   signatures: option-heavy abstractions unjustified by tests, placeholder logic
   and "future-ready" dead branches, unwired components with no execution path,
-  silent failure handling (broad catches), tests that assert less than they appear to.
+  silent failure handling (broad catches), tests that assert less than they appear
+  to, and phantom features — capabilities claimed in summaries or docs that no
+  code path actually implements.
 - **Completeness ladder:** report each touched component as
   Exists → Substantive → Wired → Functional. "Wired" is the rung autonomous
   codegen most often fakes — a component imported/invoked nowhere is blocking

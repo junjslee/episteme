@@ -49,6 +49,7 @@
     "Follow POSIX conventions: short flags (-v) and long flags (--verbose) for all options.",
     "Provide machine-readable output mode (--json or --output json) for scripting consumers.",
     "Use explicit defaults and document them in --help; never rely on ambient env vars silently.",
+    "Config discipline: collect tunable defaults into one config module wired through argparse (env-overridable, resolved at call time); classify before centralizing — some values stay coupled or frozen deliberately, record why — and guard the convention with a tripwire test.",
     "Write integration tests that invoke the CLI as a subprocess to catch argument parsing bugs."
   ],
   "safety_notes": [

@@ -52,18 +52,24 @@
   "profile_description": "GPU compute required for training runs. Use hosted or cluster inference for production.",
   "run_context_additions": [
     "## GPU / Compute",
-    "- Record for every run: model id, device, backend, batch size, runtime, artifact outputs.",
+    "- Record for every run: model id, device, backend, batch size, runtime, artifact outputs, and the config version + code SHA that produced them.",
+    "- Pre-scale gate: before any large paid run — (1) first-principles audit of the pipeline architecture, (2) a measured smoke test at minimal scale, (3) explicit operator spend approval. Patches do not clear the gate; systemic soundness does.",
     "- Cost acknowledgment required before any paid inference or training run.",
     "- GPU memory is the primary constraint — log batch size and gradient accumulation settings.",
     "- Prefer remote GPU or cluster for training; local machine for exploration and debugging only.",
     "- On a cluster that uses environment modules rather than conda, `module load` the desired Python and set `EPISTEME_PYTHON_PREFIX` (or `EPISTEME_PYTHON`) to pin it."
   ],
   "workflow_notes": [
-    "Use the `bounded-loop-runner` skill for hyperparameter sweeps and training loops.",
-    "Log experiment results to `docs/PROGRESS.md` after each significant run.",
+    "Use the `overnight-loop` skill for hyperparameter sweeps and long training loops — write the invariant file first (metric dry-run + iteration-0 baseline included).",
+    "Log experiment results to the project's declared progress doc after each significant run (EVENTS.md index + NEXT_STEPS.md in the default scaffold).",
     "Record GPU backend, model id, and quota constraints in `docs/RUN_CONTEXT.md`.",
     "Keep raw data, model weights, and checkpoints out of Git — add them to `.gitignore`.",
-    "Prefer small smoke-test runs locally before scaling to full compute."
+    "Prefer small smoke-test runs locally before scaling to full compute.",
+    "Config discipline (two surfaces): versioned input/artifact paths live in ONE config module (env-overridable); behavioral tunables live in ONE grouped constants module wired through argparse defaults, with env flags resolved at call time, not import time. Centralize by inventory, not blindly — classify every value (move / env-flag / stays-coupled / stays-vendor / stays-frozen) and record why the stays stay; guard the convention with a build-failing tripwire (a new inline hyperparam or unregistered flag fails CI).",
+    "Stage promotions are gated by a recorded measurement artifact — measured metrics plus an explicit verdict token plus the disconfirmation evidence checked (what was NOT lost) — assertion alone never advances the pipeline.",
+    "Reserve 'gold' naming for human-verified truth: machine/LLM-labeled sets carry their tier in the filename, and every reported metric names the ground-truth tier it was measured against.",
+    "Confirm on multiple seeds before claiming generalization — one seed is an anecdote.",
+    "Ship behavior changes behind default-OFF flags recorded with their defaults — the legacy path stays reproducible and reversal is one env var; a green regression suite is a precondition, not a goal."
   ],
   "safety_notes": [
     "Cost acknowledgment required before any paid inference or training run.",
