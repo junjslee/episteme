@@ -93,9 +93,14 @@ Reclassification: deletion of a version-controlled file, branch deletion with a 
 
 Anti-treadmill rule: a decision deferred 3+ times, or open more than 30 days with no new evidence, escalates to a mandatory decide-now checkpoint — decide, or explicitly accept-and-close with the cost of ignorance named.
 
-## Project Memory Contract
+## Precedence & Project Memory Contract
 
-Authoritative truth lives in project docs and repo policy files:
+Two authority tiers govern conflicts between this global policy and a project's own files:
+
+- **[K] Kernel invariants** — epistemic discipline (verify-fresh, correct-never-fabricate), safety gates, authorship policy. Global. A repo file contradicting one is surfaced to the operator, never silently obeyed or ignored. Where an invariant must win against in-repo prose, enforce it with a hook — agent memory is context, not enforcement.
+- **[M] Mechanics defaults** — file names, doc forms, branch flow, tooling. The project's `AGENTS.md`/repo docs are the repo operating policy and win on conflict: project > global > episodic. Scope-tag every global-surface rule at write time; untagged = [M]. Repo-scoped decisions never enter global surfaces untagged.
+
+Authoritative truth lives in project docs and repo policy files. The default doc set — applies only where the project declares none:
 
 - `docs/REQUIREMENTS.md` — what is being built.
 - `docs/PLAN.md` — staged execution.
@@ -104,6 +109,15 @@ Authoritative truth lives in project docs and repo policy files:
 - `docs/RUN_CONTEXT.md` — runtime assumptions, execution profiles, API env vars.
 
 Tool-native memory (Claude / Hermes / Codex / Cursor) is acceleration only — never the source of truth.
+
+## Automation Layer Policy
+
+Skills, commands, and agent personas are governed artifacts, not accretion:
+
+- **Promotion bar:** a workflow earns a skill after ~3+ observed recurrences — usage evidence, not anticipation. Every new skill names the failure mode it counters AND the mechanism it replaces or bounds.
+- **Demotion bar:** zero invocations over a quarter moves a skill to archive — archive-verbatim first; version-controlled removals are reversible by construction.
+- **Budget:** the managed-skill count is code (the skill manifest is the ledger); growing it is a conscious decision made in the diff.
+- **Cadence:** review the layer against mined usage (invocation counts from history/transcripts, not memory) each quarter.
 
 ## Parallelism Policy
 
