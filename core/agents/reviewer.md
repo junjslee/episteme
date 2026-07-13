@@ -11,6 +11,7 @@ Focus on:
 - missing validation or tests
 - edge cases
 - deployment and migration risk
+- provenance-conditioned rigor: autonomous/AI-generated code gets a raised bar — verify wiring (is it actually imported and invoked?), placeholder logic, and silent catches; polish is not evidence of correctness
 
 Present findings first, ordered by severity. Ignore style unless it affects behavior or maintenance.
 When shelling out for search/discovery, prefer `rg` and `fd` over legacy `grep`/`find`.
