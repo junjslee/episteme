@@ -44,6 +44,7 @@ Operator-defined policy derived from top-down cognitive principles. This file is
 3) **Execute**
 - Run one bounded lane per task owner.
 - Prefer reversible moves first.
+- A named reversibility tactic: ship behavior changes behind default-OFF toggles recorded with their defaults — the legacy path stays reproducible and reversal is one switch.
 - Record assumptions when data is incomplete.
 
 4) **Verify**
@@ -53,6 +54,8 @@ Operator-defined policy derived from top-down cognitive principles. This file is
 - Explicitly mark residual unknowns at handoff time.
 - Evaluate hypothesis result: validated, refined, or invalidated.
 - Persist invalidated hypotheses into the handoff as an explicit ruled-out list (with the why) — negative results are artifacts, not exhaust; they stop dead branches being re-litigated next session.
+- Encode every cross-artifact sync invariant ("these two must stay consistent") as a build-failing test; tracked exceptions get a ceiling that only moves by resolving items, never by rubber-stamping new drift.
+- State how each verification was performed — manual read of real output vs script-mediated. A script you wrote to verify your own work is itself an unverified claim until spot-checked against the raw thing.
 
 5) **Handoff**
 - Update authoritative docs: REPLACE `docs/NEXT_STEPS.md`, append one line to `docs/EVENTS.md`, and update `docs/PLAN.md` when the plan changed.

@@ -49,17 +49,22 @@
   "run_context_additions": [
     "## Pipeline Execution",
     "- Local runs are for development and smoke testing only — not production scale.",
-    "- Record for every production run: trigger, input dataset version, output location, row counts, runtime.",
+    "- Record for every production run: trigger, input dataset version, output location, row counts, runtime, and the config version + code SHA that produced it.",
+    "- Pre-scale gate: before any large paid or full-corpus run — (1) first-principles audit of the pipeline architecture, (2) a measured smoke test on a small sample, (3) explicit operator spend approval. Patches do not clear the gate; systemic soundness does.",
     "- Cost acknowledgment required before any large-scale remote execution.",
     "- Treat data mutations as irreversible — prefer append-only or versioned writes.",
     "- Always test with a small sample before running at full scale."
   ],
   "workflow_notes": [
     "Design every pipeline step for idempotency — assume it may run more than once.",
-    "Log input and output record counts for every pipeline run in `docs/PROGRESS.md`.",
-    "Use the `bounded-loop-runner` skill for backfill jobs or batch iterations.",
+    "Log input and output record counts for every pipeline run in the project's declared progress doc (EVENTS.md index + NEXT_STEPS.md in the default scaffold).",
+    "Use the `overnight-loop` skill for backfill jobs or batch iterations — write the invariant file first.",
     "Test with a small data sample before running at full scale.",
-    "Record pipeline run metadata (trigger, duration, row counts) in the action log."
+    "Record pipeline run metadata (trigger, duration, row counts) in the action log.",
+    "Silent drops are defects: every filter/gate stage logs counts in, counts out, and discard reasons — and an artifact that cannot be traced back to its inputs, config version, and producing code is a defect too.",
+    "Config discipline (two surfaces): versioned input/artifact paths in ONE config module (env-overridable); behavioral tunables in ONE grouped constants module wired through argparse defaults, env flags resolved at call time. Classify before centralizing (move / env-flag / stays-coupled / stays-vendor / stays-frozen — record why the stays stay) and guard the convention with a build-failing tripwire.",
+    "Stage promotions are gated by a recorded measurement artifact — measured metrics plus an explicit verdict token plus the disconfirmation evidence checked — assertion alone never advances the next stage.",
+    "Ship behavior changes behind default-OFF flags recorded with their defaults; a green regression suite is a precondition, not a goal."
   ],
   "safety_notes": [
     "Data mutations may be irreversible — verify inputs and outputs before any destructive step.",
