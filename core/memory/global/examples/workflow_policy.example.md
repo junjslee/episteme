@@ -52,6 +52,7 @@ Operator-defined policy derived from top-down cognitive principles. This file is
 - Distinguish proven facts from inferred conclusions.
 - Explicitly mark residual unknowns at handoff time.
 - Evaluate hypothesis result: validated, refined, or invalidated.
+- Persist invalidated hypotheses into the handoff as an explicit ruled-out list (with the why) — negative results are artifacts, not exhaust; they stop dead branches being re-litigated next session.
 
 5) **Handoff**
 - Update authoritative docs: REPLACE `docs/NEXT_STEPS.md`, append one line to `docs/EVENTS.md`, and update `docs/PLAN.md` when the plan changed.

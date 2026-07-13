@@ -30,6 +30,15 @@ One question. Get the answer. Then proceed.
 
 ## Process
 
+### Phase 0: Spec Compliance (build the right thing, then judge if it's built right)
+
+If a captured scope exists (swing-clarify output, PLAN success criteria, declared
+boundaries), check the delivery against it FIRST: each criterion `[MET / PARTIAL /
+NOT MET]`, each boundary `[RESPECTED / VIOLATED]`. A beautifully-built wrong thing
+must fail here — the quality vectors below are blind to scope drift. Do NOT
+fabricate criteria when none were captured: state "no captured scope; Phase 0
+skipped" and move on.
+
 ### Phase 1: Steel-Man
 
 Before any criticism, articulate:
@@ -66,6 +75,16 @@ Test behavior and outcomes, not internal structure.
 - What is the weakest structural link?
 - Which component, if changed, would cause the most cascading failures?
 Examine architecture, not logical reasoning.
+
+### Phase 2.5: Domain Blind-Spot Pass (external signal)
+
+The three vectors above are self-generated — the reviewing model shares the
+author's blind spots. Scan the subject for the trigger keywords in
+`blind-spots.md` (this skill's directory) and run every matched entry's check as
+an additional review question. These are externally curated operational
+perspectives (rollback-schema divergence, tenant isolation, thundering herds,
+credential MTTR…) that in-model adversarial method cannot manufacture. Report
+matched-and-cleared as well as matched-and-hit.
 
 ### Phase 3: Severity Classification
 
@@ -238,6 +257,16 @@ When reviewing code (files, PRs, diffs):
 - Verify error handling completeness
 - Assess test coverage of edge cases
 - Review naming, structure, and abstraction levels
+- **Provenance escalation:** identify how the code was produced — Human /
+  AI-assisted / Autonomous / Unknown — and raise the rigor bar for autonomous or
+  unknown provenance; polish is not evidence of correctness. Elevated-scrutiny
+  signatures: option-heavy abstractions unjustified by tests, placeholder logic
+  and "future-ready" dead branches, unwired components with no execution path,
+  silent failure handling (broad catches), tests that assert less than they appear to.
+- **Completeness ladder:** report each touched component as
+  Exists → Substantive → Wired → Functional. "Wired" is the rung autonomous
+  codegen most often fakes — a component imported/invoked nowhere is blocking
+  regardless of its internal quality.
 
 ### Architecture Decision Mode
 When reviewing architecture/design decisions:
@@ -267,22 +296,22 @@ When reviewing pull requests:
 ## When NOT to Use
 
 - Trivial changes (typos, formatting)
-- When exploration is needed first (use `swing-research`)
-- When generating alternatives (use `swing-options`)
-- When you need neutral, exhaustive analysis without a verdict (use `deep-dive-analyzer` — it understands; this skill *challenges*)
+- When exploration is needed first (use `swing-research` — it investigates neutrally; this skill *challenges*)
+- When generating alternatives (use `superpowers:brainstorming`)
 - Personal preferences or subjective design choices
 
 ## Integration Notes
 
-- **With swing-clarify:** Run swing-clarify first on ambiguous requests before invoking this skill. Clarified scope produces better results.
-- **With swing-options:** After adversarial review reveals problems, use swing-options to generate alternative approaches
+- **With swing-clarify:** Run swing-clarify first on ambiguous requests before invoking this skill. Its clarified scope + Good-enough/Exceptional tiers + boundaries are exactly what Phase 0 checks against.
+- **With superpowers:brainstorming:** After adversarial review reveals problems, use it to generate alternative approaches
 - **With swing-research:** Use research to verify claims made during review (e.g., "is this really a security risk?"). For a full-rigor workflow: `swing-research` → `swing-review`
-- **With deep-dive-analyzer:** For understanding before challenging: `deep-dive-analyzer` (understand) → `swing-review` (challenge). This skill focuses on finding flaws; deep-dive focuses on neutral exhaustive analysis.
+- **With subagent panels:** when fanning out multiple reviewers, choose the mode consciously and say which — blinded (independent passes, no cross-contamination; anti-anchoring) vs cross-critique (deeper, but anchors on the first voice). Synthesize by mapping agreement AND disagreement; disagreement between lenses is information, not noise.
 - **With orchestrator strategy team:** Complements the strategy team's Devil's Advocate agent with structured methodology
 
 ## Provenance
 
 - Source: `whynowlab/swing-skills`
 - Adaptation: curated and modified for episteme workflows; wording, constraints, and examples may differ from upstream.
+- E154 additions (Phase 0 spec-compliance staging, Phase 2.5 blind-spot pass + `blind-spots.md`, provenance escalation, completeness ladder, blinded-vs-cross-critique panel note) adapted from the retired `octo` plugin 9.4.2 (nyldn-plugins) — see `skills/vendor/SOURCES.md`.
 - Policy: inspired-by reference retained for attribution; this runtime copy is not presented as an upstream verbatim artifact.
 

@@ -44,6 +44,11 @@ checking signal is the load-bearing component, not the act of checking. Why exte
 evidence: self-review without a new signal measurably degrades accuracy; a verification
 step that reads no file, runs no command, and searches nothing is a null op.
 
+Prefer independence of **method** as well as of agent: for calculational or
+derivational claims, verify by a different route (recompute from the opposite
+direction, a different tool, a different data source) — two agents re-running the
+same method share the method's failure modes.
+
 **5 · Argue the opposition.** Write the strongest case **against** the decision — as an
 advocate assigned that position, not as a neutral reviewer summarizing risks. What would
 the person who disagrees say, and what is their best evidence?
@@ -51,6 +56,12 @@ the person who disagrees say, and what is their best evidence?
 Materiality threshold: flag only objections that would change the decision. If the honest
 opposition is weak, write "no material case against" and why — a manufactured objection
 is as dishonest as a suppressed one.
+
+Convergence speed is a signal, not a comfort: if every claim verified clean and nothing
+moved on the first pass, treat the decision as under-tested rather than settled. Preserve
+material dissent — an objection that came close gets recorded in the artifact, not
+dropped; discarded minority findings are how the next session re-litigates a settled
+question blind.
 
 **6 · Name the weakest link.** Which single claim is most likely to be wrong? What is the
 **cheapest decisive test** that would settle it? If that test costs less than being wrong,
@@ -67,7 +78,8 @@ wrong after the fact. Anchor it to the weakest link. "If issues arise" is not ob
   say so to the operator
 
 A refuted load-bearing claim with a `proceed` verdict is a contradiction; the gate
-rejects it.
+rejects it. And a `proceed` verdict is a strong prior, not a conclusion — it stays
+subordinate to the empirical test named in the disconfirmation field.
 
 **9 · Extract the lesson (usually null).** If this interrogation taught something durable
 and context-specific — "in this project/subsystem/decision-shape, do Y, because verified

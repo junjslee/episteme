@@ -65,8 +65,13 @@ Impact: [what changes depending on the answer]
 
 After receiving answers (or user says "go with defaults"):
 1. Restate the clarified scope in 3-5 bullet points
-2. Note any remaining assumptions (rated as Assumable, not Ambiguous)
-3. Proceed with execution
+2. Split the success bar in two tiers: **Good enough =** the floor that must be
+   met (blocks under-building) and **Exceptional =** explicitly optional polish
+   (blocks gold-plating — anything above the floor is a conscious choice, not drift)
+3. State **Boundaries — what this is NOT**: 1-3 lines of explicitly out-of-scope
+   ground, so "not built" is distinguishable from "forgotten"
+4. Note any remaining assumptions (rated as Assumable, not Ambiguous)
+5. Proceed with execution
 
 
 ## Output Format
@@ -99,6 +104,10 @@ Impact: [what changes]
 - [bullet 1]
 - [bullet 2]
 - [bullet 3]
+
+**Good enough =** [the floor — delivery below this is incomplete]
+**Exceptional =** [optional polish — only with time/budget left]
+**NOT this:** [explicitly out-of-scope]
 
 ### Remaining Assumptions
 - [assumption 1] — rated Assumable because [reason]
@@ -189,14 +198,13 @@ Why this is better:
 
 - **Before everything:** swing-clarify is designed to run FIRST. Clarified scope feeds into all other skills.
 - **With swing-research:** Clarified scope → focused research questions (prevents researching the wrong thing)
-- **With swing-review:** Clarified scope → review against actual requirements (prevents reviewing against assumed requirements)
-- **With swing-options:** Clarified constraints → better option generation (constraints define what's conventional vs unconventional)
+- **With swing-review:** Clarified scope + Good-enough/Exceptional tiers + boundaries → swing-review's Phase 0 spec-compliance gate checks the delivery against exactly this artifact (prevents reviewing against assumed requirements)
 - **With swing-mortem:** Clarified assumptions → more specific failure scenarios
-- **With swing-trace:** Clarified scope → clearer claim isolation in Stage 1 (fewer ambiguous assumptions to trace)
 
 ## Provenance
 
 - Source: `whynowlab/swing-skills`
 - Adaptation: curated and modified for episteme workflows; wording, constraints, and examples may differ from upstream.
+- E154 addition (Good-enough/Exceptional two-tier success bar + explicit Boundaries in the clarified-scope output) adapted from the retired `octo` plugin 9.4.2 intent-contract shape — content only; no stateful contract file, per anti-accretion.
 - Policy: inspired-by reference retained for attribution; this runtime copy is not presented as an upstream verbatim artifact.
 
