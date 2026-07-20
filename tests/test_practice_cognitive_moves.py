@@ -114,3 +114,64 @@ def test_verify_stage_includes_disconfirmation_move():
     verify = moves_by_stage("verify")
     discon_moves = [m for m in verify if "disconfirmation" in m.id]
     assert len(discon_moves) >= 1
+
+
+# ---- Event 161 · doc-code parity: the mirror reads the actual doc ----
+
+
+def _doc_text() -> str:
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    return (root / "docs" / "THE_WAY_TO_THINK.md").read_text(encoding="utf-8")
+
+
+def test_doc_anchor_sections_exist_in_the_doc():
+    # E148's mirror checked anchor SHAPE only; a renamed/removed doc
+    # section drifted silently. Every move's § N(.N) must exist as a
+    # real heading in THE_WAY_TO_THINK.md.
+    import re
+    doc = _doc_text()
+    for move in COGNITIVE_MOVES.values():
+        m = re.search(r"§ (\d+(?:\.\d+)?)", move.doc_anchor)
+        assert m, f"{move.id}: doc_anchor carries no § number: {move.doc_anchor}"
+        num = m.group(1)
+        assert re.search(rf"^#+ {re.escape(num)}[. ]", doc, re.MULTILINE), (
+            f"{move.id}: doc_anchor § {num} has no matching heading in "
+            f"THE_WAY_TO_THINK.md — doc and registry have drifted"
+        )
+
+
+def test_gate_labels_match_guard_duplicates():
+    # The PreToolUse gate names the skipped cognitive move in its block
+    # message (Event 161). The guard duplicates the labels per the
+    # hooks-stay-self-contained convention; this is the parity lock.
+    from core.practice.cognitive_moves import gate_move_labels
+    from core.hooks import reasoning_surface_guard as guard  # pyright: ignore[reportAttributeAccessIssue]
+    assert guard._MOVE_BY_FIELD == gate_move_labels()
+
+
+def test_doc_numeric_claims_match_signed_schema():
+    # THE_WAY_TO_THINK claims 'min 20 chars' (core_question) and
+    # 'min 30 chars' (cost_of_ignorance); the schema constants are the
+    # truth those claims must track.
+    from episteme.surface._builder import MIN_LENGTH_FIELDS  # pyright: ignore[reportMissingImports]
+    doc = _doc_text()
+    assert MIN_LENGTH_FIELDS["core_question"] == 20
+    assert "min 20 chars" in doc
+    assert MIN_LENGTH_FIELDS["unknowns[].cost_of_ignorance"] == 30
+    assert "min 30 chars" in doc
+
+
+def test_doc_does_not_overclaim_unwired_enforcement():
+    # Event 161 audit: the doc claimed an LLM-paraphrase classifier
+    # 'must pass' when no classifier exists in the codebase, and that
+    # PTSP 'forces context injection' when core/ptsp/context_injection
+    # has no consumers. The identity doc must not overclaim — deferred
+    # designs are named as deferred.
+    doc = _doc_text()
+    assert "must pass LLM-paraphrase classifier" not in doc, (
+        "THE_WAY_TO_THINK claims a deployed paraphrase classifier; none exists"
+    )
+    assert "Forces context injection" not in doc, (
+        "THE_WAY_TO_THINK claims PTSP context injection is forced; it is unwired"
+    )

@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E148 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E161 -->
 # The Way to Think — 생각의 틀
 
 > *"The product is a way to think when the model can finish your sentences."*
@@ -86,7 +86,7 @@ Authored in [`core/memory/global/cognitive_profile.md`](/Users/junlee/episteme/c
 | Start from uncomfortable friction | Curiosity-driven exploration that never lands | Surface must declare the *uncomfortable friction* in the operator's own words |
 | Form explicit hypothesis early (*A likely works because B*) | Floating reasoning that never commits | `decision.choice` + `decision.confidence` with elicitation method |
 | Strict utility filter: *so what is the cost of staying ignorant?* | Information collection without operational utility | `unknowns[].cost_of_ignorance` (min 30 chars; operator-authored) |
-| Rebuild ideas in your own language | Quoting authority without understanding | Surface text must pass LLM-paraphrase classifier check (the model couldn't have authored it) |
+| Rebuild ideas in your own language | Quoting authority without understanding | Today: operator signing key + factored interrogation (a fresh context verifies substance it never drafted). Deferred design, not yet wired: LLM-paraphrase classifier over surface text — tracked as a deferred discovery, not claimed as deployed |
 | Invite audit of reasoning paths, not just conclusions | Conclusion-only handoffs lose the chain | The signed surface IS the reasoning path; reasoning is the persisted artifact |
 
 ---
@@ -170,7 +170,7 @@ The practice maps to artifacts that fall into three lanes:
 | Artifact | What it does | Source |
 |---|---|---|
 | Pre-tool-use validator hook | Blocks irreversible-class action until a valid signed surface exists | `core/hooks/reasoning_surface_guard.py` (default) + `src/episteme/hooks/signed_surface_validator.py` (opt-in signed-surface variant) |
-| PTSP typed ledgers | Forces context injection to distinguish `<fact>` from `<inference>` in next-step prompts | `core/ptsp/` |
+| PTSP typed ledgers | Typed `Fact`/`Inference` ledgers with the promotion gate, live in the practice CLI + signing path. Next-step prompt context injection (`core/ptsp/context_injection.py`) is designed and not yet wired into the agent hook loop — tracked as a deferred discovery | `core/ptsp/` |
 | Promotion Gate (Invariants I1–I5) | An `Inference` cannot become a `Fact` without explicit external evidence | `core/ptsp/promotion.py` |
 | Substrate adapters (Claude Code, Hermes) | Practice follows the operator across substrates; same gate exists wherever the operator works | `core/hooks/`, `src/episteme/adapters/hermes.py`, `adapters/claude/` |
 
