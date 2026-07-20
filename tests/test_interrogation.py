@@ -444,5 +444,93 @@ class RootBoundary(unittest.TestCase):
             self.assertEqual(_interrogation.artifact_status(sub)[0], "missing")
 
 
+# ---------- Verdict spot-check enqueue (E5 · Event 157 cap contract) -----
+
+
+class VerdictSpotCheckEnqueue(unittest.TestCase):
+    """enqueue_verdict_spot_check must honor the Layer 8 pending cap
+    (Event 157): sample-all by design, but never past the backpressure
+    bound the E148 closure rests on."""
+
+    def _spot(self):
+        from core.hooks import _spot_check  # pyright: ignore[reportAttributeAccessIssue]
+        return _spot_check
+
+    def test_enqueues_below_cap(self):
+        with EphemeralHome(), _TmpProject() as proj:
+            _write_artifact(proj, _valid_artifact())
+            ok = _interrogation.enqueue_verdict_spot_check(
+                proj, op_label="cascade:architectural"
+            )
+            self.assertTrue(ok)
+            self.assertEqual(self._spot().count_pending(), 1)
+
+    def test_idempotent_per_artifact_content(self):
+        with EphemeralHome(), _TmpProject() as proj:
+            _write_artifact(proj, _valid_artifact())
+            self.assertTrue(
+                _interrogation.enqueue_verdict_spot_check(
+                    proj, op_label="cascade:architectural"
+                )
+            )
+            self.assertFalse(
+                _interrogation.enqueue_verdict_spot_check(
+                    proj, op_label="cascade:architectural"
+                )
+            )
+            self.assertEqual(self._spot().count_pending(), 1)
+
+    def test_declines_at_cap_and_bumps_skip_counter(self):
+        with EphemeralHome(), _TmpProject() as proj:
+            _spot = self._spot()
+            seed = {
+                "type": _spot.ENTRY_TYPE,
+                "correlation_id": "seed-fresh",
+                "queued_at": _spot._iso(datetime.now(timezone.utc)),
+                "op_label": "git push",
+                "blueprint": "generic",
+                "context_signature": {},
+                "surface_snapshot": {},
+                "multipliers_applied": [],
+                "effective_rate_at_sample": 1.0,
+            }
+            self.assertTrue(_spot.enqueue_direct(seed).queued)
+            _write_artifact(proj, _valid_artifact())
+            with patch.dict(os.environ, {"EPISTEME_SPOT_CHECK_CAP": "1"}):
+                ok = _interrogation.enqueue_verdict_spot_check(
+                    proj, op_label="cascade:architectural"
+                )
+            self.assertFalse(ok)
+            self.assertEqual(_spot.count_pending(), 1)
+            self.assertEqual(
+                _spot.read_skip_counter()["skipped_count"], 1
+            )
+
+    def test_at_cap_stale_relief_restores_interrogation_sampling(self):
+        with EphemeralHome(), _TmpProject() as proj:
+            _spot = self._spot()
+            stale = {
+                "type": _spot.ENTRY_TYPE,
+                "correlation_id": "seed-stale",
+                "queued_at": _spot._iso(
+                    datetime.now(timezone.utc) - timedelta(days=8)
+                ),
+                "op_label": "git push",
+                "blueprint": "generic",
+                "context_signature": {},
+                "surface_snapshot": {},
+                "multipliers_applied": [],
+                "effective_rate_at_sample": 1.0,
+            }
+            self.assertTrue(_spot.enqueue_direct(stale).queued)
+            _write_artifact(proj, _valid_artifact())
+            with patch.dict(os.environ, {"EPISTEME_SPOT_CHECK_CAP": "1"}):
+                ok = _interrogation.enqueue_verdict_spot_check(
+                    proj, op_label="cascade:architectural"
+                )
+            self.assertTrue(ok)
+            self.assertEqual(_spot.stats()["expired"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()

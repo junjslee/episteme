@@ -828,5 +828,193 @@ class ProjectOverrideRootResolution(unittest.TestCase):
             )
 
 
+# ---------- Cap relief + drain truthfulness (Event 157) -----------------
+
+
+def _stale_payload(cid: str, *, age_days: int = 8) -> dict:
+    """Entry payload with a queued_at older than the cap-expiry age
+    floor, in the direct-enqueue (interrogation-shaped) form."""
+    queued = datetime.now(timezone.utc) - timedelta(days=age_days)
+    return {
+        "type": _spot_check.ENTRY_TYPE,
+        "correlation_id": cid,
+        "queued_at": _spot_check._iso(queued),
+        "op_label": "cascade:architectural",
+        "blueprint": "interrogation",
+        "context_signature": {},
+        "surface_snapshot": {"interrogation": {"verdict": "proceed"}},
+        "multipliers_applied": ["interrogation_verdict"],
+        "effective_rate_at_sample": 1.0,
+    }
+
+
+def _fresh_payload(cid: str) -> dict:
+    return _stale_payload(cid, age_days=0)
+
+
+class CapExpiryRelief(unittest.TestCase):
+    """At cap, pending entries older than CAP_EXPIRY_AGE_SECONDS age out
+    as chained ``spot_check_expiry`` records so sampling resumes instead
+    of silently stopping (Event 157 — the E148 cap was a brake, not a
+    drain)."""
+
+    def _cwd_rate_one(self, stack):
+        import contextlib  # noqa: F401 — parity with EnqueueBackpressure
+        cwd = stack.enter_context(tempfile.TemporaryDirectory())
+        (Path(cwd) / ".episteme").mkdir()
+        (Path(cwd) / ".episteme" / "spot_check_rate").write_text("1.0\n")
+        return Path(cwd)
+
+    def test_at_cap_expires_stale_and_enqueues(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            old_now = datetime.now(timezone.utc) - timedelta(days=8)
+            r_old = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-stale"),
+                cwd=cwd, now=old_now,
+            )
+            self.assertTrue(r_old.queued)
+            r_new = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-new"), cwd=cwd, cap=1
+            )
+            self.assertTrue(r_new.queued)
+            self.assertEqual(r_new.reason, "queued")
+            pending = _spot_check.list_pending()
+            self.assertEqual(
+                [e.payload["correlation_id"] for e in pending], ["cid-new"]
+            )
+            st = _spot_check.stats()
+            self.assertEqual(st["expired"], 1)
+            self.assertEqual(st["pending"], 1)
+
+    def test_at_cap_young_queue_still_declines(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            r0 = _force_queue("cid-young", cwd)
+            self.assertTrue(r0.queued)
+            r1 = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-next"), cwd=cwd, cap=1
+            )
+            self.assertFalse(r1.queued)
+            self.assertEqual(r1.reason, "cap_exceeded")
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 1
+            )
+            self.assertEqual(_spot_check.stats()["expired"], 0)
+
+    def test_expiry_records_survive_chain_verification(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            old_now = datetime.now(timezone.utc) - timedelta(days=8)
+            _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-stale"),
+                cwd=cwd, now=old_now,
+            )
+            _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-new"), cwd=cwd, cap=1
+            )
+            verdict = _spot_check.verify_chain()
+            self.assertTrue(verdict.intact)
+
+    def test_expired_entry_can_still_be_verdicted(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = self._cwd_rate_one(stack)
+            old_now = datetime.now(timezone.utc) - timedelta(days=8)
+            _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-stale"),
+                cwd=cwd, now=old_now,
+            )
+            _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-new"), cwd=cwd, cap=1
+            )
+            # Operator judgment on an aged-out entry still lands; the
+            # verdict supersedes the expiry in stats.
+            _spot_check.write_verdict(
+                "cid-stale", {"surface_validity": "real"}
+            )
+            st = _spot_check.stats()
+            self.assertEqual(st["verdicted"], 1)
+            self.assertEqual(st["expired"], 0)
+
+
+class DirectEnqueue(unittest.TestCase):
+    """enqueue_direct — the cap-aware path for always-sample producers
+    (interrogation verdicts). Same backpressure contract as
+    maybe_sample (Event 157: closes the E148 cap bypass)."""
+
+    def test_below_cap_appends(self):
+        with EphemeralHome():
+            r = _spot_check.enqueue_direct(_fresh_payload("iv-1"))
+            self.assertTrue(r.queued)
+            self.assertEqual(_spot_check.count_pending(), 1)
+
+    def test_dedupe_by_correlation_id(self):
+        with EphemeralHome():
+            self.assertTrue(
+                _spot_check.enqueue_direct(_fresh_payload("iv-1")).queued
+            )
+            r2 = _spot_check.enqueue_direct(_fresh_payload("iv-1"))
+            self.assertFalse(r2.queued)
+            self.assertEqual(r2.reason, "already_queued")
+            self.assertEqual(_spot_check.count_pending(), 1)
+
+    def test_at_cap_declines_and_bumps_skip_counter(self):
+        with EphemeralHome():
+            self.assertTrue(
+                _spot_check.enqueue_direct(_fresh_payload("iv-1")).queued
+            )
+            r2 = _spot_check.enqueue_direct(_fresh_payload("iv-2"), cap=1)
+            self.assertFalse(r2.queued)
+            self.assertEqual(r2.reason, "cap_exceeded")
+            self.assertEqual(_spot_check.count_pending(), 1)
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 1
+            )
+
+    def test_at_cap_stale_relief_then_appends(self):
+        with EphemeralHome():
+            self.assertTrue(
+                _spot_check.enqueue_direct(_stale_payload("iv-old")).queued
+            )
+            r2 = _spot_check.enqueue_direct(_fresh_payload("iv-new"), cap=1)
+            self.assertTrue(r2.queued)
+            pending = _spot_check.list_pending()
+            self.assertEqual(
+                [e.payload["correlation_id"] for e in pending], ["iv-new"]
+            )
+            self.assertEqual(_spot_check.stats()["expired"], 1)
+
+
+class SkipCounterReset(unittest.TestCase):
+    """The banner reads 'skipped since last drain' — so drain activity
+    (a verdict write) must reset the counter, or the label lies
+    (Event 157 truthfulness fix)."""
+
+    def test_write_verdict_resets_skip_counter(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = stack.enter_context(tempfile.TemporaryDirectory())
+            (Path(cwd) / ".episteme").mkdir()
+            (Path(cwd) / ".episteme" / "spot_check_rate").write_text("1.0\n")
+            cwd = Path(cwd)
+            r0 = _force_queue("cid-0", cwd)
+            self.assertTrue(r0.queued)
+            # Bump the counter via an at-cap decline on a young queue.
+            _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-1"), cwd=cwd, cap=1
+            )
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 1
+            )
+            _spot_check.write_verdict("cid-0", {"surface_validity": "real"})
+            self.assertEqual(
+                _spot_check.read_skip_counter()["skipped_count"], 0
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

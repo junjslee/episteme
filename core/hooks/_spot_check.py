@@ -43,6 +43,22 @@ CP7's ``_chain.append``. Three payload types:
 - ``spot_check_skip`` — operator deferred the entry; skip records
   carry a 7-day TTL (CP8 plan Q4). The reader treats an entry with
   a non-expired skip as "hidden"; after TTL the entry re-presents.
+  Wired to ``episteme review --skip`` (Event 157).
+- ``spot_check_expiry`` — terminal, machine-written aging-out of a
+  pending entry by the at-cap relief valve (Event 157). Unlike a
+  skip, an expiry never re-presents; an operator verdict written
+  afterwards supersedes it in ``stats``.
+
+## Enqueue paths + backpressure
+
+Two enqueue paths, one cap contract (Event 157): ``maybe_sample``
+(dice-rolled, PostToolUse) and ``enqueue_direct`` (always-sample
+producers — interrogation verdicts at rate 1.0, kernel E5). Both
+consult the pending cap; at cap, ``_cap_admit`` first ages out
+pending entries older than ``CAP_EXPIRY_AGE_SECONDS`` as chained
+expiry records so sampling resumes instead of silently stopping.
+Declines bump the skip sidecar; a verdict write resets it (the
+banner's 'since last drain' window).
 
 ## Verdict dimensions (locked per CP8 plan Q5)
 
@@ -108,6 +124,7 @@ from _chain import (  # noqa: E402  # pyright: ignore[reportMissingImports]
 ENTRY_TYPE = "spot_check_entry"
 VERDICT_TYPE = "spot_check_verdict"
 SKIP_TYPE = "spot_check_skip"
+EXPIRY_TYPE = "spot_check_expiry"
 
 BASE_RATE_COLD = 0.10
 BASE_RATE_WARM = 0.05
@@ -118,6 +135,17 @@ MULTIPLIER_SYNTHESIS_PRODUCED = 2.0
 MULTIPLIER_BLUEPRINT_D_RESOLUTION = 2.0
 
 SKIP_TTL_SECONDS = 7 * 24 * 60 * 60
+
+# Cap-relief expiry age (Event 157, M1 follow-through). The E148 cap
+# was a brake, not a drain: at saturation ``maybe_sample`` declined
+# silently, and once enqueue-rate outran the manual drain the sampler
+# stayed off (live queue re-reached cap within days of the E148
+# archive, 199 ops skipped). At cap, pending entries older than this
+# age floor are aged out as terminal, chained ``spot_check_expiry``
+# records — visible, auditable loss instead of a silent sampler outage
+# — and sampling resumes. Every entry is guaranteed at least this
+# window of operator reviewability before it can expire.
+CAP_EXPIRY_AGE_SECONDS = 7 * 24 * 60 * 60
 
 # Enqueue backpressure (Event 148, M1). The spot-check queue is
 # operator-facing and drained manually; automatic enqueue paired with a
@@ -396,6 +424,56 @@ def _resolve_pending_cap(explicit: int | None = None) -> int:
     return DEFAULT_PENDING_CAP
 
 
+def _expire_stale_pending(
+    target: Path,
+    now_dt: datetime,
+    *,
+    age_seconds: int = CAP_EXPIRY_AGE_SECONDS,
+) -> int:
+    """At-cap relief valve (Event 157): append a terminal
+    ``spot_check_expiry`` record for every pending entry older than
+    the age floor, so sampling resumes instead of silently stopping.
+    Terminal is deliberate — ``SKIP_TYPE`` is a snooze that re-presents
+    after its TTL and would re-saturate the cap on schedule. Returns
+    the count expired; ``ChainError``/``OSError`` propagate to the
+    caller's guard."""
+    cutoff = now_dt - timedelta(seconds=age_seconds)
+    expired = 0
+    for e in list_pending(path=target, now=now_dt):
+        queued = _parse_iso(str(e.payload.get("queued_at", "")))
+        if queued is None or queued > cutoff:
+            continue
+        _chain_append(target, {
+            "type": EXPIRY_TYPE,
+            "correlation_id": e.payload.get("correlation_id"),
+            "entry_hash": e.entry_hash,
+            "expired_at": _iso(now_dt),
+            "queued_at": e.payload.get("queued_at"),
+            "reason": "cap_relief",
+        })
+        expired += 1
+    return expired
+
+
+def _cap_admit(target: Path, cap_value: int, now_dt: datetime) -> bool:
+    """Shared cap consult for both enqueue paths (``maybe_sample`` and
+    ``enqueue_direct``). At cap, run the relief valve then recount.
+    A count error fails toward admit — the cap must NEVER block the
+    hook path or lose an existing entry (E148 contract, preserved)."""
+    try:
+        pending = count_pending(path=target, now=now_dt)
+    except Exception:
+        return True
+    if pending < cap_value:
+        return True
+    try:
+        if _expire_stale_pending(target, now_dt):
+            pending = count_pending(path=target, now=now_dt)
+    except (ChainError, OSError):
+        pass
+    return pending < cap_value
+
+
 def read_skip_counter(path: Path | None = None) -> dict:
     """Read the backpressure skip sidecar. Returns
     ``{"skipped_count": int, ...}`` — ``{"skipped_count": 0}`` when the
@@ -434,6 +512,29 @@ def _bump_skip_counter(
         "last_skipped_at": _iso(now),
         "last_reason": reason,
     }
+    if not _write_skip_counter(payload, target):
+        return None
+    return current + 1
+
+
+def _reset_skip_counter(
+    now: datetime, *, path: Path | None = None
+) -> None:
+    """Zero the backpressure counter. Drain activity (a verdict write)
+    starts a new window, so the SessionStart banner's 'skipped since
+    last drain' label stays truthful (Event 157 — previously nothing
+    ever reset this sidecar and the label was cumulative-forever).
+    Best-effort: never raises."""
+    target = path if path is not None else _skip_counter_path()
+    _write_skip_counter(
+        {"skipped_count": 0, "last_reset_at": _iso(now)}, target
+    )
+
+
+def _write_skip_counter(payload: dict, target: Path) -> bool:
+    """Atomic temp+rename write of the skip sidecar (same discipline as
+    the fence/cascade markers). Returns False when the write degraded —
+    callers must not block the admit path on it."""
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(
@@ -450,10 +551,10 @@ def _bump_skip_counter(
                 os.unlink(tmp)
             except OSError:
                 pass
-            return None
+            return False
     except OSError:
-        return None
-    return current + 1
+        return False
+    return True
 
 
 def _fatigue_active(
@@ -573,18 +674,17 @@ def maybe_sample(
 
         target = path if path is not None else _queue_path()
 
-        # Backpressure (Event 148, M1). Consult the pending set BEFORE
-        # appending. count_pending only runs on the sampled path (post
-        # dice-roll, ~base-rate of ops), and the cap keeps the pending
-        # set bounded going forward so this read stays cheap. A count
-        # error fails toward enqueue — the cap must NEVER block the hook
-        # or lose an existing entry.
+        # Backpressure (Event 148, M1) + relief valve (Event 157).
+        # Consult the pending set BEFORE appending. count_pending only
+        # runs on the sampled path (post dice-roll, ~base-rate of ops),
+        # and the cap keeps the pending set bounded going forward so
+        # this read stays cheap. At cap, _cap_admit first ages out
+        # pending entries past CAP_EXPIRY_AGE_SECONDS as chained expiry
+        # records — the sampler resumes instead of silently staying
+        # off. A count error fails toward enqueue — the cap must NEVER
+        # block the hook or lose an existing entry.
         cap_value = _resolve_pending_cap(cap)
-        try:
-            pending = count_pending(path=target, now=now_dt)
-        except Exception:
-            pending = None
-        if pending is not None and pending >= cap_value:
+        if not _cap_admit(target, cap_value, now_dt):
             _bump_skip_counter("cap_exceeded", now_dt, path=skip_counter_path)
             return SampleResult(
                 queued=False, correlation_id=correlation_id,
@@ -628,6 +728,65 @@ def maybe_sample(
         )
 
 
+def enqueue_direct(
+    payload: dict,
+    *,
+    path: Path | None = None,
+    now: datetime | None = None,
+    cap: int | None = None,
+    skip_counter_path: Path | None = None,
+) -> SampleResult:
+    """Cap-aware direct enqueue for always-sample producers — entries
+    whose effective rate is 1.0 by design (interrogation verdicts;
+    kernel falsifiability condition E5 needs them measurable) rather
+    than dice-rolled. Honors the same backpressure contract as
+    ``maybe_sample``: idempotent by correlation_id, at-cap relief via
+    the expiry valve, decline + skip-counter bump while saturated.
+    Event 157 — closes the E148 cap bypass (raw ``_chain_append`` from
+    the interrogation arm pushed pending past the cap). The caller owns
+    the payload, including ``queued_at``. Never raises."""
+    cid = str(payload.get("correlation_id") or "").strip()
+    try:
+        if payload.get("type") != ENTRY_TYPE or not cid:
+            return SampleResult(
+                queued=False, correlation_id=cid, effective_rate=0.0,
+                multipliers=(), entry_hash=None, reason="error",
+            )
+        rate = float(payload.get("effective_rate_at_sample") or 1.0)
+        multipliers = tuple(payload.get("multipliers_applied") or ())
+        target = path if path is not None else _queue_path()
+        if _correlation_already_queued(cid, path=target):
+            return SampleResult(
+                queued=False, correlation_id=cid, effective_rate=rate,
+                multipliers=multipliers, entry_hash=None,
+                reason="already_queued",
+            )
+        now_dt = now or datetime.now(timezone.utc)
+        cap_value = _resolve_pending_cap(cap)
+        if not _cap_admit(target, cap_value, now_dt):
+            _bump_skip_counter("cap_exceeded", now_dt, path=skip_counter_path)
+            return SampleResult(
+                queued=False, correlation_id=cid, effective_rate=rate,
+                multipliers=multipliers, entry_hash=None,
+                reason="cap_exceeded",
+            )
+        envelope = _chain_append(target, payload)
+        return SampleResult(
+            queued=True, correlation_id=cid, effective_rate=rate,
+            multipliers=multipliers, entry_hash=envelope["entry_hash"],
+            reason="queued",
+        )
+    except (ChainError, OSError, TypeError, ValueError) as exc:
+        sys.stderr.write(
+            f"[episteme spot_check] direct enqueue error: "
+            f"{exc.__class__.__name__}; admit path untouched\n"
+        )
+        return SampleResult(
+            queued=False, correlation_id=cid, effective_rate=0.0,
+            multipliers=(), entry_hash=None, reason="error",
+        )
+
+
 # ---------------------------------------------------------------------------
 # Read-side helpers
 # ---------------------------------------------------------------------------
@@ -640,6 +799,7 @@ class QueuedEntry:
     verdict: dict | None           # latest verdict record (payload dict) or None
     skip_until: datetime | None    # non-None when a non-expired skip was recorded
     entry_hash: str
+    expiry: dict | None = None     # terminal cap-relief record (Event 157) or None
 
 
 def _parse_iso(value: str) -> datetime | None:
@@ -673,6 +833,7 @@ def list_entries(
     entries: list[tuple[dict, dict]] = []      # (envelope, payload)
     verdicts_by_cid: dict[str, tuple[str, dict]] = {}   # cid -> (verdicted_at, payload)
     skips_by_cid: dict[str, datetime] = {}  # cid -> skip expires_at
+    expiries_by_cid: dict[str, dict] = {}   # cid -> expiry payload (terminal; first wins)
 
     for rec in records:
         payload = rec.get("payload") if isinstance(rec, dict) else None
@@ -696,18 +857,24 @@ def list_entries(
                 prior = skips_by_cid.get(cid)
                 if prior is None or expires > prior:
                     skips_by_cid[cid] = expires
+        elif ptype == EXPIRY_TYPE:
+            cid = payload.get("correlation_id")
+            if isinstance(cid, str):
+                expiries_by_cid.setdefault(cid, payload)
 
     out: list[QueuedEntry] = []
     for envelope, payload in entries:
         cid = payload.get("correlation_id")
         verdict_pair = verdicts_by_cid.get(cid) if isinstance(cid, str) else None
         skip_until = skips_by_cid.get(cid) if isinstance(cid, str) else None
+        expiry = expiries_by_cid.get(cid) if isinstance(cid, str) else None
         out.append(QueuedEntry(
             envelope=envelope,
             payload=payload,
             verdict=verdict_pair[1] if verdict_pair else None,
             skip_until=skip_until,
             entry_hash=envelope.get("entry_hash", ""),
+            expiry=expiry,
         ))
     return out
 
@@ -717,12 +884,12 @@ def list_pending(
     path: Path | None = None,
     now: datetime | None = None,
 ) -> list[QueuedEntry]:
-    """Entries with no verdict AND no active skip. Ordered by
-    ``queued_at`` ascending — oldest-first."""
+    """Entries with no verdict, no active skip, and no terminal expiry.
+    Ordered by ``queued_at`` ascending — oldest-first."""
     entries = list_entries(path=path, now=now)
     pending = [
         e for e in entries
-        if e.verdict is None and e.skip_until is None
+        if e.verdict is None and e.skip_until is None and e.expiry is None
     ]
     pending.sort(key=lambda e: str(e.payload.get("queued_at", "")))
     return pending
@@ -757,8 +924,13 @@ def stats(
     entries = list_entries(path=path, now=now)
     total = len(entries)
     verdicted = [e for e in entries if e.verdict is not None]
-    pending = [e for e in entries if e.verdict is None and e.skip_until is None]
+    pending = [
+        e for e in entries
+        if e.verdict is None and e.skip_until is None and e.expiry is None
+    ]
     skipped = [e for e in entries if e.skip_until is not None]
+    # An operator verdict on an aged-out entry supersedes its expiry.
+    expired = [e for e in entries if e.verdict is None and e.expiry is not None]
     distribution: dict[str, int] = {}
     for e in verdicted:
         verdicts = e.verdict.get("verdicts") if e.verdict else None
@@ -771,6 +943,7 @@ def stats(
         "verdicted": len(verdicted),
         "pending": len(pending),
         "skipped": len(skipped),
+        "expired": len(expired),
         "surface_validity_distribution": distribution,
     }
 
@@ -830,12 +1003,15 @@ def write_verdict(
     is_revision: bool = False,
     path: Path | None = None,
     now: datetime | None = None,
+    skip_counter_path: Path | None = None,
 ) -> dict:
     """Append a ``spot_check_verdict`` record. Never mutates the
     original entry. Raises ``ChainError`` when the entry does not
     exist or the verdict shape violates the required dimensions.
 
-    Returns the full envelope.
+    A successful verdict is drain activity: it resets the backpressure
+    skip counter so the banner's 'since last drain' window is truthful
+    (Event 157). Returns the full envelope.
     """
     entry = get_entry(correlation_id, path=path, now=now)
     if entry is None:
@@ -863,7 +1039,9 @@ def write_verdict(
         "is_revision": bool(is_revision),
     }
     target = path if path is not None else _queue_path()
-    return _chain_append(target, payload)
+    envelope = _chain_append(target, payload)
+    _reset_skip_counter(now_dt, path=skip_counter_path)
+    return envelope
 
 
 def write_skip(
