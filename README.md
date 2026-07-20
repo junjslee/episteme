@@ -92,7 +92,7 @@ Adopting in an existing repo? Run `episteme docs lint` first — it asks every t
 
 ## The demos
 
-Every demo ships its real artifacts — read them before any philosophy.
+Every demo ships its real artifacts. Read them before you read any philosophy — they're the receipts.
 
 | Demo | What it proves |
 |---|---|
@@ -113,19 +113,19 @@ Re-record the hero demo yourself: `scripts/demo_posture.sh` (recipe in the scrip
 | **Know-how** | Extracted at the file-system boundary, hash-chained, resurfaced by context | Opaque retrieval | Prompt-tuned, per session |
 | **Docs/state hygiene** | Lifecycle-linted, GC'd, drift-gated in CI | N/A | N/A |
 
-**Isn't this just contract testing?** Contract tests catch *behavioral* regressions — did the code do what the spec says. The Reasoning Surface catches *epistemological* regressions — did we write the right spec, frame the right question, name what would prove us wrong. A passing test suite cannot tell you you're solving the wrong problem fluently; that failure happens before the spec exists. episteme ships both layers ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
+**Isn't this just contract testing?** Contract tests ask *did the code do what the spec says.* The Reasoning Surface asks something earlier and harder: *was that the right spec, the right question, and what would have told us otherwise?* A green test suite can't tell you you're solving the wrong problem beautifully — that failure happens before the spec exists. episteme ships both layers ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
 
-**Why can't a prompt do this?** Prompts are advisory: they live for one call, get skipped at deadline, and vanish from context. A hook that exits non-zero cannot be skipped. The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 models, 8 labs, ~250k instances) found that showing models their own calibration doesn't help — *only architectural constraint is effective* (Confident Failure Rate 0.60 → 0.14). Posture over prompt.
+**Why can't a prompt do this?** Because prompts are suggestions. They live for one call, get skipped when you're in a hurry, and quietly fall out of context. A hook that exits non-zero doesn't negotiate. The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 models, 8 labs, ~250k instances) tested this directly: showing a model its own calibration scores changed nothing — *only architectural constraint helped* (confident-failure rate 0.60 → 0.14). Posture beats prompting.
 
 ## Honest limits
 
-- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) names when this kernel is the wrong tool. *A discipline without a boundary is a creed.*
-- The kernel measures its own claims: the protocol-synthesis loop fired its own falsifiability condition in 2026-06 (49 days, zero synthesized protocols) and was rebuilt to synthesize from verified interrogations — the audit trail is public ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). A kernel that enforces disconfirmation on your decisions owes you the same on its own.
-- Attribution for every borrowed concept, and the 2025–26 industry work that independently converged on the same patterns: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
+- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) says plainly when this is the wrong tool for you. *A discipline without a boundary is just a creed.*
+- It holds itself to the same standard. In June 2026 the protocol-synthesis loop tripped its own falsifiability condition — 49 days, zero protocols synthesized — and got rebuilt around verified interrogations instead. The whole trail is public ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). A tool that demands disconfirmation from your decisions owes you the same about itself.
+- Every borrowed idea is credited, alongside the 2025–26 work that arrived at similar patterns independently: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
 
 ## Under the hood
 
-Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is Frame → Decompose → Execute → Verify → Handoff, grounded in named counters to specific System-1 failure modes (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — the full operationalization is [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), and the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specified in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is five stages — Frame → Decompose → Execute → Verify → Handoff — and each one exists to counter a specific way minds go wrong under fluency: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. The full story is in [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specced in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
@@ -193,9 +193,9 @@ graph TD
     class A,B neutralStyle
 ```
 
-**Doxa** (red) — fluent-but-unvalidated output — is the failure state the kernel exists to prevent. **Episteme** (green) — a validated surface — is the precondition for execution. **Praxis** — the admitted action and its observed outcome. **결 · Gyeol** (blue) — the calibration loop that refines the framework across cycles. Works with any stack: the kernel is pure markdown, the profile plain JSON, the adapter layer (Claude Code, Hermes, OMO/OMX) pluggable.
+Four ideas, in the colors above. **Doxa** (red) is fluent-but-unvalidated output — the failure state this whole thing exists to prevent. **Episteme** (green) is a surface that actually holds up, and it's the price of admission for execution. **Praxis** is the action that got through, plus what really happened. **결 · Gyeol** (blue) is the loop that folds those outcomes back into how you're calibrated next time. Stack-agnostic by construction: the kernel is plain markdown, the profile plain JSON, the adapters (Claude Code, Hermes, OMO/OMX) swappable.
 
-The kernel itself — pure markdown, no code, no vendor lock-in — starts at [`kernel/`](./kernel/):
+The kernel itself — markdown, no code, nothing to lock you in — starts at [`kernel/`](./kernel/):
 
 | File | What it defines |
 |---|---|
@@ -237,4 +237,4 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 
 ## Commercial licensing
 
-For commercial licensing or consulting, [contact me](mailto:junseong.lee652@gmail.com).
+Need a commercial license, or want help adopting this? [Say hello](mailto:junseong.lee652@gmail.com) — I'd genuinely like to hear what you're building.
