@@ -297,13 +297,50 @@ def _collect_managed_hook_commands(settings: dict) -> set[str]:
     return commands
 
 
+def _managed_hook_basenames() -> set[str]:
+    """Script filenames of every managed hook across all packs."""
+    names: set[str] = set()
+    for m in ("minimal", "balanced", "strict"):
+        for cmd in _collect_managed_hook_commands(build_settings(m)):
+            for tok in cmd.split():
+                if tok.endswith(".py"):
+                    names.add(Path(tok).name)
+    return names
+
+
+def _is_toxic_clone_hook(cmd: str, managed_basenames: set[str]) -> bool:
+    """Event 170, from a live incident: the E166 rogue sync from a
+    scratchpad clone also MERGED its clone-path hook registrations into
+    settings.json, and the positive-system 'keep external hooks' rule
+    preserved them — 19 scripts then ran DOUBLE on every governed op
+    (double telemetry, double gates, doubled advisories).
+
+    The separating rule: a command whose script BASENAME matches a
+    managed hook but whose path lies OUTSIDE the primary checkout is a
+    clone's residue, not operator content — the operator's own hooks
+    have their own names. Managed-named scripts under REPO_ROOT stay;
+    non-managed names stay unconditionally."""
+    for tok in cmd.split():
+        if not tok.endswith(".py"):
+            continue
+        p = Path(tok)
+        if p.name in managed_basenames and not str(p).startswith(
+            str(_cli.REPO_ROOT)
+        ):
+            return True
+    return False
+
+
 def prune_managed_hook_entries(settings: dict, governance_mode: str) -> dict:
-    """Keep external hooks, but remove managed hooks not in the selected pack."""
+    """Keep external hooks, but remove managed hooks not in the selected
+    pack — and remove managed-NAMED hooks registered from outside the
+    primary checkout (toxic clone residue; see _is_toxic_clone_hook)."""
     mode = (governance_mode or "balanced").strip().lower()
     expected = _collect_managed_hook_commands(build_settings(mode))
     managed_any: set[str] = set()
     for m in ("minimal", "balanced", "strict"):
         managed_any.update(_collect_managed_hook_commands(build_settings(m)))
+    managed_basenames = _managed_hook_basenames()
 
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):
@@ -331,8 +368,13 @@ def prune_managed_hook_entries(settings: dict, governance_mode: str) -> dict:
                 if not isinstance(h, dict):
                     kept_hooks.append(h)
                     continue
-                cmd = normalize_hook_command(str(h.get("command", "")))
+                raw_cmd = str(h.get("command", ""))
+                cmd = normalize_hook_command(raw_cmd)
                 if cmd and cmd in managed_any and cmd not in expected:
+                    continue
+                if raw_cmd and _is_toxic_clone_hook(
+                    raw_cmd, managed_basenames
+                ):
                     continue
                 kept_hooks.append(h)
 

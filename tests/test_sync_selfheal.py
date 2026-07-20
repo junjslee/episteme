@@ -485,3 +485,44 @@ class CodexAdapterTests(unittest.TestCase):
         self.assertEqual(spec["sync"]["skills_dir"], "~/.codex/skills")
         self.assertEqual(spec["project_contract"], "AGENTS.md")
         self.assertIn(".system", cadex.PROTECTED_SKILL_DIRS)
+
+
+class ToxicCloneHookPruneTests(unittest.TestCase):
+    """Event 170 — live incident residue: the E166 rogue sync ALSO
+    merged its clone-path hook registrations into settings.json, and
+    prune_managed_hook_entries preserved them as 'external hooks'
+    (positive-system keep). 19 scripts ran DOUBLE on every governed op.
+    The rule that separates residue from genuinely-foreign hooks: a
+    command whose script BASENAME matches a managed hook but whose path
+    is outside the primary checkout is clone residue; a non-managed
+    script name is operator content and stays."""
+
+    def _settings_with(self, extra_cmd):
+        base = cadapter.build_settings("balanced")
+        base["hooks"].setdefault("PreToolUse", []).append(
+            {"matcher": "Bash", "hooks": [{"type": "command", "command": extra_cmd}]}
+        )
+        return base
+
+    def test_managed_basename_under_foreign_root_is_pruned(self):
+        toxic = "/usr/bin/python3 /tmp/somewhere/repo2/core/hooks/workflow_guard.py"
+        s = cadapter.prune_managed_hook_entries(
+            self._settings_with(toxic), "balanced"
+        )
+        flat = json.dumps(s)
+        self.assertNotIn("/tmp/somewhere/repo2", flat)
+
+    def test_operator_authored_foreign_hook_survives(self):
+        mine = "/usr/bin/python3 /Users/x/my-own-hooks/notify_slack.py"
+        s = cadapter.prune_managed_hook_entries(
+            self._settings_with(mine), "balanced"
+        )
+        self.assertIn("notify_slack.py", json.dumps(s))
+
+    def test_primary_root_managed_hooks_untouched(self):
+        s = cadapter.prune_managed_hook_entries(
+            cadapter.build_settings("balanced"), "balanced"
+        )
+        flat = json.dumps(s)
+        self.assertIn("workflow_guard.py", flat)
+        self.assertIn(str(ecli.REPO_ROOT), flat)
