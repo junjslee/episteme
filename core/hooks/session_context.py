@@ -860,6 +860,14 @@ def main() -> int:
     if doc_staleness_line:
         lines.append(doc_staleness_line)
 
+    # Event 170 · the PLAN.md-class detector — private-doc SYMLINKS are
+    # exempt from lifecycle lint (no markers, no git), which is exactly
+    # how PLAN.md rotted 13 days unnoticed until the OPERATOR caught it.
+    # Silent when the operational set moves together.
+    rot_line = _operational_rot_line()
+    if rot_line:
+        lines.append(rot_line)
+
     # Phase A · v1.0.1 — noise-watch advisory derived from the operator
     # profile's cognitive.noise_signature axis. Silent when the knob is
     # absent. Ordering: AFTER the framework digest so the cognitive
