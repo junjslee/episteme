@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E172 -->
 # episteme — command reference
 
 A one-page map of every `episteme` subcommand, grouped by lifecycle phase.
@@ -59,6 +59,19 @@ Scope key:
 | `episteme evolve {run,report,promote,rollback,friction}` | framework | Run and manage gated self-evolution episodes. |
 | `episteme bridge {am,substrate}` | framework | Bridge external runtime event logs into memory-contract envelopes. |
 | `episteme private-skill` | framework | Enable or disable a private experimental skill. |
+| `episteme surface {author,list,show,chain}` | practice | Author / sign / manage Signed Reasoning Surfaces (operator UX). |
+| `episteme evidence {view,packet}` | practice | Auditor-facing viewer + Regulator Evidence Packet exporter. |
+| `episteme verify` | practice | Standalone signed-surface verifier (independent of the episteme runtime). |
+| `episteme practice {walk,retro,demo}` | practice | Make the practice tangible — walk / retro / demo without authoring a surface. |
+| `episteme report` | practice | Quantified value report — surface authoring, failure modes, Tier-1 soak, calibration trend. |
+| `episteme status` | runtime | Runtime-state snapshot: surface freshness, branch, rigor, framework counts, profile drift. |
+| `episteme deferred {list,resolve}` | framework | List OPEN deferred discoveries (project-scoped; `--all-projects`, `--expired`) or chain an operator verdict. |
+| `episteme docs {lint,index}` | docs | Doc-lifecycle marker lint + generated docs index (`--check` gates CI). |
+| `episteme check {list,scaffold}` | governance | Manage user-authored PreToolUse checks. |
+| `episteme bench {scaffold,run,grade,report}` | evaluation | Empirical-lift benchmark suite: paired-comparison runner + blind LLM grader. |
+| `episteme dev watch` | development | Source-to-plugin-cache file watcher for plugin development. |
+| `episteme new-project` | scaffold | Interactive wrapper over `bootstrap` for starting a fresh governed project. |
+| `episteme verify-examples` | docs | Structural-parity guard: `core/memory/global/examples/*.example.md` stay at v2. |
 
 ---
 

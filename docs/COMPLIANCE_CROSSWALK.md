@@ -143,7 +143,7 @@ Published 2023-12; first publicly certified deployers in 2025 (SAP, Cornerstone,
 | **6.1.3 — AI risk treatment** | Documented mitigation per identified risk | `surface.disconfirmation_conditions[]` + `surface.decision.stop_rollback_path` | **Direct** | Per-decision mitigation (falsifier + rollback) pre-committed |
 | **7.4 — Communication** | Internal + external communication channels for AI matters | Operator-signed surface + Regulator Evidence Packet ZIP | **Supporting** | Substrate; channel policy is deployer-defined |
 | **8.1 — Operational planning and control** | Documented AI lifecycle processes | [`kernel/CONSTITUTION.md`](../kernel/CONSTITUTION.md) + [`docs/THE_WAY_TO_THINK.md`](THE_WAY_TO_THINK.md) + project-level `workflow_policy.md` | **Direct** | Five-stage cognitive practice IS the operational process; constitution is the invariant policy |
-| **9.1 — Performance evaluation** | Monitoring, measurement, analysis | [`kernel/CALIBRATION_TELEMETRY.md`](../kernel/CALIBRATION_TELEMETRY.md) (Brier · calibration curve · base-rate slicing · coverage first-class) | **Direct** | Falsifiable measurement spec; refuses to emit Brier below coverage threshold |
+| **9.1 — Performance evaluation** | Monitoring, measurement, analysis | [`kernel/CALIBRATION_TELEMETRY.md`](../kernel/CALIBRATION_TELEMETRY.md) (Brier · calibration curve · base-rate slicing · coverage first-class) | **Direct** | Falsifiable measurement spec; PLANNED, not implemented: no Brier/coverage computation exists in code yet (Event 172 correction); the implemented report is a per-day success-rate trend (src/episteme/_report.py) |
 | **9.2 — Internal audit** | Independent audit programme | `episteme verify` standalone CLI + `episteme review` spot-check CLI | **Direct** | Reproducible audit substrate; auditor independence is structural (signing key out of agent reach) |
 | **10.1 — Continual improvement** | Continual improvement of the AIMS | Phase 12 audit + [`kernel/ACTIVE_GUIDANCE_RANKING.md`](../kernel/ACTIVE_GUIDANCE_RANKING.md) | **Direct** | Friction-weighted axis rescoring drives improvement loop on the same evidentiary substrate as the audit |
 
@@ -171,7 +171,7 @@ Anthropic's Agent Skills open spec (agentskills.io; emerging 2025-Q4 / 2026-Q1) 
 | `version` (frontmatter, optional) | Repo-level via `pyproject.toml` + release-please-managed `.release-please-manifest.json`; per-skill version not declared | **Conditional** | Versioning is repo-level, not per-skill; a future per-skill version field would be additive |
 | `model` (frontmatter, optional) | Not declared per-skill | **Conditional** | episteme is BYOS (Bring Your Own Substrate); skills do not pin a model |
 | Markdown body (skill content) | Body of `skills/**/SKILL.md` | **Direct** | Identical convention |
-| Frontmatter validation | `core/manifest.py` validators + `episteme doctor` | **Direct** | Per-skill schema validation runs at session start (`episteme doctor`) |
+| Frontmatter validation | `src/episteme/cli.py (validate) + src/episteme/doc_lifecycle.py` validators + `episteme doctor` | **Direct** | Per-skill schema validation runs at session start (`episteme doctor`) |
 
 ### 5.1 episteme-specific extensions (not in the open spec)
 
@@ -179,7 +179,7 @@ episteme skills carry additional structure the open spec does not (yet) cover; t
 
 | Extension | Purpose | Path |
 |---|---|---|
-| Vendor classification (`[vendor]` · `[custom]` · `[agent]`) | Three-bucket pre-commit validation distinguishes upstream skills, episteme-custom skills, and agent-defined skills | `core/manifest.py` |
+| Vendor classification (`[vendor]` · `[custom]` · `[agent]`) | Three-bucket pre-commit validation distinguishes upstream skills, episteme-custom skills, and agent-defined skills | `src/episteme/cli.py (validate) + src/episteme/doc_lifecycle.py` |
 | Episodic skill provenance | Skill artifacts can be hash-chained into `~/.episteme/framework/protocols.jsonl` when a skill synthesis fires at runtime | `core/hooks/_chain.py` |
 | Skill-level Reasoning Surface enforcement | When a skill is invoked on a high-impact op, the Reasoning Surface gate fires before skill execution — the skill cannot bypass the precondition | `core/hooks/reasoning_surface_guard.py` |
 

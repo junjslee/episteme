@@ -831,7 +831,7 @@ AI RMF (NIST AI 100-1) covering CBRN and cyber-misuse risk.
 https://nvlpubs.nist.gov/nistpubs/ai/NIST.AI.800-1.ipd2.pdf**
 
 Episteme's Pillar 3 active-guidance suppression of vapor-verdict
-synthesized protocols (`core/hooks/_guidance.query` verdict filter) is
+synthesized protocols (`core/hooks/_guidance.py` verdict filter) is
 adjacent to AI 800-1 misuse-risk *measurement* discipline — guidance
 quality is the measurement signal.
 

@@ -42,7 +42,7 @@ State that is **actively maintained** but **carries authority** — losing or ov
 
 Examples in this repo:
 
-- `docs/PLAN.md`, `docs/PROGRESS.md`, `docs/NEXT_STEPS.md` — operational record
+- `docs/NEXT_STEPS.md`, `docs/EVENTS.md` — operational record (PLAN/PROGRESS retired E168/E170)
 - `kernel/CHANGELOG.md` — versioned kernel history
 - `kernel/REFERENCES.md` — attribution contract
 - `core/memory/global/*.md` — the operator's lived profile (gitignored, but authoritative)
@@ -83,7 +83,7 @@ Examples in this repo:
 - `.git/` — version-control internals
 - `node_modules/`, `__pycache__/`, `*.pyc`, `web/.next/`
 - `.venv/`
-- Operator-private symlinked content (e.g. `docs/PLAN.md` → `~/episteme-private/docs/PLAN.md`)
+- Operator-private symlinked content (e.g. `docs/NEXT_STEPS.md` → `~/episteme-private/docs/NEXT_STEPS.md`)
 
 The failure this tier blocks: the agent treats ephemeral state as authoritative and reasons from it ("the cache says X, therefore X"). Ephemeral state is the *consequence* of authoritative state, never the *source*.
 

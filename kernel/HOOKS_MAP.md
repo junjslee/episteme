@@ -9,7 +9,7 @@ Which runtime hook enforces which kernel invariant. Adapters register these hook
 | Constraint regime — forbidden actions | `block_dangerous.py` | PreToolUse/Bash | hard block on rm -rf, force push, sudo, mkfs, etc. |
 | Reasoning Surface — presence before high-impact op | `reasoning_surface_guard.py` | PreToolUse/Bash\|Write\|Edit\|MultiEdit | **blocks by default** (exit 2) when `.episteme/reasoning-surface.json` is missing, stale, incomplete, or contains lazy placeholders (none, n/a, tbd, 해당 없음, ...). Command text is normalized to catch `subprocess.run(['git','push'])` / `os.system('git push')` bypass shapes. Opt-out per-project: `touch .episteme/advisory-surface`. |
 | Frame stage — session boot context | `session_context.py` | SessionStart | prints git state, NEXT_STEPS, and Reasoning Surface status |
-| Execute stage — docs alignment advisory | `workflow_guard.py` | PreToolUse/Write\|Edit\|MultiEdit | nudges agent to keep docs/PLAN.md, docs/EVENTS.md, and docs/NEXT_STEPS.md aligned |
+| Execute stage — docs alignment advisory | `workflow_guard.py` | PreToolUse/Write\|Edit\|MultiEdit | nudges agent to keep docs/EVENTS.md and docs/NEXT_STEPS.md aligned |
 | Execute stage — prompt-injection defense | `prompt_guard.py` | PreToolUse/Write\|Edit\|MultiEdit | flags suspicious patterns in docs/, AGENTS.md, CLAUDE.md |
 | Execute stage — context pressure awareness | `context_guard.py` | PostToolUse | warns when compaction is near |
 | Verify stage — tests | `test_runner.py` | PostToolUse | runs affected tests after edits |
