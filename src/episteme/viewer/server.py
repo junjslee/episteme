@@ -4,6 +4,9 @@ Stdlib only. Serves on localhost; binds 127.0.0.1 by default so the viewer is
 not reachable from the network without explicit --host. Endpoints:
 
   GET /                               dashboard (renders index.html)
+  GET /api/live/global                JSON: operator-home runtime state (gate ops, queues, framework) — E174
+  GET /api/live/project               JSON: governed-project state (surface, doc map, staleness) — E174
+  GET /api/live/advisories            JSON: recent DOC ADVISORY records for the project — E174
   GET /api/overview                   JSON: kernel files + doc counts + latest benchmark
   GET /api/profile                    JSON: operator profile scorecard (if generated)
   GET /api/reasoning-surfaces         JSON: recent reasoning-surface.json files discovered under the repo
@@ -12,6 +15,10 @@ not reachable from the network without explicit --host. Endpoints:
   GET /api/benchmarks                 JSON: latest RESULTS.json
   GET /static/<file>                  CSS/JS assets
   GET /raw/<repo-relative-path>       Raw text of a file (whitelisted dirs only)
+
+The ``/api/live/*`` family reads the project the viewer was LAUNCHED in
+(git top-level of the starting cwd), not the episteme checkout — the viewer
+must dashboard whatever governed project the operator is standing in.
 """
 
 from __future__ import annotations
@@ -20,14 +27,39 @@ import argparse
 import html
 import json
 import mimetypes
+import subprocess
+import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
+from episteme.viewer import live as _live
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VIEWER_DIR = Path(__file__).resolve().parent
+
+
+def _project_root() -> Path:
+    """Git top-level of the cwd the viewer was launched from, else the cwd."""
+    cwd = Path.cwd()
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(cwd), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+        top = proc.stdout.strip()
+        if proc.returncode == 0 and top:
+            return Path(top)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return cwd
+
+
+PROJECT_ROOT = _project_root()
 
 # Whitelist of repo-relative path prefixes that `/raw/<path>` may read.
 RAW_PREFIXES = (
@@ -165,6 +197,9 @@ class _Handler(BaseHTTPRequestHandler):
         path = parsed.path
 
         routes: dict[str, Callable[[], Any]] = {
+            "/api/live/global": _live.global_status,
+            "/api/live/project": lambda: _live.project_status(PROJECT_ROOT),
+            "/api/live/advisories": lambda: _live.advisories(PROJECT_ROOT),
             "/api/overview": _overview,
             "/api/profile": _operator_profile,
             "/api/reasoning-surfaces": _find_reasoning_surfaces,
@@ -213,10 +248,31 @@ class _Handler(BaseHTTPRequestHandler):
         self._send_text(404, "not found", "text/plain")
 
 
-def serve(host: str = "127.0.0.1", port: int = 37776) -> int:
+def serve(host: str = "127.0.0.1", port: int = 37776, open_browser: bool = True) -> int:
     server = ThreadingHTTPServer((host, port), _Handler)
-    print(f"episteme viewer: http://{host}:{port}/")
+    loopback = host in ("127.0.0.1", "localhost", "::1")
+    # A non-loopback bind serves the operator's core_question, absolute
+    # home/project paths, and edit activity over UNAUTHENTICATED HTTP —
+    # never do it silently (review finding, E174).
+    if not loopback:
+        print(
+            f"⚠ episteme viewer: binding {host} exposes live governance state "
+            "(reasoning surface, paths, edit activity) to the network WITHOUT "
+            "authentication. Use only on a network you trust."
+        )
+    # Browsers cannot connect to a 0.0.0.0/:: bind address; open loopback.
+    open_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    url = f"http://{open_host}:{port}/"
+    print(f"episteme viewer: {url}")
+    print(f"project: {PROJECT_ROOT}")
     print("(Ctrl-C to stop)")
+    if open_browser:
+        # Socket is bound once the server is constructed, so the browser's
+        # first request cannot race the listener.
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -231,8 +287,9 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=37776)
+    p.add_argument("--no-open", action="store_true", help="Do not auto-open the browser")
     args = p.parse_args()
-    return serve(host=args.host, port=args.port)
+    return serve(host=args.host, port=args.port, open_browser=not args.no_open)
 
 
 if __name__ == "__main__":

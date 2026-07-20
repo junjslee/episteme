@@ -22,6 +22,11 @@ from pathlib import Path
 #: Cap on docs named inline; the overflow is counted, never silently dropped.
 _MAX_ADVISORY_DOCS = 6
 
+#: Advisory log rotation: rewrite keeping the newest lines once the file
+#: exceeds the byte cap (budgets are code — the log must not grow unbounded).
+_ADVISORY_LOG_MAX_BYTES = 262_144
+_ADVISORY_LOG_KEEP_LINES = 500
+
 
 ALLOWED_DOC_PATHS = {
     "AGENTS.md",
@@ -95,6 +100,45 @@ def _relative_to_cwd(cwd: Path, target_path: str) -> str:
         return Path(target_path).name
 
 
+def _log_advisory(cwd: Path, rel_path: str, docs: list) -> None:
+    """Append one JSONL record per targeted advisory (E174 dashboard feed).
+
+    A log, not a queue (M1-clean: nothing awaits a drain) — it exists so the
+    viewer can SHOW docs being tracked as code changes. Written only where
+    ``.episteme/`` already exists (same footprint rule as the doc-map cache),
+    size-capped by rewrite, and failure-silent: observability must never
+    break the edit it observes.
+    """
+    try:
+        state_dir = cwd / ".episteme" / "state"
+        if not (cwd / ".episteme").is_dir():
+            return
+        state_dir.mkdir(parents=True, exist_ok=True)
+        log = state_dir / "doc_advisories.jsonl"
+        from datetime import datetime, timezone
+
+        record = json.dumps(
+            {
+                "ts": datetime.now(timezone.utc).isoformat(),
+                "path": rel_path,
+                "docs": docs[:_MAX_ADVISORY_DOCS],
+                "doc_count": len(docs),
+            }
+        )
+        with open(log, "a", encoding="utf-8") as fh:
+            fh.write(record + "\n")
+        if log.stat().st_size > _ADVISORY_LOG_MAX_BYTES:
+            lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
+            tmp = log.with_suffix(f".jsonl.tmp.{os.getpid()}")
+            tmp.write_text(
+                "\n".join(lines[-_ADVISORY_LOG_KEEP_LINES:]) + "\n",
+                encoding="utf-8",
+            )
+            tmp.replace(log)
+    except Exception:
+        pass
+
+
 def _targeted_advisory(cwd: Path, target_path: str) -> "str | None":
     """The doc-map advisory for ``target_path``, or ``None`` for fallback.
 
@@ -112,6 +156,7 @@ def _targeted_advisory(cwd: Path, target_path: str) -> "str | None":
         docs = [e.doc for e in edges]
         labels = dict(dr.annotate_docs(cwd, docs))
         rel = _relative_to_cwd(cwd, target_path)
+        _log_advisory(cwd, rel, docs)
         lines = [f"DOC ADVISORY: {len(docs)} doc(s) claim to describe '{rel}' —"]
         for e in edges[:_MAX_ADVISORY_DOCS]:
             label = labels.get(e.doc, "")

@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E173 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E174 -->
 # episteme — command reference
 
 A one-page map of every `episteme` subcommand, grouped by lifecycle phase.
@@ -46,7 +46,7 @@ Scope key:
 | `episteme detect [path]` | project | Score which harness type fits the project. |
 | `episteme harness {list,apply}` | project | List available harnesses; apply one to a project. A harness defines execution profile + workflow constraints for a project type. |
 | `episteme worktree` | project | Create a git worktree for a bounded task in the current repo. |
-| `episteme viewer` | project | Start a local read-only dashboard over this repo. |
+| `episteme viewer` | project | Live local governance dashboard (E174): global operator-home state + current-project surface/doc-map/staleness + the DOC ADVISORY feed, polling every 3s at `localhost:37776`; auto-opens the browser (`--no-open` to suppress). Menu-bar companion: `tools/xbar/episteme.30s.sh`. |
 | `episteme capture` | project | Draft a `reasoning-surface.json` skeleton from unstructured text (Slack thread, PR desc, ticket, email). Reads stdin. |
 
 ## Framework internals
