@@ -15,10 +15,10 @@ export const RELEASE_FACTS = {
   testsGreen: 1413,
   /**
    * Current release train (pyproject.toml / release-please manifest).
-   * NOTE: historical transcripts (InstallSection terminal,
-   * ProofSection decision text) intentionally keep the version they
-   * record — they transcribe real chain artifacts and must not drift
-   * with releases.
+   * NOTE: any component that transcribes a real chain artifact or a real
+   * hook message (e.g. the MomentItWorks terminal) intentionally keeps the
+   * text it recorded — those are transcriptions, not live values, and must
+   * not drift with releases.
    */
   version: "v1.8.0-rc1",
 } as const;
