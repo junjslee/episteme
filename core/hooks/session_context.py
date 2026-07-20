@@ -144,7 +144,11 @@ def _framework_digest_line() -> str | None:
         # debt is named separately rather than inflating this banner (a
         # 178-entry count of which 131 belonged to other repos read as
         # episteme's own backlog for weeks).
-        _project = Path.cwd().resolve().name or "unknown_project"
+        # Canonical key, not Path.cwd().name: agents run in subdirs and
+        # in linked worktrees, where the raw basename invents a phantom
+        # project (`hooks`, `agent-<hex>`) and this repo's own findings
+        # read as somebody else's (Event 163 review, measured).
+        _project = _framework.canonical_project_key(Path.cwd())
         deferred = _framework.open_deferred_discoveries(project_name=_project)
         _counts = _framework.open_counts_by_project()
         elsewhere = sum(v for k, v in _counts.items() if k != _project)
@@ -193,19 +197,26 @@ def _framework_digest_line() -> str | None:
         pass
     try:
         cap = _framework._resolve_deferred_open_cap()
-        # The cap is GLOBAL (it bounds total operator review load), so it
-        # must be compared against the whole ledger — not this project's
-        # scoped count, which would hide a live write-decline behind a
-        # quiet local backlog (Event 163).
-        global_open = sum(_counts.values())
-        if cap and global_open >= cap:
+        # "Writes paused" must be TRUE where it is printed. The cap is
+        # per project, so comparing a global sum announced a pause while
+        # this project was admitting fine — the unclosable-alarm failure
+        # E158 claimed to have fixed (Event 163 review, reproduced).
+        # Name the projects actually declining, and only say THIS one is
+        # paused when it is.
+        at_cap = _framework.projects_at_cap()
+        mine = _counts.get(_project, 0)
+        if cap and mine >= cap:
             skipped = _framework.read_deferred_skip_counter().get(
                 "skipped_count", 0
             )
             line += (
-                f" — ledger AT CAP ({cap} across all projects): writes paused, "
+                f" — this project AT CAP ({cap}): writes paused, "
                 f"{skipped} record(s) skipped since last drain"
             )
+        elif at_cap:
+            # Somebody else is paused — say who, without claiming we are.
+            names = ", ".join(f"{n} ({c}/{cap})" for n, c in at_cap)
+            line += f" — at cap elsewhere: {names}"
     except Exception:
         pass
     return line

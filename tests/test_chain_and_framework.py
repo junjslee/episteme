@@ -1016,9 +1016,15 @@ class DeferredCapRelief(unittest.TestCase):
     def test_blueprint_d_writer_does_not_count_declined_entries(self):
         from core.hooks import _blueprint_d  # pyright: ignore[reportAttributeAccessIssue]
         with EphemeralHome():
+            # Occupy the cap slot in the SAME scope the Blueprint-D write
+            # will land in — post-E163 the cap is per project, so an
+            # unattributed seed is a different backlog entirely.
             _framework.write_deferred_discovery(
                 {"flaw_classification": "doc-code-drift",
                  "description": "fresh occupant of the only cap slot",
+                 "context_signature": {
+                     "project_name": _framework.canonical_project_key(Path("."))
+                 },
                  "logged_at": datetime.now(timezone.utc).isoformat()}
             )
             surface = {
@@ -1318,3 +1324,124 @@ class DeferredProjectScoping(unittest.TestCase):
                     project_name="other-project")),
                 1,
             )
+
+
+class DeferredScopingReviewFixes(unittest.TestCase):
+    """Event 163 independent-review findings, each reproduced before
+    being fixed — pinned here so they cannot regress."""
+
+    def test_worktree_and_subdir_resolve_to_the_repo_key(self):
+        # BLOCKING 1: Path.cwd().name invented a phantom project per
+        # subdir and per agent worktree ('hooks', 'agent-<hex>').
+        with tempfile.TemporaryDirectory() as td:
+            repo = Path(td) / "MyRepo"
+            (repo / ".git").mkdir(parents=True)
+            (repo / "core" / "hooks").mkdir(parents=True)
+            # Real shape: agent worktrees live INSIDE the repo at
+            # .claude/worktrees/agent-<hex>, and their .git is a FILE.
+            wt = repo / ".claude" / "worktrees" / "agent-deadbeef"
+            wt.mkdir(parents=True)
+            (wt / ".git").write_text("gitdir: elsewhere")
+            self.assertEqual(_framework.canonical_project_key(repo), "myrepo")
+            self.assertEqual(
+                _framework.canonical_project_key(repo / "core" / "hooks"),
+                "myrepo",
+            )
+            self.assertEqual(
+                _framework.canonical_project_key(wt), "myrepo",
+                "an agent worktree must not become its own phantom project",
+            )
+
+    def test_project_key_normalization_matches_the_signature_writer(self):
+        # NIT 10: the signature writer lowercases + collapses whitespace;
+        # the readers did not, so 'MyProject' stored 'myproject' and
+        # matched nothing. The operator has a path with a space today.
+        self.assertEqual(_framework._normalize_project_key("MyProject"), "myproject")
+        self.assertEqual(_framework._normalize_project_key("  mgh   lmic "), "mgh lmic")
+
+    def test_unattributed_write_never_expires_another_projects_findings(self):
+        # BLOCKING 3: with project None the cap+relief fell back to
+        # GLOBAL scope, so one unattributed write mass-expired another
+        # project's aged findings to make room.
+        with EphemeralHome():
+            old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+            for i in range(3):
+                _framework.write_deferred_discovery({
+                    "flaw_classification": "other",
+                    "description": f"other-project aged finding {i}",
+                    "context_signature": {"project_name": "other-project"},
+                    "logged_at": old,
+                })
+            before = len(_framework.open_deferred_discoveries(
+                project_name="other-project"))
+            self.assertEqual(before, 3)
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "an entry with no project signal at all",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertEqual(
+                len(_framework.open_deferred_discoveries(
+                    project_name="other-project")),
+                3,
+                "an unattributed write expired another project's findings",
+            )
+
+    def test_unattributed_entries_are_not_starved_by_other_projects(self):
+        with EphemeralHome():
+            for i in range(3):
+                _framework.write_deferred_discovery({
+                    "flaw_classification": "other",
+                    "description": f"other-project finding {i}",
+                    "context_signature": {"project_name": "other-project"},
+                    "logged_at": datetime.now(timezone.utc).isoformat(),
+                })
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "unattributed entry must still be admitted",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=2,
+            )
+            self.assertIn("entry_hash", res)
+
+    def test_global_ceiling_still_bounds_total_review_load(self):
+        # SHOULD-FIX 4: per-project caps silently made the ceiling
+        # unbounded. Budgets are code — the global bound is explicit.
+        with EphemeralHome():
+            for p in range(3):
+                for i in range(2):
+                    _framework.write_deferred_discovery({
+                        "flaw_classification": "other",
+                        "description": f"p{p} finding {i}",
+                        "context_signature": {"project_name": f"proj-{p}"},
+                        "logged_at": datetime.now(timezone.utc).isoformat(),
+                    })
+            with patch.dict(os.environ, {"EPISTEME_DEFERRED_GLOBAL_CAP": "6"}):
+                res = _framework.write_deferred_discovery(
+                    {"flaw_classification": "other",
+                     "description": "fresh project blocked by GLOBAL ceiling",
+                     "context_signature": {"project_name": "proj-new"},
+                     "logged_at": datetime.now(timezone.utc).isoformat()},
+                    cap=100,
+                )
+            self.assertTrue(res.get("declined_at_cap"))
+
+    def test_projects_at_cap_names_only_the_paused_ones(self):
+        with EphemeralHome():
+            for i in range(2):
+                _framework.write_deferred_discovery({
+                    "flaw_classification": "other",
+                    "description": f"busy-project finding {i}",
+                    "context_signature": {"project_name": "busy-project"},
+                    "logged_at": datetime.now(timezone.utc).isoformat(),
+                })
+            _framework.write_deferred_discovery({
+                "flaw_classification": "other",
+                "description": "quiet-project lone finding",
+                "context_signature": {"project_name": "quiet-project"},
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            })
+            with patch.dict(os.environ, {"EPISTEME_DEFERRED_OPEN_CAP": "2"}):
+                at_cap = _framework.projects_at_cap()
+            self.assertEqual(at_cap, [("busy-project", 2)])

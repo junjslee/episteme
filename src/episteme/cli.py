@@ -5169,7 +5169,7 @@ def _deferred_dispatch(args) -> int:
             if getattr(args, "deferred_all_projects", False):
                 envelopes = _framework.open_deferred_discoveries()
             else:
-                project = Path.cwd().resolve().name or "unknown_project"
+                project = _framework.canonical_project_key(Path.cwd())
                 envelopes = _framework.open_deferred_discoveries(
                     project_name=project
                 )
@@ -5192,9 +5192,15 @@ def _deferred_dispatch(args) -> int:
         print(f"[ok] verdict '{payload.get('verdict')}' chained for "
               f"{str(payload.get('ref') or '')[:12]} "
               f"(record {str(env.get('entry_hash') or '')[:12]})")
-        remaining = len(_framework.open_deferred_discoveries())
+        # Scoped like `deferred list` — an unscoped remainder mid-drain
+        # reports other repos' debt as this one's, the confusion this
+        # event exists to remove (Event 163 review).
+        project = _framework.canonical_project_key(Path.cwd())
+        remaining = len(
+            _framework.open_deferred_discoveries(project_name=project)
+        )
         noun = "discovery" if remaining == 1 else "discoveries"
-        print(f"{remaining} open deferred {noun} remain")
+        print(f"{remaining} open deferred {noun} remain in this project")
         return 0
 
     return 1
@@ -5228,7 +5234,7 @@ def _deferred_print_list(args, envelopes: list) -> int:
         # Name other projects' findings rather than hiding them (E163).
         try:
             import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
-            project = Path.cwd().resolve().name or "unknown_project"
+            project = _framework.canonical_project_key(Path.cwd())
             counts = _framework.open_counts_by_project()
             other = sum(v for k, v in counts.items() if k != project)
             if other:
@@ -5238,8 +5244,13 @@ def _deferred_print_list(args, envelopes: list) -> int:
                 )
                 print(f"{other} open in other projects ({names}) — "
                       f"episteme deferred list --all-projects")
-        except Exception:
-            pass
+        except Exception as exc:
+            # Never swallow: a silent failure here prints "0 open in
+            # this project" while the rest of the ledger is invisible
+            # (Event 163 review).
+            print(f"[warn] could not read other projects' counts "
+                  f"({exc.__class__.__name__}); this view may be partial",
+                  file=sys.stderr)
     if not expired_view:
         # Surface machine-expired findings so cap relief is never an
         # invisible loss (Event 158 review finding).

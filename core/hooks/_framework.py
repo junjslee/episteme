@@ -134,7 +134,21 @@ DISCOVERY_EXPIRY_TYPE = "deferred_discovery_expiry"
 # decision.
 UNATTRIBUTED_KEY = "<unattributed>"
 
+# Mirror of the other hooks' root-walk bound (hooks-stay-self-contained).
+_ROOT_WALK_MAX_DEPTH = 64
+
 DEFAULT_DEFERRED_OPEN_CAP = 100
+
+# Global ceiling across ALL projects (Event 163 review, hard rule 5 —
+# "budgets are code; raising a budget constant IS the decision, made in
+# the diff"). Making the cap per-project silently changed the effective
+# ceiling from 100 total to 100 x (however many projects exist), which
+# is a budget raise nobody wrote down. The per-project cap prevents
+# cross-project starvation; this ceiling keeps total operator review
+# load bounded. 3x the per-project cap: enough headroom for the
+# operator's real multi-repo pattern, far below the unbounded growth
+# the review measured.
+DEFAULT_DEFERRED_GLOBAL_CAP = 300
 DEFERRED_EXPIRY_AGE_SECONDS = 30 * 24 * 60 * 60
 _DEFERRED_SKIP_COUNTER_FILENAME = "deferred_skipped.json"
 CP5_FORMAT_VERSION = "cp5-pre-chain"
@@ -235,6 +249,41 @@ def _resolve_deferred_open_cap(explicit: int | None = None) -> int:
         except ValueError:
             pass
     return DEFAULT_DEFERRED_OPEN_CAP
+
+
+def _resolve_deferred_global_cap(explicit: int | None = None) -> int:
+    """Global ceiling across all projects. Same non-positive-falls-back
+    discipline as the per-project knob; env override
+    ``EPISTEME_DEFERRED_GLOBAL_CAP``. Never raises."""
+    if explicit is not None:
+        try:
+            val = int(explicit)
+        except (TypeError, ValueError):
+            return DEFAULT_DEFERRED_GLOBAL_CAP
+        return val if val > 0 else DEFAULT_DEFERRED_GLOBAL_CAP
+    raw = os.environ.get("EPISTEME_DEFERRED_GLOBAL_CAP", "").strip()
+    if raw:
+        try:
+            val = int(raw)
+            if val > 0:
+                return val
+        except ValueError:
+            pass
+    return DEFAULT_DEFERRED_GLOBAL_CAP
+
+
+def projects_at_cap(*, path: Path | None = None) -> list[tuple[str, int]]:
+    """(project, open_count) for every project whose OWN backlog is at
+    or over the per-project cap — i.e. the projects actually declining
+    writes right now. The banner needs this because 'writes paused' must
+    name who is paused: a global sum said 'paused' while this project
+    was admitting fine (Event 163 review)."""
+    cap = _resolve_deferred_open_cap()
+    return sorted(
+        (name, n)
+        for name, n in open_counts_by_project(path=path).items()
+        if cap and n >= cap
+    )
 
 
 def read_deferred_skip_counter(path: Path | None = None) -> dict:
@@ -380,28 +429,37 @@ def _deferred_cap_admit(
     global cap turns one repo's activity into silent finding-loss in
     every other repo, which is the same silent-guardrail-outage class
     E157 fixed. Storage stays global; backpressure follows the backlog
-    an operator actually drains. Entries with no project attribution
-    fall back to the global count."""
+    an operator actually drains.
+
+    An unattributable entry gets ``UNATTRIBUTED_KEY`` as its scope — NOT
+    a global fallback (Event 163 review, reproduced): falling back to
+    global made an unattributed write run relief over the whole ledger
+    and mass-expire another project's aged findings to make room, the
+    exact invariant ``_expire_stale_open`` states it upholds. It also
+    made unattributed writes the only ones still starvable.
+
+    A GLOBAL ceiling still applies on top, so total review load stays
+    bounded (hard rule 5)."""
+    scope = project_name or UNATTRIBUTED_KEY
     try:
         open_n = len(
-            open_deferred_discoveries(path=target, project_name=project_name)
-            if project_name
-            else open_deferred_discoveries(path=target)
+            open_deferred_discoveries(path=target, project_name=scope)
         )
+        global_n = len(open_deferred_discoveries(path=target))
     except Exception:
         return True
-    if open_n < cap_value:
+    global_cap = _resolve_deferred_global_cap()
+    if open_n < cap_value and global_n < global_cap:
         return True
     try:
-        if _expire_stale_open(target, now_dt, project_name=project_name):
+        if _expire_stale_open(target, now_dt, project_name=scope):
             open_n = len(
-                open_deferred_discoveries(path=target, project_name=project_name)
-                if project_name
-                else open_deferred_discoveries(path=target)
+                open_deferred_discoveries(path=target, project_name=scope)
             )
+            global_n = len(open_deferred_discoveries(path=target))
     except Exception:
         pass
-    return open_n < cap_value
+    return open_n < cap_value and global_n < global_cap
 
 
 # ---------------------------------------------------------------------------
@@ -739,26 +797,85 @@ def list_deferred_discoveries(
     return out
 
 
+def _normalize_project_key(name: str) -> str:
+    """Lowercase + whitespace-collapse — byte-identical to what
+    ``_context_signature._normalize_string`` writes into
+    ``project_name``. Both sides of every comparison MUST pass through
+    here: the writer normalized and the readers did not, so a repo named
+    ``MyProject`` (or any path containing a space, which the operator
+    has) stored ``myproject``, matched nothing, and reported its own
+    findings as belonging to other projects."""
+    return " ".join(str(name).split()).strip().lower()
+
+
+def canonical_project_key(path: Path) -> str:
+    """Stable project key for a working directory (Event 163 review).
+
+    Walks UP to the repo/project root before taking a basename, because
+    ``Path.cwd().name`` is wrong in the two places agents actually run:
+    a subdirectory (key ``hooks``) and a linked git worktree (key
+    ``agent-<hex>`` — one phantom project per agent task, each with its
+    own cap). Mirrors the ``_canonical_project_root`` helper the other
+    hooks already carry; duplicated per the hooks-stay-self-contained
+    convention. Falls back to the given path's own basename when no
+    root marker is found, and never raises."""
+    try:
+        start = path.resolve() if path.exists() else path
+    except OSError:
+        start = path
+
+    def _walk(marker) -> Path | None:
+        probe = start
+        for _ in range(_ROOT_WALK_MAX_DEPTH):
+            try:
+                if marker(probe):
+                    return probe
+            except OSError:
+                return None
+            if probe.parent == probe:
+                return None
+            probe = probe.parent
+        return None
+
+    # `.git` as a DIRECTORY is the only authoritative repo root. It is
+    # checked in its own full pass FIRST because a linked worktree is a
+    # complete checkout — it carries its own `.episteme/`, so a single
+    # interleaved walk stops at the worktree and mints a phantom project
+    # per agent task (measured: `agent-<hex>`, `event152-accepted`).
+    # A worktree's `.git` is a FILE, so this pass walks past it to the
+    # real root.
+    root = _walk(lambda p: (p / ".git").is_dir())
+    if root is None:
+        root = _walk(lambda p: (p / ".episteme").is_dir())
+    if root is not None:
+        return _normalize_project_key(root.name) or UNATTRIBUTED_KEY
+    return _normalize_project_key(path.name) or UNATTRIBUTED_KEY
+
+
 def entry_project(payload: dict) -> str | None:
     """Which project a discovery belongs to (Event 163).
 
     The ledger is GLOBAL — one chain across every repo the operator
-    works in. Attribution reads ``context_signature.project_name``,
-    falling back to the basename of ``source_op.cwd`` for entries
-    written before the signature carried it. Returns None when neither
-    signal exists; callers must COUNT those, never silently drop them."""
+    works in. Attribution reads ``context_signature.project_name``
+    (already normalized by the signature writer), falling back to
+    ``source_op.cwd`` canonicalized to its project ROOT — not its raw
+    basename, which produced phantom projects for subdirectories
+    (``.../artifacts/full_text/text_tablefree``) and worktrees. Returns
+    None when neither signal exists; callers must COUNT those under
+    ``UNATTRIBUTED_KEY``, never silently drop them and never let them
+    fall back to a global scope."""
     if not isinstance(payload, dict):
         return None
     sig = payload.get("context_signature")
     if isinstance(sig, dict):
         name = sig.get("project_name")
         if isinstance(name, str) and name.strip():
-            return name.strip()
+            return _normalize_project_key(name)
     src = payload.get("source_op")
     if isinstance(src, dict):
         cwd = src.get("cwd")
         if isinstance(cwd, str) and cwd.strip():
-            return Path(cwd.strip()).name or None
+            return canonical_project_key(Path(cwd.strip()))
     return None
 
 
@@ -777,10 +894,11 @@ def open_deferred_discoveries(
     session.
 
     ``project_name`` scopes the result to one project (Event 163 —
-    mirrors the ``list_deferred_discoveries`` idiom). Unscoped is the
-    whole ledger, which is what the E158 cap consults: the cap bounds
-    TOTAL operator review load, so scoping it would silently multiply
-    the ceiling by project count.
+    mirrors the ``list_deferred_discoveries`` idiom); pass
+    ``UNATTRIBUTED_KEY`` for entries carrying no project signal.
+    Unscoped is the whole ledger, which is what the GLOBAL ceiling
+    consults. The per-project cap consults the scoped count — see
+    ``_deferred_cap_admit`` for why that split exists.
     """
     target = path if path is not None else _deferred_discoveries_path()
     discoveries: list[dict] = []
@@ -803,9 +921,13 @@ def open_deferred_discoveries(
         if str(d.get("entry_hash") or "") not in verdicted
     ]
     if project_name is not None:
+        # An entry with no project signal answers to UNATTRIBUTED_KEY —
+        # it must be reachable by SOME scope, or the cap consult that
+        # passes that key would see an empty set and admit forever.
         out = [
             d for d in out
-            if entry_project(d.get("payload") or {}) == project_name
+            if (entry_project(d.get("payload") or {}) or UNATTRIBUTED_KEY)
+            == project_name
         ]
     return out
 
