@@ -392,6 +392,68 @@ _DOC_STALENESS_EVENT_LAG = 15
 _DOC_STALENESS_DATE_DAYS = 45
 
 
+_OPERATIONAL_ROT_GRACE_DAYS = 7
+
+
+def _operational_rot_line() -> str | None:
+    """Event 170 — the PLAN.md-class detector.
+
+    The doc-lifecycle staleness machinery deliberately scans only
+    TRACKED ``docs/*.md`` with lifecycle markers, which exempts exactly
+    the operational docs that need freshness most: the private-doc
+    SYMLINKS (no markers, no git history). That blind spot is how
+    ``PLAN.md`` sat untouched for 13 days across ten handoffs until the
+    OPERATOR caught it by hand — every handoff moved ``NEXT_STEPS`` and
+    ``EVENTS`` while a doc still referenced as authoritative rotted
+    silently.
+
+    Rule: every ``docs/*.md`` symlink with an existing target is an
+    operational doc; the newest mtime among them is "last handoff
+    time"; any sibling lagging it by more than
+    ``_OPERATIONAL_ROT_GRACE_DAYS`` is named. One line, silent when
+    clean. The remedy is the operator's (track it or retire it) — the
+    banner's job is to make sure a human never has to be the detector
+    again."""
+    try:
+        docs_dir = Path("docs")
+        if not docs_dir.is_dir():
+            return None
+        targets: list[tuple[str, float]] = []
+        for link in sorted(docs_dir.glob("*.md")):
+            if not link.is_symlink():
+                continue
+            try:
+                if not link.exists():
+                    # A dangling operational symlink is rot of a harder
+                    # kind — name it immediately.
+                    return (
+                        f"operational doc rot: {link} is a DANGLING symlink "
+                        f"— retire it or restore its target"
+                    )
+                targets.append((link.name, link.stat().st_mtime))
+            except OSError:
+                continue
+        if len(targets) < 2:
+            return None
+        newest = max(m for _, m in targets)
+        grace = _OPERATIONAL_ROT_GRACE_DAYS * 86400
+        rotting = [
+            (name, int((newest - m) / 86400))
+            for name, m in targets
+            if (newest - m) > grace
+        ]
+        if not rotting:
+            return None
+        worst = ", ".join(f"{n} ({d}d behind)" for n, d in sorted(
+            rotting, key=lambda x: -x[1]))
+        return (
+            f"operational doc rot: {worst} — untouched while handoffs "
+            f"moved on; track it or retire it (PLAN.md died of this, E168)"
+        )
+    except Exception:
+        return None
+
+
 def _doc_staleness_line() -> str | None:
     """Event 147 · doc-lifecycle staleness banner.
 

@@ -342,7 +342,7 @@ Before this config, `prerelease: true` + `prerelease-type: rc` ran under the **d
 ## Commit and handoff conventions
 
 - Commit messages: imperative mood, scoped (`kernel: …`, `docs: …`, `adapters: …`). Checkpoint commits use the Conventional-Commits-valid prefix `chore(chkpt):`.
-- Maintainer workflow — **handoff semantics (compaction discipline, Event 145):** a handoff (1) **REPLACES** the private `NEXT_STEPS.md` (current state · decisions-waiting · next actions · backlog · standing rules) and (2) **appends exactly one line** to the private `EVENTS.md` history index (`| E<N> | date | one-line what | PR/commit/tag refs |`). Appending a "Prior resume" block to `NEXT_STEPS.md` is a protocol violation — the append stack was the accretion disease compaction removed. `PROGRESS.md` is retired to a tombstone that points at `EVENTS.md` + the archive; do not append events to it (its verbatim history lives under `~/episteme-private/docs/archive/`). Each handoff carries a Reasoning Surface block and ends with a one-sentence "So-What Now?".
+- Maintainer workflow — **handoff semantics (compaction discipline, Event 145):** a handoff (1) **REPLACES** the private `NEXT_STEPS.md` (current state · decisions-waiting · next actions · backlog · standing rules) and (2) **appends exactly one line** to the private `EVENTS.md` history index (`| E<N> | date | one-line what | PR/commit/tag refs |`). Appending a "Prior resume" block to `NEXT_STEPS.md` is a protocol violation — the append stack was the accretion disease compaction removed. `PROGRESS.md` is fully retired (tombstone removed E170); its verbatim history lives under `~/episteme-private/docs/archive/`. Do not recreate it. Each handoff carries a Reasoning Surface block and ends with a one-sentence "So-What Now?".
 - External contributor workflow: include the Reasoning Surface block + "So-What Now?" inline in the PR description; the maintainer integrates these into the operational record on merge. Contributors do not need to update operational docs themselves.
 - Branch naming: `event-NN-shortname` for maintainer-ordered Events (numbering tracked in the maintainer's operational record); `feat/<name>`, `fix/<name>`, `research/<name>`, `ops/<name>`, `docs/<name>` for non-Event work.
 
@@ -361,7 +361,7 @@ Before creating or moving any doc under `docs/`, classify it. The repo splits `d
 
 **PRIVATE tier (symlink to `~/episteme-private/docs/<name>`, gitignore the symlink):**
 
-- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `NEXT_STEPS.md` (REPLACE-on-handoff; carries the active-plan pointer since PLAN.md was retired at Event 168 — it never got tracked), `EVENTS.md` (append-one-line history index), `PROGRESS.md` (retired tombstone), `*_TRIAGE.md`, `*_CALIBRATION.md`.
+- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `NEXT_STEPS.md` (REPLACE-on-handoff; carries the active-plan pointer since PLAN.md was retired at Event 168 — it never got tracked), `EVENTS.md` (append-one-line history index), `*_TRIAGE.md`, `*_CALIBRATION.md`. (`PROGRESS.md`'s tombstone was fully removed at Event 170 — its guard condition had already dissolved in the E147/E153 policy rewrites.)
 - Operating contract / positioning narrative — *"how I work / how I market"*: `PLAYBOOK.md` (merged operating contract), `POSTURE.md`, `NARRATIVE.md`.
 - Historical decision logs (`DECISION_STORY.md`-class once filled with content).
 - Anything that documents the operator's *how I work* or *how I market*.
