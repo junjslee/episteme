@@ -128,5 +128,100 @@ class SelfHealLineTests(unittest.TestCase):
                 self.assertIsNone(sc._sync_selfheal_line())
 
 
+class DeployPruneTests(unittest.TestCase):
+    """Event 159 — sync cleans up after itself. Positive-system
+    ownership: only names the PRIOR sync manifest recorded as deployed
+    are prune candidates; operator-authored entries under
+    ~/.claude/{skills,agents} were never manifested and are
+    structurally untouchable."""
+
+    def _seed_ghosts(self, th, *, manifest: bool) -> None:
+        """Plant a deployed skill dir + agent file whose repo source is
+        gone; optionally record them in the sync sidecar manifest."""
+        ghost_skill = th.claude_root / "skills" / "ghost-skill"
+        ghost_skill.mkdir(parents=True, exist_ok=True)
+        (ghost_skill / "SKILL.md").write_text("orphan", encoding="utf-8")
+        (th.claude_root / "agents" / "ghost-agent.md").write_text(
+            "orphan", encoding="utf-8"
+        )
+        if manifest:
+            meta = cadapter.read_sync_meta(th.claude_root)
+            meta["deployed_skills"] = list(
+                meta.get("deployed_skills") or []
+            ) + ["ghost-skill"]
+            meta["deployed_agents"] = list(
+                meta.get("deployed_agents") or []
+            ) + ["ghost-agent.md"]
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                __import__("json").dumps(meta), encoding="utf-8"
+            )
+
+    def test_prior_manifest_orphans_pruned_on_next_sync(self):
+        with _TmpHome() as th:
+            self._seed_ghosts(th, manifest=True)
+            cadapter.sync("balanced")
+            self.assertFalse(
+                (th.claude_root / "skills" / "ghost-skill").exists()
+            )
+            self.assertFalse(
+                (th.claude_root / "agents" / "ghost-agent.md").exists()
+            )
+
+    def test_unmanifested_entries_never_touched(self):
+        with _TmpHome() as th:
+            self._seed_ghosts(th, manifest=False)
+            cadapter.sync("balanced")
+            self.assertTrue(
+                (th.claude_root / "skills" / "ghost-skill" / "SKILL.md").exists()
+            )
+            self.assertTrue(
+                (th.claude_root / "agents" / "ghost-agent.md").exists()
+            )
+
+    def test_pre_e159_sidecar_without_fields_prunes_nothing(self):
+        with _TmpHome() as th:
+            self._seed_ghosts(th, manifest=False)
+            # Rewrite the sidecar WITHOUT the deployed_* fields — the
+            # pre-E159 shape.
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                '{"governance_pack": "balanced", "synced_at": "2026-01-01T00:00:00+00:00"}',
+                encoding="utf-8",
+            )
+            cadapter.sync("balanced")
+            self.assertTrue(
+                (th.claude_root / "skills" / "ghost-skill").exists()
+            )
+            meta = cadapter.read_sync_meta(th.claude_root)
+            self.assertIsInstance(meta.get("deployed_skills"), list)
+            self.assertIsInstance(meta.get("deployed_agents"), list)
+
+    def test_meta_records_current_deployed_sets(self):
+        with _TmpHome() as th:
+            meta = cadapter.read_sync_meta(th.claude_root)
+            expected_skills = sorted(
+                d.name for d in ecli._managed_skills()
+            )
+            expected_agents = sorted(
+                f.name
+                for f in (ecli.REPO_ROOT / "core" / "agents").glob("*.md")
+            )
+            self.assertEqual(meta.get("deployed_skills"), expected_skills)
+            self.assertEqual(meta.get("deployed_agents"), expected_agents)
+
+    def test_traversal_shaped_manifest_names_skipped(self):
+        with _TmpHome() as th:
+            meta = cadapter.read_sync_meta(th.claude_root)
+            meta["deployed_skills"] = ["../outside-skill"]
+            meta["deployed_agents"] = ["../../outside.md"]
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                __import__("json").dumps(meta), encoding="utf-8"
+            )
+            outside = th.claude_root / "outside-skill"
+            outside.mkdir(parents=True, exist_ok=True)
+            (outside / "SKILL.md").write_text("x", encoding="utf-8")
+            cadapter.sync("balanced")
+            self.assertTrue((outside / "SKILL.md").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -427,6 +428,55 @@ def read_sync_meta(claude_root: Path | None = None) -> dict:
         return {}
 
 
+def prune_orphaned_deploy_copies(
+    claude_root: Path,
+    prior_meta: dict,
+    *,
+    current_skills: set[str],
+    current_agents: set[str],
+) -> list[str]:
+    """Event 159 — prune deployed skill/agent copies whose repo source
+    was removed. Positive-system ownership: ONLY names the PRIOR sync
+    manifest recorded as deployed are candidates; operator-authored
+    entries under ``~/.claude/{skills,agents}`` were never manifested
+    and are structurally untouchable. A candidate absent from the
+    CURRENT managed set lost its repo source — the deployed copy goes
+    (sources are git-history-recoverable, so this is reversible by
+    construction). A pre-E159 sidecar without the manifest fields
+    prunes nothing: the first sync after upgrade only RECORDS the
+    manifest. Returns pruned paths; never raises."""
+
+    def _safe_name(name: str) -> bool:
+        return bool(name) and "/" not in name and "\\" not in name and name not in {".", ".."}
+
+    pruned: list[str] = []
+    try:
+        prior_skills = prior_meta.get("deployed_skills")
+        if isinstance(prior_skills, list):
+            for name in sorted({str(n) for n in prior_skills} - current_skills):
+                if not _safe_name(name):
+                    continue
+                target = claude_root / "skills" / name
+                if target.is_dir():
+                    shutil.rmtree(target, ignore_errors=True)
+                    pruned.append(str(target))
+        prior_agents = prior_meta.get("deployed_agents")
+        if isinstance(prior_agents, list):
+            for name in sorted({str(n) for n in prior_agents} - current_agents):
+                if not _safe_name(name):
+                    continue
+                target = claude_root / "agents" / name
+                if target.is_file():
+                    try:
+                        target.unlink()
+                    except OSError:
+                        continue
+                    pruned.append(str(target))
+    except Exception:
+        pass
+    return pruned
+
+
 def sync(governance_mode: str = "balanced") -> None:
     claude_root = _cli.HOME / ".claude"
 
@@ -451,22 +501,43 @@ def sync(governance_mode: str = "balanced") -> None:
     merged["hooks"] = dedupe_hooks_map(merged.get("hooks", {}))
     _cli._write_text(settings_path, json.dumps(merged, indent=2) + "\n")
 
-    for agent_file in (_cli.REPO_ROOT / "core" / "agents").glob("*.md"):
+    agent_files = sorted((_cli.REPO_ROOT / "core" / "agents").glob("*.md"))
+    for agent_file in agent_files:
         _cli._copy_file(agent_file, claude_root / "agents" / agent_file.name)
 
-    for skill_dir in _cli._managed_skills():
+    managed_skill_dirs = _cli._managed_skills()
+    for skill_dir in managed_skill_dirs:
         _cli._copy_tree(skill_dir, claude_root / "skills" / skill_dir.name)
+
+    # Event 159 — the deploy layer cleans up after itself: prune deployed
+    # copies whose repo source is gone, using the PRIOR sync's manifest
+    # as the ownership record. Read the prior sidecar BEFORE rewriting it.
+    deployed_skills = sorted(d.name for d in managed_skill_dirs)
+    deployed_agents = sorted(f.name for f in agent_files)
+    prior_meta = read_sync_meta(claude_root)
+    pruned = prune_orphaned_deploy_copies(
+        claude_root,
+        prior_meta,
+        current_skills=set(deployed_skills),
+        current_agents=set(deployed_agents),
+    )
+    for pruned_path in pruned:
+        print(f"  - pruned orphaned deploy copy: {pruned_path}")
 
     # Event 150 — record which governance pack this deployment carries so
     # the SessionStart self-heal can re-sync faithfully on registration
     # drift. Without the sidecar the pack is unrecoverable from
     # settings.json alone, and guessing could silently downgrade strict.
+    # Event 159 extends it with the deployed manifest the next sync's
+    # prune consults (the E150 reader ignores unknown fields).
     _cli._write_text(
         claude_root / SYNC_META_FILENAME,
         json.dumps(
             {
                 "governance_pack": (governance_mode or "balanced").strip().lower(),
                 "synced_at": datetime.now(timezone.utc).isoformat(),
+                "deployed_skills": deployed_skills,
+                "deployed_agents": deployed_agents,
             },
             indent=2,
         )
@@ -478,6 +549,7 @@ __all__ = [
     "sync",
     "settings_in_sync",
     "read_sync_meta",
+    "prune_orphaned_deploy_copies",
     "SYNC_META_FILENAME",
     "build_settings",
     "render_user_claude_md",
