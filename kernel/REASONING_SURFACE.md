@@ -3,7 +3,7 @@
 **Operational summary:**
 - **Four fallback fields:** **Knowns** (verifiable), **Unknowns** (sharp), **Assumptions** (with falsification conditions), **Disconfirmation** (specific observable outcome). This is the fallback shape — it applies when no named blueprint scenario fires.
 - **Scenario-polymorphic blueprints (v1.0 RC+):** when a named scenario fires, the surface mutates to a **Cognitive Blueprint** whose required fields are the causal decomposition specific to that scenario's known failure class. Four named blueprints at v1.0 RC — see *Blueprint-polymorphic surface* below.
-- Two required markers: **domain** (Clear/Complicated/Complex/Chaotic — posture changes accordingly) and **tacit_call** (true when the decision rests on calibrated expert intuition rather than articulable evidence).
+- Two optional, logged markers: **domain** (Clear/Complicated/Complex/Chaotic — posture changes accordingly) and **tacit_call** (true when the decision rests on calibrated expert intuition rather than articulable evidence).
 - Fill always before irreversible or blast-radius actions; usually before non-trivial design choices.
 - Blank Unknowns = refusal signal. Knowns-as-assumptions = most common failure. Unfalsifiable plan = story, not plan.
 - **Update mechanic:** evidence updates plausibility; it does not flip booleans. An Assumption moves to Knowns only when the evidence is decisive. Otherwise it carries an updated plausibility and a sharpened falsification condition.

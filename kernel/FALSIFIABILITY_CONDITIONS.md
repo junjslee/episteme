@@ -51,7 +51,7 @@ A row whose action-on-disconfirmation is empty or generic is ceremonial. Either 
 - **Falsification condition.** A surface with disconfirmation field set to a lazy token (any item from the rejection list) passes the validator and the op proceeds.
 - **Measurement method.** Unit tests in `tests/test_*surface*.py`; manual: submit lazy disconfirmation under strict mode, expect refusal.
 - **Status.** **RUNNING.** Validator implemented; tests cover the canonical lazy-token list across English + Korean. Bypass-vector expansion would require fuzzing.
-- **Action on disconfirmation.** Expand the lazy-token list + tighten regex in `core/hooks/_reasoning_surface_validator.py`; lock down the lazy-list as a versioned artifact; add fuzz tests.
+- **Action on disconfirmation.** Expand the lazy-token list + tighten regex in `core/hooks/reasoning_surface_guard.py`; lock down the lazy-list as a versioned artifact; add fuzz tests.
 
 ### A3 · PreToolUse hook refuses ops when surface is missing/invalid
 
@@ -59,7 +59,7 @@ A row whose action-on-disconfirmation is empty or generic is ceremonial. Either 
 - **Falsification condition.** Operator runs a high-impact op (`git push` to main, irreversible DB migration, etc.) under strict mode in a project with NO `.episteme/reasoning-surface.json` (or a stale one past TTL), and the op proceeds without a refusal event in `~/.episteme/state/hooks.log`.
 - **Measurement method.** Adversarial test in fresh repo; hook log inspection; Gate 28 dogfood (kernel-on-itself).
 - **Status.** **RUNNING.** Verified extensively across Events 36-50 (soak window) + the current session. Gate 28 baseline shows 564 cascade:architectural firings with strict-mode enforcement; 3,675 blocked actions across audit stream.
-- **Action on disconfirmation.** Audit `core/hooks/_reasoning_surface_validator.py` + `block_dangerous.py`; identify the bypass vector; emergency CP-FENCE-class patch; hard regression bar in CI.
+- **Action on disconfirmation.** Audit `core/hooks/reasoning_surface_guard.py` + `block_dangerous.py`; identify the bypass vector; emergency CP-FENCE-class patch; hard regression bar in CI.
 
 ### A4 · Stateful interceptor catches bypass shapes
 
@@ -67,7 +67,7 @@ A row whose action-on-disconfirmation is empty or generic is ceremonial. Either 
 - **Falsification condition.** Agent writes `attack.sh` containing `git push`, runs `bash attack.sh`, and the push succeeds with NO RS challenge or refusal event recorded.
 - **Measurement method.** Adversarial test fixtures (need verification — list of bypass-vectors should live in `tests/test_bypass_*.py` if it doesn't already); systematic fuzzing across the bypass-vector taxonomy.
 - **Status.** **PARTIAL.** Normalized-command scanner + state-tracker exist; coverage of known bypass shapes verified. Coverage of unknown / future bypass shapes is structurally limited (see Ashby variety-mismatch / FAILURE_MODE 9). The interceptor is escalate-by-default for shapes outside its declared coverage; that is the kernel's response to the variety gap, not a claim of complete coverage.
-- **Action on disconfirmation.** When a new bypass surfaces, expand the bypass-vector taxonomy in `system_prompts_leaks` adopt-from-adjacent-ecosystems list (CP-NORM-EXPAND-01, post-soak); patch `core/hooks/_normalized_command_scanner.py`; add regression test; record the prior-undetected vector as a Phase-12 audit data point.
+- **Action on disconfirmation.** When a new bypass surfaces, expand the bypass-vector taxonomy in `system_prompts_leaks` adopt-from-adjacent-ecosystems list (CP-NORM-EXPAND-01, post-soak); patch `core/hooks/block_dangerous.py`; add regression test; record the prior-undetected vector as a Phase-12 audit data point.
 
 ### A5 · Pillar 3 protocols are context-scoped (only fire on matching context_signature)
 

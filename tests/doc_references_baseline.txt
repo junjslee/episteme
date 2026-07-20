@@ -18,7 +18,6 @@
 docs/ADAPTER_PORTABILITY.md	adapters/cursor
 docs/ADAPTER_PORTABILITY.md	core/schemas/canonical-event.json
 docs/ANTHROPIC_MANAGED_AGENTS_BRIDGE.md	core/memory/bridges/anthropic-managed
-docs/COMPLIANCE_CROSSWALK.md	core/manifest.py
 docs/CONTRACT_GATE.md	contracts/orders.openapi.yaml
 docs/CUSTOMIZATION.md	core/memory/global/build_story.md
 docs/HOW_TO_AUTHOR_SIGNED_SURFACE.md	skills/compliance-evidence-layer
@@ -34,8 +33,6 @@ kernel/REFERENCES.md	core/patterns
 docs/SPEC_REASONING_SURFACE_BRANCHING.md	core/hooks/_branch.py
 docs/SPEC_RIGOR_KNOB.md	core/hooks/_rigor.py
 kernel/FALSIFIABILITY_CONDITIONS.md	benchmarks/falsifiability
-kernel/FALSIFIABILITY_CONDITIONS.md	core/hooks/_normalized_command_scanner.py
-kernel/FALSIFIABILITY_CONDITIONS.md	core/hooks/_reasoning_surface_validator.py
 #
 # ── contract placeholders: per-project memory-contract docs, never instantiated ─
 docs/HARNESSES.md	docs/RUN_CONTEXT.md

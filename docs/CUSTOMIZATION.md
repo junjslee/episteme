@@ -5,7 +5,7 @@ Three places you can shape episteme to your own working life: personal memory, s
 
 ## Personal memory
 
-Edit `core/memory/global/*.md` — these are gitignored and never leave your machine. The `*.example.md` files in the same directory are committed templates that show what belongs in each file.
+Edit `core/memory/global/*.md` — these are gitignored and never leave your machine. The `*.example.md` files under `core/memory/global/examples/` are committed templates that show what belongs in each file.
 
 Recommended additions:
 - `core/memory/global/build_story.md` from `build_story.example.md` — a short, stable builder narrative (not project-specific details).

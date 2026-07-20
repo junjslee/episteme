@@ -21,6 +21,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+# Event 172 — the installed entry point could not import `core.*`
+# (repo-root package outside the installed tree), so this command
+# CRASHED from the shipped CLI while the docs called it the operator's
+# practice UX. Resolve the repo root from this file and put it on
+# sys.path before the core imports; a no-op when already importable.
+import sys as _sys
+from pathlib import Path as _Path
+_REPO_ROOT = _Path(__file__).resolve().parents[3]
+if str(_REPO_ROOT) not in _sys.path:
+    _sys.path.insert(0, str(_REPO_ROOT))
+
 from core.ptsp.canonical import sha256_hex, sha256_of_jcs
 from core.signing import (
     SurfaceVerificationError,
