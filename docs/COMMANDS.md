@@ -77,7 +77,7 @@ episteme doctor          # verify wiring
 ```
 cd ~/my-new-project
 episteme bootstrap .     # scaffold docs + settings
-# edit docs/REQUIREMENTS.md and docs/PLAN.md
+# edit docs/REQUIREMENTS.md
 episteme start claude    # launch agent surface
 ```
 

@@ -58,7 +58,7 @@ Operator-defined policy derived from top-down cognitive principles. This file is
 - State how each verification was performed — manual read of real output vs script-mediated. A script you wrote to verify your own work is itself an unverified claim until spot-checked against the raw thing.
 
 5) **Handoff**
-- Update authoritative docs: REPLACE `docs/NEXT_STEPS.md`, append one line to `docs/EVENTS.md`, and update `docs/PLAN.md` when the plan changed.
+- Update authoritative docs: REPLACE `docs/NEXT_STEPS.md` (it carries the active plan) and append one line to `docs/EVENTS.md`.
 - Capture unresolved risks and exact next action.
 
 ## Signal-over-Noise Rules
@@ -106,7 +106,6 @@ Two authority tiers govern conflicts between this global policy and a project's 
 Authoritative truth lives in project docs and repo policy files. The default doc set — applies only where the project declares none:
 
 - `docs/REQUIREMENTS.md` — what is being built.
-- `docs/PLAN.md` — staged execution.
 - `docs/EVENTS.md` — one-line-per-event history index.
 - `docs/NEXT_STEPS.md` — next-session handoff (REPLACE-form).
 - `docs/RUN_CONTEXT.md` — runtime assumptions, execution profiles, API env vars.

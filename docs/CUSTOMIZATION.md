@@ -59,7 +59,6 @@ AGENTS.md            vendor-neutral operating manual for any agent
 CLAUDE.md            Claude-native memory index
 docs/
   REQUIREMENTS.md    what is being built
-  PLAN.md            staged execution
   EVENTS.md          one-line-per-event history index (append one row per handoff)
   NEXT_STEPS.md      next-session handoff (REPLACE-form, capped)
   RUN_CONTEXT.md     runtime assumptions, APIs, execution profiles

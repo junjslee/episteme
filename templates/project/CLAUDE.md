@@ -2,7 +2,6 @@
 
 @AGENTS.md
 {{HARNESS_IMPORT}}@docs/REQUIREMENTS.md
-@docs/PLAN.md
 @docs/EVENTS.md
 @docs/RUN_CONTEXT.md
 @docs/NEXT_STEPS.md
