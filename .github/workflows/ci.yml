@@ -33,5 +33,19 @@ jobs:
       - name: Compile check
         run: python3 -m py_compile src/episteme/cli.py
 
+      # Event 160 — doc-consistency gate. Wires the already-existing
+      # checks to the merge path so doc-code drift fails the PR instead
+      # of waiting for someone to run the CLI (D11: a rule wired to no
+      # gate is inert). Gates STRUCTURAL validity only — lifecycle
+      # markers present/valid and the generated docs index in sync;
+      # reviewed_as_of STALENESS deliberately stays a SessionStart
+      # banner advisory, not a CI failure (Event 147 design choice,
+      # unchanged).
+      - name: Docs lifecycle lint
+        run: episteme docs lint
+
+      - name: Docs index check
+        run: episteme docs index --check
+
       - name: Run tests
         run: python3 -m pytest -v
