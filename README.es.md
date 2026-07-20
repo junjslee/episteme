@@ -20,9 +20,11 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme obliga a un agente de IA a mostrar su razonamiento antes de actuar — y hace que la documentación de tu repositorio deje de mentir sobre tu código.**
+> **episteme obliga a un agente de IA a mostrar su razonamiento antes de actuar.**
 >
-> Se instala dentro de las herramientas de programación que ya usas (Claude Code hoy; una capa de adaptadores neutral respecto al proveedor para las demás). Antes de cualquier acción de alto impacto — `git push`, un deploy, una migración, eliminar una restricción — el agente debe escribir, en disco, lo que sabe, lo que no sabe, y qué evento observable probaría que está equivocado. Un hook determinista revisa el artefacto y se niega a continuar hasta que sea real (`exit 2`). Las lecciones de decisiones verificadas se vuelven protocolos a prueba de manipulación (tamper-evident) y acotados por contexto, que reaparecen en la siguiente decisión coincidente — así el agente se afina sobre *tu* codebase con el tiempo, y tu documentación se lintea contra tu código igual que tu código se lintea contra tus tests.
+> Conoces la sensación: el diff se ve bien, el análisis suena correcto, y una vocecita dice *quizá debería leer esto con más cuidado.* episteme es esa voz, pero con dientes. Antes de cualquier cosa irreversible — un push, un deploy, una migración — tu agente tiene que escribir qué sabe, qué no sabe y qué probaría que está equivocado. En disco, donde puedas leerlo. Una puerta silenciosa y determinista aguanta cerrada hasta que el razonamiento sea real.
+>
+> Se integra con las herramientas que ya usas (hoy Claude Code; una capa de adaptadores neutral respecto al proveedor para las demás). Las lecciones de decisiones verificadas se quedan como protocolos a prueba de manipulación que reaparecen justo cuando vuelven a importar — así el agente se afila sobre *tu* codebase con el tiempo, y tu documentación se sostiene con el mismo estándar que tu código.
 
 **[Qué aspecto tiene ↓](#qué-aspecto-tiene)** · **[Instalación ↓](#instalación)** · **[Las demos ↓](#las-demos)** · **[Cómo se compara ↓](#cómo-se-compara)** · **[Bajo el capó ↓](#bajo-el-capó)** · **[¿Funciona? ↗](docs/EVALUATION_METHOD.md)**
 
@@ -30,25 +32,25 @@
 
 ## Qué aspecto tiene
 
-Le pides a tu agente: *"Evalúa si nuestro sistema de memoria con retrieval-augmented está mejorando realmente la calidad de las respuestas."*
+Digamos que le pides a tu agente: *"Evalúa si nuestro sistema de memoria con retrieval-augmented está mejorando realmente la calidad de las respuestas."*
 
-**Sin episteme** — el agente trata esto como una tarea de medición. Saca 30 días de métricas, encuentra un 7% de lift en la tasa de thumbs-up, y escribe un memo confiado: *"la memoria ayuda; sigamos enviando."* Lo lees. Está equivocado de tres formas, con fluidez:
+**Sin episteme**, el agente lo trata como una tarea de medición. Saca 30 días de métricas, encuentra un 7% de lift en la tasa de thumbs-up y te escribe un memo confiado: *"la memoria ayuda; sigamos enviando."* Se lee precioso. También está equivocado de tres formas a la vez:
 
-- El thumbs-up rastrea la *confianza* de la respuesta, no su *corrección* — midió un proxy de tu pregunta, no la pregunta.
-- Las respuestas con memoria son un 30% más largas, y la longitud impulsa el thumbs-up de forma independiente — el "lift" podría ser el efecto de la longitud.
+- El thumbs-up mide la *confianza* de la respuesta, no su *corrección* — midió un proxy de tu pregunta, no la pregunta.
+- Las respuestas con memoria son un 30% más largas, y la longitud por sí sola empuja el thumbs-up — ese "lift" podría ser el efecto de la longitud.
 - Nunca se nombró ninguna condición bajo la cual la conclusión se juzgaría errónea — así que no puede serlo.
 
-**Con episteme** — antes de que el memo pueda aterrizar, el agente tiene que comprometer esto en disco:
+**Con episteme**, el memo todavía no puede aterrizar. Primero, el agente tiene que dejar esto en disco:
 
 | Campo | Lo que el agente debe escribir |
 |---|---|
-| **Core Question** | La única pregunta que este trabajo realmente responde — *"¿mejora la memoria la corrección, controlando por longitud?"* |
-| **Knowns** | Hechos verificados con fuentes — no conjeturas que suenan plausibles |
-| **Unknowns** | Vacíos nombrados (*"si el lift sobrevive al control por longitud"*) — un blanco aquí hace fallar el gate |
-| **Assumptions** | Creencias que soportan la carga, marcadas para poder ser falsificadas |
+| **Core Question** | La única pregunta que este trabajo responde de verdad — *"¿mejora la memoria la corrección, controlando por longitud?"* |
+| **Knowns** | Hechos verificados con fuentes, no conjeturas que suenan plausibles |
+| **Unknowns** | Vacíos con nombre (*"si el lift sobrevive al control por longitud"*) — dejarlo en blanco hace fallar el gate |
+| **Assumptions** | Las creencias que sostienen la carga, marcadas para poder falsarlas |
 | **Disconfirmation** | Un observable comprometido de antemano — *"si el lift desaparece al re-ejecutar controlando por longitud, la memoria está añadiendo tokens, no señal"* |
 
-Los tokens perezosos (`none`, `n/a`, `tbd`, `해당 없음`) se rechazan. Las evasivas vagas (*"si surgen problemas"*) se rechazan — solo pasan condiciones de falsación concretas. El acto de escribir la surface es lo que revela que el proxy no era la pregunta. Ese es el producto: **el agente es obligado a pensar de una forma que puedes auditar, antes de que las consecuencias existan.**
+Las respuestas perezosas (`none`, `n/a`, `tbd`, `해당 없음`) no pasan. Las evasivas vagas (*"si surgen problemas"*) tampoco — solo pasa una forma concreta y observable de quedar refutado. Y aquí está la magia silenciosa: el acto mismo de escribir esa surface es lo que deja al descubierto que el thumbs-up nunca fue la pregunta. Ese es el producto. **El agente tiene que pensar de una forma que puedas auditar, antes de que las consecuencias existan.**
 
 ![episteme — el thinking framework en movimiento](docs/assets/demo_posture.gif)
 
@@ -56,12 +58,12 @@ Los tokens perezosos (`none`, `n/a`, `tbd`, `해당 없음`) se rechazan. Las ev
 
 ## Qué obtienes
 
-- **Un gate de razonamiento en el punto de no retorno.** Los hooks interceptan operaciones de alto impacto y validan la Reasoning Surface estructuralmente — el escaneo normalizado de comandos atrapa formas de evasión (`subprocess.run(['git','push'])`, scripts de shell escritos por el agente, ejecutores envueltos). Surface ausente o hueca → la operación se rechaza. Strict por defecto; el modo advisory es opt-in por proyecto.
-- **Interrogación para decisiones de carga.** La estructura por sí sola no distingue el pensamiento del teatro, así que el gate también acepta un artefacto más fuerte: la decisión descompuesta en afirmaciones, cada afirmación de carga verificada por un **contexto fresco que nunca vio el razonamiento borrador**, la oposición más fuerte argumentada, el eslabón más débil nombrado. Un veredicto `stop` falla cerrado.
-- **Memoria que se acumula en vez de decaer.** Cada lección verificada se vuelve un protocolo encadenado por hash y acotado por contexto — append-only y tamper-evident, así el agente no puede reescribir en silencio lo que aprendió. En la siguiente decisión coincidente el kernel expone el protocolo proactivamente: `[episteme guide] … · overlap 5/6 · Protocol: In context X, do Y`. No tienes que acordarte de preguntar.
-- **Documentación lineada contra la realidad.** Cada doc rastreado lleva un marcador de ciclo de vida legible por máquina (`living / spec-implemented / design-history / report / tombstone`). CI falla cuando un doc nuevo aterriza sin clasificar, cuando un doc living cita uno retirado como si fuera vigente, o cuando un reporte puntual intenta ocupar `docs/`. Las cadenas de versión se estampan desde el manifiesto de release, nunca se copian a mano. Los docs obsoletos afloran al inicio de sesión — en silencio, solo cuando algo está realmente obsoleto. **Una única fuente de verdad (single source of truth), impuesta — no aspirada.**
-- **Un sistema que limpia lo suyo.** Las colas de revisión tienen tope con contrapresión visible, los logs rotan en topes de tamaño, los marcadores expirados y la telemetría vieja se recogen al inicio de sesión. Los artefactos no se apilan; la eliminación es una operación diseñada, no un accidente del descuido.
-- **Una identidad a través de las herramientas.** Tu estilo de trabajo, tu postura de riesgo y tus preferencias de razonamiento viven en markdown gobernado y versionado — sincronizado a cada adaptador con un solo comando. El kernel sobrevive a la herramienta.
+- **Una puerta en el punto de no retorno.** Las operaciones de alto impacto se interceptan antes de ejecutarse, y se revisa que el razonamiento del agente tenga sustancia — incluidas las formas escurridizas (`subprocess.run(['git','push'])`, scripts de shell escritos por el agente, comandos envueltos). Sin una surface real, no hay ejecución. Strict por defecto; y si quieres, puedes suavizarlo por proyecto.
+- **Una segunda opinión que nunca tocó el borrador.** La estructura por sí sola no distingue el pensamiento del teatro. Así que para las decisiones que soportan carga, el gate acepta un artefacto más fuerte: la decisión descompuesta en afirmaciones, cada una verificada por un contexto fresco que nunca vio el razonamiento original, con la oposición más fuerte realmente argumentada. Si el veredicto dice parar, se para.
+- **Memoria que se acumula en vez de decaer.** Cada lección verificada se convierte en un protocolo a prueba de manipulación, acotado a su contexto. La próxima vez que aparezca una decisión que encaje, el kernel te trae la lección — `Protocol: In context X, do Y` — sin que tengas que acordarte de que existe. El agente se afila sobre tu codebase en concreto.
+- **Documentación que se mantiene honesta.** Cada doc rastreado lleva un marcador de ciclo de vida, y CI falla cuando la realidad se desvía — un doc sin clasificar, un doc living que cita uno retirado, una cadena de versión que alguien copió a mano. Los docs obsoletos te saludan al inicio de sesión, y solo cuando algo está realmente obsoleto. Una única fuente de verdad, impuesta en lugar de aspirada.
+- **Un sistema que recoge lo suyo.** Las colas tienen tope con contrapresión visible, los logs rotan, los marcadores expirados se barren al inicio de sesión. Nada se apila en una esquina; borrar es una operación diseñada, no un accidente del descuido.
+- **Una sola identidad entre herramientas.** Tu estilo de trabajo, tu postura ante el riesgo y tus preferencias de razonamiento viven en markdown versionado — sincronizado a cada adaptador con un solo comando. El kernel sobrevive a la herramienta que estés usando este año.
 
 ## Instalación
 
@@ -86,11 +88,11 @@ episteme sync      # push identity to every adapter
 episteme doctor    # verify wiring
 ```
 
-Adoptarlo en un repo existente: `episteme docs lint` fuerza una clasificación de ciclo de vida de cada doc rastreado — esa primera corrida de lint es el inventario honesto que la mayoría de los repos nunca tuvo. Detalles, harnesses de proyecto, y la referencia completa de comandos: [`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md).
+¿Lo estás adoptando en un repo que ya existe? Corre `episteme docs lint` primero — le pide a cada doc rastreado que declare qué es, y esa primera corrida suele ser el inventario más honesto que el repo ha tenido nunca. Los detalles, los harnesses de proyecto y la referencia completa de comandos están en [`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md).
 
 ## Las demos
 
-Cada demo envía sus artefactos reales — léelos antes que cualquier filosofía.
+Cada demo trae sus artefactos reales. Léelos antes que cualquier filosofía — son los recibos.
 
 | Demo | Qué demuestra |
 |---|---|
@@ -100,7 +102,7 @@ Cada demo envía sus artefactos reales — léelos antes que cualquier filosofí
 | [`demos/01_attribution-audit/`](./demos/01_attribution-audit/) | La forma canónica de cuatro artefactos (reasoning-surface → decision-trace → verification → handoff) — el kernel auditando sus propias atribuciones. |
 | [`demos/05_contract_gate/`](./demos/05_contract_gate/) | El complemento conductual: los contratos declarados corren al final del turno. |
 
-Regraba tú mismo la demo estrella: `scripts/demo_posture.sh` (la receta está en la cabecera del script). El dashboard en vivo se renderiza contra la propia cadena hash del kernel — [`web/README.md`](./web/README.md).
+Puedes regrabar tú mismo la demo estrella: `scripts/demo_posture.sh` (la receta está en la cabecera del script). El dashboard en vivo se renderiza contra la propia cadena hash del kernel — [`web/README.md`](./web/README.md).
 
 ## Cómo se compara
 
@@ -111,19 +113,19 @@ Regraba tú mismo la demo estrella: `scripts/demo_posture.sh` (la receta está e
 | **Know-how** | Extraído en la frontera del sistema de archivos, encadenado por hash, re-expuesto por contexto | Recuperación opaca | Ajustado por prompt, por sesión |
 | **Higiene de docs/estado** | Lineada por ciclo de vida, con GC, con gate de drift en CI | N/A | N/A |
 
-**¿No es esto solo contract testing?** Los contract tests atrapan regresiones *conductuales* — si el código hizo lo que dice el spec. La Reasoning Surface atrapa regresiones *epistemológicas* — si escribimos el spec correcto, encuadramos la pregunta correcta, nombramos lo que nos probaría equivocados. Una suite de tests que pasa no puede decirte que estás resolviendo con fluidez el problema equivocado; esa falla ocurre antes de que el spec exista. episteme envía ambas capas ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
+**¿No es esto solo contract testing?** Los contract tests preguntan *si el código hizo lo que dice el spec.* La Reasoning Surface pregunta algo anterior y más difícil: *¿era ese el spec correcto, era esa la pregunta correcta, y qué nos habría avisado de lo contrario?* Una suite de tests en verde no puede decirte que estás resolviendo el problema equivocado con elegancia — esa falla ocurre antes de que el spec exista. episteme envía ambas capas ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
 
-**¿Por qué no puede hacer esto un prompt?** Los prompts son consultivos: viven una sola llamada, se saltan en el deadline, y se desvanecen del contexto. Un hook que sale con código distinto de cero no se puede saltar. El benchmark MIRROR ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 modelos, 8 laboratorios, ~250k instancias) encontró que mostrar a los modelos su propia calibración no ayuda — *solo la restricción arquitectónica es efectiva* (Confident Failure Rate 0.60 → 0.14). Postura antes que prompt (Posture over prompt).
+**¿Por qué no puede hacer esto un prompt?** Porque los prompts son sugerencias. Viven una sola llamada, se saltan cuando vas con prisa, y se caen del contexto sin avisar. Un hook que sale con código distinto de cero no negocia. El benchmark MIRROR ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 modelos, 8 laboratorios, ~250k instancias) probó exactamente esto: mostrarle a un modelo sus propias puntuaciones de calibración no cambió nada — *solo ayudó la restricción arquitectónica* (tasa de fallo confiado 0.60 → 0.14). La postura le gana al prompt.
 
 ## Límites honestos
 
-- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) nombra cuándo este kernel es la herramienta equivocada. *Una disciplina sin frontera es un credo.*
-- El kernel mide sus propias afirmaciones: el bucle de síntesis de protocolos disparó su propia condición de falsabilidad en 2026-06 (49 días, cero protocolos sintetizados) y fue reconstruido para sintetizar a partir de interrogaciones verificadas — el rastro de auditoría es público ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). Un kernel que impone disconfirmation sobre tus decisiones te debe lo mismo sobre las suyas.
-- Atribución de cada concepto prestado, y el trabajo de la industria 2025–26 que convergió de forma independiente sobre los mismos patrones: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
+- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) dice sin rodeos cuándo esta no es la herramienta para ti. *Una disciplina sin frontera es solo un credo.*
+- Se somete al mismo estándar. En junio de 2026 el bucle de síntesis de protocolos disparó su propia condición de falsabilidad — 49 días, cero protocolos sintetizados — y se reconstruyó alrededor de interrogaciones verificadas. El rastro completo es público ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). Una herramienta que le exige disconfirmation a tus decisiones te debe lo mismo sobre sí misma.
+- Cada idea prestada está acreditada, junto al trabajo de 2025–26 que llegó a patrones parecidos de forma independiente: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
 
 ## Bajo el capó
 
-Estado: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · La práctica es Frame → Decompose → Execute → Verify → Handoff, anclada en contadores nombrados a failure modes específicos del System-1 (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — la operacionalización completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), y los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Estado: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · La práctica son cinco etapas — Frame → Decompose → Execute → Verify → Handoff — y cada una existe para contrarrestar una forma concreta en que la mente falla bajo la fluidez: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. La historia completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
@@ -191,9 +193,9 @@ graph TD
     class A,B neutralStyle
 ```
 
-**Doxa** (rojo) — salida fluida pero no validada — es el estado de falla que el kernel existe para prevenir. **Episteme** (verde) — una surface validada — es la precondición para ejecutar. **Praxis** — la acción admitida y su resultado observado. **결 · Gyeol** (azul) — el bucle de calibración que refina el framework a lo largo de los ciclos. Funciona con cualquier stack: el kernel es markdown puro, el perfil JSON plano, la capa de adaptadores (Claude Code, Hermes, OMO/OMX) enchufable.
+Cuatro ideas, en los colores de arriba. **Doxa** (rojo) es salida fluida pero no validada — el estado de falla que todo esto existe para prevenir. **Episteme** (verde) es una surface que de verdad se sostiene, y es el precio de entrada para ejecutar. **Praxis** es la acción que pasó, más lo que ocurrió realmente. **결 · Gyeol** (azul) es el bucle que devuelve esos resultados a tu calibración de la próxima vez. Agnóstico al stack por construcción: el kernel es markdown plano, el perfil JSON plano, y los adaptadores (Claude Code, Hermes, OMO/OMX) intercambiables.
 
-El kernel mismo — markdown puro, sin código, sin vendor lock-in — empieza en [`kernel/`](./kernel/):
+El kernel mismo — markdown, sin código, nada que te ate — empieza en [`kernel/`](./kernel/):
 
 | Archivo | Qué define |
 |---|---|
@@ -235,7 +237,7 @@ Jerarquía de autoridad: **docs del proyecto > perfil del operador > defaults de
 
 ## Licenciamiento comercial
 
-Para licenciamiento comercial o consultoría, [contáctame](mailto:junseong.lee652@gmail.com).
+¿Necesitas una licencia comercial, o ayuda para adoptar esto? [Escríbeme](mailto:junseong.lee652@gmail.com) — me interesa de verdad saber qué estás construyendo.
 
 ---
 
