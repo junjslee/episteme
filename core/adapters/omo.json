@@ -1,0 +1,16 @@
+{
+  "name": "omo",
+  "display": "OMO",
+  "detect": {
+    "commands": [],
+    "paths": ["~/.omo"]
+  },
+  "docs_url": "https://github.com/junjslee/episteme",
+  "sync": {
+    "agents_dir": "~/.omo/agents",
+    "skills_dir": "~/.omo/skills",
+    "settings_json": "~/.omo/settings.json"
+  },
+  "project_contract": "AGENTS.md",
+  "notes": "Claude-format runtime: agents, managed skills, and the merged settings.json (hooks + permissions) mirror the ~/.claude deployment. Registered Event 169 — the implementation predated its registry entry, the reverse of the codex.json gap E167 closed."
+}
