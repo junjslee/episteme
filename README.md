@@ -125,7 +125,7 @@ Re-record the hero demo yourself: `scripts/demo_posture.sh` (recipe in the scrip
 
 ## Under the hood
 
-Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is five stages — Frame → Decompose → Execute → Verify → Handoff — and each one exists to counter a specific way minds go wrong under fluency: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. The full story is in [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specced in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Status: **<!-- episteme-fact:version -->1.10.0-rc.1<!-- /episteme-fact:version -->** · The practice is five stages — Frame → Decompose → Execute → Verify → Handoff — and each one exists to counter a specific way minds go wrong under fluency: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. The full story is in [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specced in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
