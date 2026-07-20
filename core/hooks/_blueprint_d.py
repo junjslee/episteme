@@ -467,7 +467,7 @@ def write_cascade_deferred_discoveries(
                 },
                 "status": "pending",
             }
-            res = write_deferred_discovery(payload)
+            res = write_deferred_discovery(payload, now=now_dt)
             # A cap-declined write is not a written record (Event 158);
             # suppressed duplicates keep counting per prior behavior.
             if not (isinstance(res, dict) and res.get("declined_at_cap")):

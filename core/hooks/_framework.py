@@ -213,17 +213,23 @@ def _deferred_skip_counter_path() -> Path:
 def _resolve_deferred_open_cap(explicit: int | None = None) -> int:
     """Resolve the open-set cap. Precedence: explicit arg (test seam) >
     ``EPISTEME_DEFERRED_OPEN_CAP`` env var > ``DEFAULT_DEFERRED_OPEN_CAP``.
-    Non-parseable / negative values fall back to the default — a bad
-    knob must never break the write path. Never raises."""
+    Non-parseable / NON-POSITIVE values fall back to the default — a
+    bad knob must never break the write path, and unlike the spot-check
+    sampler (where cap=0 merely quiets sampling) a zero cap here would
+    silently drop architectural-debt records with the banner notice
+    suppressed (Event 158 review finding). Never raises."""
     if explicit is not None:
         try:
-            return max(0, int(explicit))
+            val = int(explicit)
         except (TypeError, ValueError):
             return DEFAULT_DEFERRED_OPEN_CAP
+        return val if val > 0 else DEFAULT_DEFERRED_OPEN_CAP
     raw = os.environ.get("EPISTEME_DEFERRED_OPEN_CAP", "").strip()
     if raw:
         try:
-            return max(0, int(raw))
+            val = int(raw)
+            if val > 0:
+                return val
         except ValueError:
             pass
     return DEFAULT_DEFERRED_OPEN_CAP
@@ -733,6 +739,75 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
     ]
 
 
+def _discovery_ref_sets(target: Path) -> tuple[list[dict], set[str], set[str]]:
+    """Single chain pass → (open-shaped discovery envelopes,
+    verdict refs, expiry refs). Open-shaped = status pending/None;
+    callers apply the closing semantics they need."""
+    discoveries: list[dict] = []
+    verdict_refs: set[str] = set()
+    expiry_refs: set[str] = set()
+    for rec in _chain_iter(target, verify=True):
+        payload = rec.get("payload") if isinstance(rec, dict) else None
+        if not isinstance(payload, dict):
+            continue
+        ptype = payload.get("type")
+        if ptype == DISCOVERY_VERDICT_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                verdict_refs.add(ref)
+        elif ptype == DISCOVERY_EXPIRY_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                expiry_refs.add(ref)
+        elif ptype == DEFERRED_DISCOVERY_TYPE:
+            status = payload.get("status")
+            if status is None or status in OPEN_STATUSES:
+                discoveries.append(rec)
+    return discoveries, verdict_refs, expiry_refs
+
+
+def _verdictable_discoveries(*, path: Path | None = None) -> list[dict]:
+    """Discoveries an operator verdict may target: OPEN ones plus
+    expiry-closed ones with no verdict yet. An operator verdict
+    SUPERSEDES a machine expiry (Event 158 review — mirrors the Event
+    157 spot-check semantics): cap relief must not permanently block a
+    real disposition, especially the Event 152 ``accepted`` verdict
+    whose whole point is naming the cost of ignorance."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, _ = _discovery_ref_sets(target)
+    return [
+        d for d in discoveries
+        if str(d.get("entry_hash") or "") not in verdict_refs
+    ]
+
+
+def expired_unverdicted_count(*, path: Path | None = None) -> int:
+    """Count of discoveries machine-expired by cap relief with no
+    operator verdict recorded. Surfaced by the SessionStart banner and
+    ``episteme deferred list`` so mass expiry is never invisible
+    (Event 158 review)."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, expiry_refs = _discovery_ref_sets(target)
+    return sum(
+        1 for d in discoveries
+        if str(d.get("entry_hash") or "") in expiry_refs
+        and str(d.get("entry_hash") or "") not in verdict_refs
+    )
+
+
+def expired_unverdicted_discoveries(*, path: Path | None = None) -> list[dict]:
+    """The machine-expired, still-unverdicted discovery envelopes —
+    ``episteme deferred list --expired`` renders these with full refs so
+    the supersede path is actually reachable."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, expiry_refs = _discovery_ref_sets(target)
+    return [
+        d for d in discoveries
+        if str(d.get("entry_hash") or "") in expiry_refs
+        and str(d.get("entry_hash") or "") not in verdict_refs
+    ]
+
+
 def append_discovery_verdict(
     ref: str,
     verdict: str,
@@ -780,15 +855,19 @@ def append_discovery_verdict(
         _, _, bare = entry_hash.partition(":")
         return bool(bare) and bare.startswith(ref)
 
+    # Event 158 review: match against verdictable (open OR expiry-closed
+    # -but-unverdicted) discoveries — an operator verdict supersedes a
+    # machine expiry; only a prior operator verdict blocks.
     matches = [
-        d for d in open_deferred_discoveries(path=target)
+        d for d in _verdictable_discoveries(path=target)
         if _ref_matches(str(d.get("entry_hash") or ""))
     ]
     if not matches:
         raise ChainError(
-            f"no OPEN deferred discovery matches {ref!r} — it may "
-            "already be verdicted or expired (cap relief), or the ref "
-            "is wrong (see `episteme guide --deferred` for open entries)"
+            f"no verdictable deferred discovery matches {ref!r} — it "
+            "may already carry an operator verdict, or the ref is wrong "
+            "(open: `episteme deferred list` · machine-expired: "
+            "`episteme deferred list --expired`)"
         )
     if len(matches) > 1:
         raise ChainError(
@@ -1145,16 +1224,20 @@ def compact_deferred_discoveries(
                 f"before compaction."
             )
 
-        # Verdicts couple to discoveries by entry_hash (see § Resolution
-        # layer). A GENESIS rebuild recomputes every entry_hash, so any
-        # verdict ref would dangle and a resolved discovery would re-open —
-        # unless we (1) never drop a verdicted discovery as a duplicate, and
-        # (2) remap verdict refs old->new during the rebuild. Collect the
-        # referenced hashes first.
+        # Verdicts AND cap-relief expiries couple to discoveries by
+        # entry_hash (see § Resolution layer; Event 158 review finding —
+        # an unremapped expiry ref would dangle after the rebuild and a
+        # machine-expired discovery would silently RE-OPEN). A GENESIS
+        # rebuild recomputes every entry_hash, so any closing ref would
+        # dangle — unless we (1) never drop a closed discovery as a
+        # duplicate, and (2) remap closing refs old->new during the
+        # rebuild. Collect the referenced hashes first.
         verdict_refs: set[str] = set()
         for rec in parsed:
             payload = rec.get("payload")
-            if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            if isinstance(payload, dict) and payload.get("type") in (
+                DISCOVERY_VERDICT_TYPE, DISCOVERY_EXPIRY_TYPE
+            ):
                 ref = payload.get("ref")
                 if isinstance(ref, str) and ref:
                     verdict_refs.add(ref)
@@ -1219,7 +1302,9 @@ def compact_deferred_discoveries(
                     f"{target}: kept record missing payload / ts during rebuild "
                     f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
                 )
-            if payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            if payload.get("type") in (
+                DISCOVERY_VERDICT_TYPE, DISCOVERY_EXPIRY_TYPE
+            ):
                 old_ref = payload.get("ref")
                 if isinstance(old_ref, str) and old_ref in hash_remap:
                     payload = {**payload, "ref": hash_remap[old_ref]}

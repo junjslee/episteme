@@ -1,9 +1,11 @@
 """Event 158 — deferred-discovery cap surfacing in the SessionStart banner.
 
 Covers the extension of ``_framework_digest_line()``: below the open cap
-the line is byte-identical to before; at/over cap it appends the
-degradation notice (writes paused + skipped count); a cap-read failure
-degrades to the plain line rather than killing the digest.
+with zero machine-expiries the line is byte-identical to before; at/over
+cap it appends the degradation notice (writes paused + skipped count);
+machine-expired findings surface their own count so cap relief is never
+an invisible loss; a cap-read failure degrades to the plain line rather
+than killing the digest.
 """
 from __future__ import annotations
 
@@ -29,17 +31,37 @@ def _open_stub(n: int) -> list[dict]:
 
 
 class DeferredCapLineTests(unittest.TestCase):
-    def test_below_cap_line_unchanged(self):
+    def _line(self, *, open_n, cap=100, skipped=0, expired=0,
+              cap_error=False):
+        cap_mock = (
+            mock.patch.object(
+                _framework, "_resolve_deferred_open_cap",
+                side_effect=RuntimeError("boom"),
+            )
+            if cap_error
+            else mock.patch.object(
+                _framework, "_resolve_deferred_open_cap", return_value=cap
+            )
+        )
         with mock.patch.object(_framework, "list_protocols", return_value=[]), \
              mock.patch.object(
                  _framework, "open_deferred_discoveries",
-                 return_value=_open_stub(28),
+                 return_value=_open_stub(open_n),
              ), \
              mock.patch.object(
-                 _framework, "_resolve_deferred_open_cap", return_value=100
+                 _framework, "expired_unverdicted_count",
+                 return_value=expired,
+             ), \
+             cap_mock, \
+             mock.patch.object(
+                 _framework, "read_deferred_skip_counter",
+                 return_value={"skipped_count": skipped},
              ), \
              mock.patch.object(sc, "_read_last_session_ts", return_value=None):
-            line = sc._framework_digest_line()
+            return sc._framework_digest_line()
+
+    def test_below_cap_line_unchanged(self):
+        line = self._line(open_n=28)
         self.assertEqual(
             line,
             "framework: 0 protocols synthesized since last session "
@@ -47,38 +69,31 @@ class DeferredCapLineTests(unittest.TestCase):
         )
 
     def test_at_cap_appends_degradation_notice(self):
-        with mock.patch.object(_framework, "list_protocols", return_value=[]), \
-             mock.patch.object(
-                 _framework, "open_deferred_discoveries",
-                 return_value=_open_stub(100),
-             ), \
-             mock.patch.object(
-                 _framework, "_resolve_deferred_open_cap", return_value=100
-             ), \
-             mock.patch.object(
-                 _framework, "read_deferred_skip_counter",
-                 return_value={"skipped_count": 7},
-             ), \
-             mock.patch.object(sc, "_read_last_session_ts", return_value=None):
-            line = sc._framework_digest_line()
+        line = self._line(open_n=100, cap=100, skipped=7)
         assert line is not None
         self.assertIn("100 deferred discoveries pending", line)
         self.assertIn("queue AT CAP (100)", line)
         self.assertIn("writes paused", line)
         self.assertIn("7 record(s) skipped", line)
 
+    def test_over_cap_also_notices(self):
+        line = self._line(open_n=178, cap=100, skipped=42)
+        assert line is not None
+        self.assertIn("178 deferred discoveries pending", line)
+        self.assertIn("AT CAP (100)", line)
+        self.assertIn("42 record(s) skipped", line)
+
+    def test_expired_count_surfaces(self):
+        # Machine expiry must never be invisible (Event 158 review).
+        line = self._line(open_n=5, expired=173)
+        assert line is not None
+        self.assertIn("5 deferred discoveries pending", line)
+        self.assertIn("173 expired-unreviewed discoveries", line)
+        self.assertIn("--expired", line)
+        self.assertNotIn("AT CAP", line)
+
     def test_cap_read_failure_degrades_to_plain_line(self):
-        with mock.patch.object(_framework, "list_protocols", return_value=[]), \
-             mock.patch.object(
-                 _framework, "open_deferred_discoveries",
-                 return_value=_open_stub(150),
-             ), \
-             mock.patch.object(
-                 _framework, "_resolve_deferred_open_cap",
-                 side_effect=RuntimeError("boom"),
-             ), \
-             mock.patch.object(sc, "_read_last_session_ts", return_value=None):
-            line = sc._framework_digest_line()
+        line = self._line(open_n=150, cap_error=True)
         assert line is not None
         self.assertIn("150 deferred discoveries pending", line)
         self.assertNotIn("AT CAP", line)

@@ -871,7 +871,11 @@ class DeferredCapRelief(unittest.TestCase):
             self.assertTrue(res.get("declined_at_cap"))
             self.assertEqual(len(_framework.open_deferred_discoveries()), 1)
 
-    def test_expired_discovery_not_verdictable(self):
+    def test_operator_verdict_supersedes_expiry(self):
+        # Event 158 review — cap relief must not permanently block a
+        # real disposition (the Event 152 `accepted` verdict names the
+        # cost of ignorance; a machine expiry cannot). Mirrors the
+        # Event 157 spot-check semantics.
         with EphemeralHome():
             old = (
                 datetime.now(timezone.utc) - timedelta(days=31)
@@ -887,11 +891,127 @@ class DeferredCapRelief(unittest.TestCase):
                  "logged_at": datetime.now(timezone.utc).isoformat()},
                 cap=1,
             )
+            self.assertEqual(
+                _framework.expired_unverdicted_count(), 1
+            )
+            verdict_env = _framework.append_discovery_verdict(
+                expired_hash, "accepted",
+                "real finding, consciously deferred — cost of ignorance named",
+            )
+            self.assertEqual(
+                verdict_env["payload"]["verdict"], "accepted"
+            )
+            # Verdicted now — no longer open, no longer expired-pending.
+            self.assertEqual(len(_framework.open_deferred_discoveries()), 1)
+            self.assertEqual(_framework.expired_unverdicted_count(), 0)
+            # A second verdict on the same entry is still rejected.
             with self.assertRaises(_framework.ChainError):
                 _framework.append_discovery_verdict(
-                    expired_hash, "resolved",
-                    "attempting to verdict an expiry-closed entry",
+                    expired_hash, "resolved", "double verdict must reject"
                 )
+
+    def test_compaction_preserves_expiry_closure(self):
+        # Event 158 review BLOCKING finding: compaction rebuilds the
+        # chain from GENESIS; an unremapped expiry ref would dangle and
+        # silently RE-OPEN a machine-expired discovery. The dropped
+        # duplicate sits BEFORE the expired entry so its hash shifts.
+        with EphemeralHome():
+            now = datetime.now(timezone.utc).isoformat()
+            old = (
+                datetime.now(timezone.utc) - timedelta(days=31)
+            ).isoformat()
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "config-gap",
+                 "description": "dup family finding", "logged_at": now}
+            )
+            # Duplicate of the first — dedup only scans a tail window,
+            # so force-append it to guarantee an open duplicate exists.
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "config-gap",
+                 "description": "dup family finding", "logged_at": now},
+                dedup=False,
+            )
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "ancient distinct finding",
+                 "logged_at": old}
+            )
+            # Trigger relief: the ancient entry expires.
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "distinct trigger finding",
+                 "logged_at": now},
+                cap=2,
+            )
+            open_before = {
+                e["payload"]["description"]
+                for e in _framework.open_deferred_discoveries()
+            }
+            self.assertNotIn("ancient distinct finding", open_before)
+            result = _framework.compact_deferred_discoveries()
+            self.assertEqual(result.status, "compacted")
+            open_after = {
+                e["payload"]["description"]
+                for e in _framework.open_deferred_discoveries()
+            }
+            self.assertEqual(open_before, open_after)
+            self.assertNotIn("ancient distinct finding", open_after)
+            chains = _framework.verify_chains()
+            self.assertTrue(chains["deferred_discoveries"].intact)
+
+    def test_expiry_via_old_envelope_ts_fallback(self):
+        # The live-ledger legacy path: no payload logged_at at all, but
+        # an old envelope append ts — MUST be expiry-eligible (this is
+        # the shape of the real 178-entry backlog).
+        with EphemeralHome():
+            old_ts = (
+                datetime.now(timezone.utc) - timedelta(days=31)
+            ).isoformat()
+            _framework._chain_append(
+                _framework._deferred_discoveries_path(),
+                {"type": "deferred_discovery",
+                 "flaw_classification": "other",
+                 "description": "legacy unstamped finding",
+                 "status": "pending"},
+                ts=old_ts,
+            )
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "config-gap",
+                 "description": "distinct fresh finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertIn("entry_hash", res)
+            open_now = _framework.open_deferred_discoveries()
+            self.assertEqual(len(open_now), 1)
+            self.assertEqual(
+                open_now[0]["payload"]["description"],
+                "distinct fresh finding",
+            )
+
+    def test_non_positive_cap_falls_back_to_default(self):
+        # Event 158 review: a fat-fingered 0/-1 knob must not silently
+        # freeze the write path with the banner suppressed.
+        self.assertEqual(
+            _framework._resolve_deferred_open_cap(0),
+            _framework.DEFAULT_DEFERRED_OPEN_CAP,
+        )
+        self.assertEqual(
+            _framework._resolve_deferred_open_cap(-5),
+            _framework.DEFAULT_DEFERRED_OPEN_CAP,
+        )
+        with patch.dict(os.environ, {"EPISTEME_DEFERRED_OPEN_CAP": "0"}):
+            self.assertEqual(
+                _framework._resolve_deferred_open_cap(),
+                _framework.DEFAULT_DEFERRED_OPEN_CAP,
+            )
+        with patch.dict(os.environ, {"EPISTEME_DEFERRED_OPEN_CAP": "-1"}):
+            self.assertEqual(
+                _framework._resolve_deferred_open_cap(),
+                _framework.DEFAULT_DEFERRED_OPEN_CAP,
+            )
+        with patch.dict(os.environ, {"EPISTEME_DEFERRED_OPEN_CAP": "7"}):
+            self.assertEqual(_framework._resolve_deferred_open_cap(), 7)
 
     def test_blueprint_d_writer_does_not_count_declined_entries(self):
         from core.hooks import _blueprint_d  # pyright: ignore[reportAttributeAccessIssue]

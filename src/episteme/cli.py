@@ -5139,7 +5139,12 @@ def _deferred_dispatch(args) -> int:
     from _chain import ChainError  # type: ignore  # noqa: E402  # pyright: ignore[reportMissingImports]
 
     if args.deferred_action == "list":
-        envelopes = _framework.open_deferred_discoveries()
+        if getattr(args, "deferred_expired", False):
+            # Event 158 — machine-expired (cap relief), still
+            # verdictable: an operator verdict supersedes the expiry.
+            envelopes = _framework.expired_unverdicted_discoveries()
+        else:
+            envelopes = _framework.open_deferred_discoveries()
         # Piping into head is the expected drain workflow; a closed
         # stdout must not stack-trace (observed via a commit-hook
         # pipeline on 2026-07-03).
@@ -5183,10 +5188,23 @@ def _deferred_print_list(args, envelopes: list) -> int:
         desc = str(payload.get("description") or "")[:100]
         print(f"{str(env.get('entry_hash') or '')[:12]}  "
               f"{str(env.get('ts') or '')[:10]}  {desc}")
+    expired_view = getattr(args, "deferred_expired", False)
+    state = "expired-unreviewed" if expired_view else "open"
     noun = "discovery" if len(envelopes) == 1 else "discoveries"
-    print(f"\n{len(envelopes)} open deferred {noun}. Resolve with: "
+    print(f"\n{len(envelopes)} {state} deferred {noun}. Resolve with: "
           f"episteme deferred resolve <ref> --verdict "
           f"resolved OR noise OR duplicate OR accepted --why '...'")
+    if not expired_view:
+        # Surface machine-expired findings so cap relief is never an
+        # invisible loss (Event 158 review finding).
+        try:
+            import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+            expired_n = _framework.expired_unverdicted_count()
+            if expired_n:
+                print(f"{expired_n} machine-expired (cap relief), still "
+                      f"verdictable: episteme deferred list --expired")
+        except Exception:
+            pass
     return 0
 
 
@@ -6284,6 +6302,10 @@ def build_parser() -> argparse.ArgumentParser:
     deferred_list.add_argument(
         "--json", dest="deferred_json", action="store_true",
         help="Machine-readable output",
+    )
+    deferred_list.add_argument(
+        "--expired", dest="deferred_expired", action="store_true",
+        help="Show machine-expired (cap relief) discoveries instead of open ones — still verdictable; an operator verdict supersedes the expiry",
     )
     deferred_resolve = deferred_sub.add_parser(
         "resolve", help="Record a verdict for an open discovery (append-only)"

@@ -164,9 +164,21 @@ def _framework_digest_line() -> str | None:
     )
     # Event 158 — at/over the open cap the discovery writer declines
     # (relief valve permitting); surface the degradation instead of
-    # letting the ledger go silently lossy. Below cap the line is
-    # byte-identical to before. Any cap-read failure degrades to the
-    # plain line.
+    # letting the ledger go silently lossy. Machine-expired findings are
+    # ALSO surfaced so a mass expiry is never invisible (review
+    # finding): they left the open count without any operator judgment.
+    # Below cap with zero expiries the line is byte-identical to
+    # before. Any read failure degrades to the plain line.
+    try:
+        expired_n = _framework.expired_unverdicted_count()
+        if expired_n:
+            noun = "y" if expired_n == 1 else "ies"
+            line += (
+                f", {expired_n} expired-unreviewed discover{noun} "
+                f"(`episteme deferred list --expired`)"
+            )
+    except Exception:
+        pass
     try:
         cap = _framework._resolve_deferred_open_cap()
         if cap and pending_deferred >= cap:
