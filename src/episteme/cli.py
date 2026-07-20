@@ -1481,6 +1481,26 @@ def _sync_check(governance_mode: str = "balanced") -> int:
         else:
             changes_needed.append(f"would create: {label}")
 
+    # Deploy-copy prune preview (Event 159 review: the dry-run must
+    # surface deletions — they are the single most dangerous action a
+    # sync performs, and reporting them only after the fact defeats the
+    # point of --check).
+    try:
+        prior_meta = _claude.read_sync_meta(claude_root)
+        current_skills = {d.name for d in _managed_skills()}
+        current_agents = {
+            f.name for f in (REPO_ROOT / "core" / "agents").glob("*.md")
+        }
+        for target in _claude.prune_candidates(
+            claude_root, prior_meta,
+            current_skills=current_skills, current_agents=current_agents,
+        ):
+            changes_needed.append(
+                f"would prune (DELETE, archived first): {target}"
+            )
+    except Exception:
+        pass
+
     # Hermes OPERATOR.md — managed region check (composed by the hermes adapter)
     if hermes_root.exists():
         _check_managed_target(

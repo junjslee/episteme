@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -427,6 +428,116 @@ def read_sync_meta(claude_root: Path | None = None) -> dict:
         return {}
 
 
+def _safe_name(name: str) -> bool:
+    return bool(name) and "/" not in name and "\\" not in name and name not in {".", ".."}
+
+
+def prune_candidates(
+    claude_root: Path,
+    prior_meta: dict,
+    *,
+    current_skills: set[str],
+    current_agents: set[str],
+) -> list[Path]:
+    """Shared candidate computation for ``sync()`` and ``sync --check``
+    (Event 159 review: the dry-run must surface deletions too).
+
+    Positive-system ownership: ONLY names the PRIOR sync manifest
+    recorded as deployed are candidates; operator-authored entries were
+    never manifested and are structurally untouchable. Guards, each a
+    named review finding: traversal-shaped names skipped; a candidate
+    whose name casefolds onto a CURRENTLY-wanted name is skipped (on a
+    case-insensitive filesystem the case-variant aliases the wanted
+    copy — deleting it would delete the wanted skill); symlinks are
+    skipped (sync never deploys symlinks, so a symlink under a
+    manifested name is operator-authored)."""
+    out: list[Path] = []
+    skills_cf = {c.casefold() for c in current_skills}
+    agents_cf = {c.casefold() for c in current_agents}
+    prior_skills = prior_meta.get("deployed_skills")
+    if isinstance(prior_skills, list):
+        for name in sorted({str(n) for n in prior_skills} - current_skills):
+            if not _safe_name(name) or name.casefold() in skills_cf:
+                continue
+            target = claude_root / "skills" / name
+            if target.is_symlink():
+                continue
+            if target.is_dir():
+                out.append(target)
+    prior_agents = prior_meta.get("deployed_agents")
+    if isinstance(prior_agents, list):
+        for name in sorted({str(n) for n in prior_agents} - current_agents):
+            if not _safe_name(name) or name.casefold() in agents_cf:
+                continue
+            target = claude_root / "agents" / name
+            if target.is_symlink():
+                continue
+            if target.is_file():
+                out.append(target)
+    return out
+
+
+def _archive_verbatim(target: Path, claude_root: Path) -> bool:
+    """[K] archive-verbatim before deleting a file without version
+    history: a formerly-managed deployed copy may carry operator
+    hand-edits that exist nowhere else (Event 159 review — git history
+    only recovers the pristine source). Copies into
+    ``~/.claude/_archive/<date>/pruned-deploy-copies/``. Returns False
+    on any failure — the caller must then SKIP the deletion."""
+    try:
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        base = claude_root / "_archive" / stamp / "pruned-deploy-copies"
+        base.mkdir(parents=True, exist_ok=True)
+        dest = base / target.name
+        n = 1
+        while dest.exists():
+            dest = base / f"{target.name}.{n}"
+            n += 1
+        if target.is_dir():
+            shutil.copytree(target, dest)
+        else:
+            shutil.copy2(target, dest)
+        return True
+    except Exception:
+        return False
+
+
+def prune_orphaned_deploy_copies(
+    claude_root: Path,
+    prior_meta: dict,
+    *,
+    current_skills: set[str],
+    current_agents: set[str],
+) -> list[str]:
+    """Event 159 — prune deployed skill/agent copies whose repo source
+    was removed. Candidates come from ``prune_candidates`` (positive-
+    system ownership + traversal / case-alias / symlink guards); each
+    is archived verbatim before deletion, and a failed archive skips
+    the deletion — never delete what could not be archived. A pre-E159
+    sidecar without the manifest fields prunes nothing: the first sync
+    after upgrade only RECORDS the manifest. Returns pruned paths;
+    never raises."""
+    pruned: list[str] = []
+    try:
+        for target in prune_candidates(
+            claude_root, prior_meta,
+            current_skills=current_skills, current_agents=current_agents,
+        ):
+            if not _archive_verbatim(target, claude_root):
+                continue
+            if target.is_dir():
+                shutil.rmtree(target, ignore_errors=True)
+            else:
+                try:
+                    target.unlink()
+                except OSError:
+                    continue
+            pruned.append(str(target))
+    except Exception:
+        pass
+    return pruned
+
+
 def sync(governance_mode: str = "balanced") -> None:
     claude_root = _cli.HOME / ".claude"
 
@@ -451,22 +562,43 @@ def sync(governance_mode: str = "balanced") -> None:
     merged["hooks"] = dedupe_hooks_map(merged.get("hooks", {}))
     _cli._write_text(settings_path, json.dumps(merged, indent=2) + "\n")
 
-    for agent_file in (_cli.REPO_ROOT / "core" / "agents").glob("*.md"):
+    agent_files = sorted((_cli.REPO_ROOT / "core" / "agents").glob("*.md"))
+    for agent_file in agent_files:
         _cli._copy_file(agent_file, claude_root / "agents" / agent_file.name)
 
-    for skill_dir in _cli._managed_skills():
+    managed_skill_dirs = _cli._managed_skills()
+    for skill_dir in managed_skill_dirs:
         _cli._copy_tree(skill_dir, claude_root / "skills" / skill_dir.name)
+
+    # Event 159 — the deploy layer cleans up after itself: prune deployed
+    # copies whose repo source is gone, using the PRIOR sync's manifest
+    # as the ownership record. Read the prior sidecar BEFORE rewriting it.
+    deployed_skills = sorted(d.name for d in managed_skill_dirs)
+    deployed_agents = sorted(f.name for f in agent_files)
+    prior_meta = read_sync_meta(claude_root)
+    pruned = prune_orphaned_deploy_copies(
+        claude_root,
+        prior_meta,
+        current_skills=set(deployed_skills),
+        current_agents=set(deployed_agents),
+    )
+    for pruned_path in pruned:
+        print(f"  - pruned orphaned deploy copy: {pruned_path}")
 
     # Event 150 — record which governance pack this deployment carries so
     # the SessionStart self-heal can re-sync faithfully on registration
     # drift. Without the sidecar the pack is unrecoverable from
     # settings.json alone, and guessing could silently downgrade strict.
+    # Event 159 extends it with the deployed manifest the next sync's
+    # prune consults (the E150 reader ignores unknown fields).
     _cli._write_text(
         claude_root / SYNC_META_FILENAME,
         json.dumps(
             {
                 "governance_pack": (governance_mode or "balanced").strip().lower(),
                 "synced_at": datetime.now(timezone.utc).isoformat(),
+                "deployed_skills": deployed_skills,
+                "deployed_agents": deployed_agents,
             },
             indent=2,
         )
@@ -478,6 +610,8 @@ __all__ = [
     "sync",
     "settings_in_sync",
     "read_sync_meta",
+    "prune_orphaned_deploy_copies",
+    "prune_candidates",
     "SYNC_META_FILENAME",
     "build_settings",
     "render_user_claude_md",
