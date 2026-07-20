@@ -1204,3 +1204,117 @@ class Phase12ChainIntegrity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeferredProjectScoping(unittest.TestCase):
+    """Event 163 — the ledger is GLOBAL across every repo the operator
+    works in, but open_deferred_discoveries had no project filter (its
+    siblings list_deferred_discoveries/list_protocols both do), so every
+    session's banner counted every project's debt. Scope the VIEW; the
+    E158 cap stays global (it bounds total operator review load)."""
+
+    def _seed(self, project: str, desc: str, *, via_cwd: bool = False):
+        payload = {
+            "flaw_classification": "other",
+            "description": desc,
+            "logged_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if via_cwd:
+            payload["source_op"] = {"cwd": f"/Users/x/{project}"}
+        else:
+            payload["context_signature"] = {"project_name": project}
+        return _framework.write_deferred_discovery(payload)
+
+    def test_scoped_open_returns_only_that_project(self):
+        with EphemeralHome():
+            self._seed("episteme", "episteme finding one")
+            self._seed("sanomap-metabolome-hub", "sanomap finding one")
+            self._seed("sanomap-metabolome-hub", "sanomap finding two")
+            self.assertEqual(len(_framework.open_deferred_discoveries()), 3)
+            scoped = _framework.open_deferred_discoveries(project_name="episteme")
+            self.assertEqual(len(scoped), 1)
+            self.assertEqual(
+                scoped[0]["payload"]["description"], "episteme finding one"
+            )
+
+    def test_cwd_basename_fallback_attributes_legacy_entries(self):
+        with EphemeralHome():
+            self._seed("episteme", "legacy via cwd", via_cwd=True)
+            scoped = _framework.open_deferred_discoveries(project_name="episteme")
+            self.assertEqual(len(scoped), 1)
+
+    def test_unattributed_entries_are_counted_never_dropped(self):
+        # A filter that hides findings is worse than a banner that
+        # overcounts — unattributable entries must surface in the tally.
+        with EphemeralHome():
+            self._seed("episteme", "attributed finding")
+            _framework.write_deferred_discovery({
+                "flaw_classification": "other",
+                "description": "no project signal at all",
+                "logged_at": datetime.now(timezone.utc).isoformat(),
+            })
+            counts = _framework.open_counts_by_project()
+            self.assertEqual(counts.get("episteme"), 1)
+            self.assertEqual(counts.get(_framework.UNATTRIBUTED_KEY), 1)
+            self.assertEqual(sum(counts.values()),
+                             len(_framework.open_deferred_discoveries()))
+
+    def test_cap_is_per_project_no_cross_project_starvation(self):
+        # E158 made the cap global on the assumption the ledger was one
+        # repo's. The E163 drain disproved it empirically: with 118 open
+        # findings from another repo, THIS repo could not record a single
+        # new finding despite an empty backlog of its own — one repo's
+        # activity silently causing finding-loss in every other repo, the
+        # same silent-outage class E157 fixed. Storage stays global;
+        # backpressure follows the backlog an operator actually drains.
+        with EphemeralHome():
+            self._seed("other-project", "occupies other-project's only slot")
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "episteme entry must NOT be starved",
+                 "context_signature": {"project_name": "episteme"},
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertIn("entry_hash", res)
+            self.assertEqual(
+                len(_framework.open_deferred_discoveries(project_name="episteme")),
+                1,
+            )
+
+    def test_cap_still_bounds_within_one_project(self):
+        with EphemeralHome():
+            self._seed("episteme", "occupies episteme's only slot")
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "second episteme entry exceeds its own cap",
+                 "context_signature": {"project_name": "episteme"},
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertTrue(res.get("declined_at_cap"))
+
+    def test_relief_never_expires_another_projects_findings(self):
+        with EphemeralHome():
+            old = (datetime.now(timezone.utc) - timedelta(days=31)).isoformat()
+            _framework.write_deferred_discovery({
+                "flaw_classification": "other",
+                "description": "another repo's ancient finding",
+                "context_signature": {"project_name": "other-project"},
+                "logged_at": old,
+            })
+            self._seed("episteme", "episteme fresh finding")
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "other",
+                 "description": "episteme second finding triggers its own cap",
+                 "context_signature": {"project_name": "episteme"},
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            # The other project's aged finding must survive: relief is
+            # scoped to the backlog that summoned it.
+            self.assertEqual(
+                len(_framework.open_deferred_discoveries(
+                    project_name="other-project")),
+                1,
+            )

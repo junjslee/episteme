@@ -139,7 +139,15 @@ def _framework_digest_line() -> str | None:
         # unverdicted), not raw pending — 233 permanently-pending
         # entries made this banner an unclosable alarm because no
         # resolve path existed. Verdicted findings stop re-firing.
-        deferred = _framework.open_deferred_discoveries()
+        # Event 163 — the ledger is GLOBAL across every repo the operator
+        # works in. Count THIS project's open findings; other projects'
+        # debt is named separately rather than inflating this banner (a
+        # 178-entry count of which 131 belonged to other repos read as
+        # episteme's own backlog for weeks).
+        _project = Path.cwd().resolve().name or "unknown_project"
+        deferred = _framework.open_deferred_discoveries(project_name=_project)
+        _counts = _framework.open_counts_by_project()
+        elsewhere = sum(v for k, v in _counts.items() if k != _project)
     except Exception:
         return None
     total = len(all_protocols)
@@ -162,6 +170,10 @@ def _framework_digest_line() -> str | None:
         f"last session ({total} total), {pending_deferred} deferred "
         f"{deferred_noun} pending"
     )
+    # Other repos' findings are named, never folded into this project's
+    # count — the ledger is shared, the backlog is not (Event 163).
+    if elsewhere:
+        line += f" (+{elsewhere} in other projects)"
     # Event 158 — at/over the open cap the discovery writer declines
     # (relief valve permitting); surface the degradation instead of
     # letting the ledger go silently lossy. Machine-expired findings are
@@ -181,12 +193,17 @@ def _framework_digest_line() -> str | None:
         pass
     try:
         cap = _framework._resolve_deferred_open_cap()
-        if cap and pending_deferred >= cap:
+        # The cap is GLOBAL (it bounds total operator review load), so it
+        # must be compared against the whole ledger — not this project's
+        # scoped count, which would hide a live write-decline behind a
+        # quiet local backlog (Event 163).
+        global_open = sum(_counts.values())
+        if cap and global_open >= cap:
             skipped = _framework.read_deferred_skip_counter().get(
                 "skipped_count", 0
             )
             line += (
-                f" — queue AT CAP ({cap}): writes paused, "
+                f" — ledger AT CAP ({cap} across all projects): writes paused, "
                 f"{skipped} record(s) skipped since last drain"
             )
     except Exception:

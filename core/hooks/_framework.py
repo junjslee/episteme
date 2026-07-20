@@ -132,6 +132,8 @@ DISCOVERY_EXPIRY_TYPE = "deferred_discovery_expiry"
 # because architectural-debt entries deserve a longer review window
 # than op samples. Budgets are code — changing either constant IS the
 # decision.
+UNATTRIBUTED_KEY = "<unattributed>"
+
 DEFAULT_DEFERRED_OPEN_CAP = 100
 DEFERRED_EXPIRY_AGE_SECONDS = 30 * 24 * 60 * 60
 _DEFERRED_SKIP_COUNTER_FILENAME = "deferred_skipped.json"
@@ -319,6 +321,7 @@ def _expire_stale_open(
     now_dt: datetime,
     *,
     age_seconds: int = DEFERRED_EXPIRY_AGE_SECONDS,
+    project_name: str | None = None,
 ) -> int:
     """At-cap relief valve (Event 158): append a terminal
     ``deferred_discovery_expiry`` record for every OPEN discovery older
@@ -332,7 +335,15 @@ def _expire_stale_open(
     count expired; errors propagate to the caller's guard."""
     cutoff = now_dt - timedelta(seconds=age_seconds)
     expired = 0
-    for env in open_deferred_discoveries(path=target):
+    # Relief follows the same scope as the cap that summoned it: one
+    # project's aged findings must never be expired to make room for
+    # another project's write (Event 163).
+    scoped = (
+        open_deferred_discoveries(path=target, project_name=project_name)
+        if project_name
+        else open_deferred_discoveries(path=target)
+    )
+    for env in scoped:
         payload = env.get("payload") if isinstance(env, dict) else None
         payload = payload if isinstance(payload, dict) else {}
         stamp = _parse_iso_ts(str(payload.get("logged_at") or ""))
@@ -352,21 +363,42 @@ def _expire_stale_open(
 
 
 def _deferred_cap_admit(
-    target: Path, cap_value: int, now_dt: datetime
+    target: Path,
+    cap_value: int,
+    now_dt: datetime,
+    project_name: str | None = None,
 ) -> bool:
     """Cap consult for the discovery write path. At cap, run the relief
     valve then recount; True when there is room. A count error fails
     toward admit — backpressure must never break Blueprint D's
-    bookkeeping (its writer already degrades gracefully)."""
+    bookkeeping (its writer already degrades gracefully).
+
+    The cap is PER PROJECT (Event 163). It was global at E158, when the
+    ledger was assumed to be one repo's; the drain proved otherwise —
+    with 118 open findings from another repo, this project could not
+    record a single new one despite an empty backlog of its own. A
+    global cap turns one repo's activity into silent finding-loss in
+    every other repo, which is the same silent-guardrail-outage class
+    E157 fixed. Storage stays global; backpressure follows the backlog
+    an operator actually drains. Entries with no project attribution
+    fall back to the global count."""
     try:
-        open_n = len(open_deferred_discoveries(path=target))
+        open_n = len(
+            open_deferred_discoveries(path=target, project_name=project_name)
+            if project_name
+            else open_deferred_discoveries(path=target)
+        )
     except Exception:
         return True
     if open_n < cap_value:
         return True
     try:
-        if _expire_stale_open(target, now_dt):
-            open_n = len(open_deferred_discoveries(path=target))
+        if _expire_stale_open(target, now_dt, project_name=project_name):
+            open_n = len(
+                open_deferred_discoveries(path=target, project_name=project_name)
+                if project_name
+                else open_deferred_discoveries(path=target)
+            )
     except Exception:
         pass
     return open_n < cap_value
@@ -612,7 +644,9 @@ def write_deferred_discovery(
     # (same tolerate-discarding contract as suppressed_duplicate).
     now_dt = now or datetime.now(timezone.utc)
     cap_value = _resolve_deferred_open_cap(cap)
-    if not _deferred_cap_admit(target, cap_value, now_dt):
+    if not _deferred_cap_admit(
+        target, cap_value, now_dt, entry_project(payload)
+    ):
         _bump_deferred_skip_counter(
             "cap_exceeded", now_dt, path=skip_counter_path
         )
@@ -705,7 +739,32 @@ def list_deferred_discoveries(
     return out
 
 
-def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
+def entry_project(payload: dict) -> str | None:
+    """Which project a discovery belongs to (Event 163).
+
+    The ledger is GLOBAL — one chain across every repo the operator
+    works in. Attribution reads ``context_signature.project_name``,
+    falling back to the basename of ``source_op.cwd`` for entries
+    written before the signature carried it. Returns None when neither
+    signal exists; callers must COUNT those, never silently drop them."""
+    if not isinstance(payload, dict):
+        return None
+    sig = payload.get("context_signature")
+    if isinstance(sig, dict):
+        name = sig.get("project_name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    src = payload.get("source_op")
+    if isinstance(src, dict):
+        cwd = src.get("cwd")
+        if isinstance(cwd, str) and cwd.strip():
+            return Path(cwd.strip()).name or None
+    return None
+
+
+def open_deferred_discoveries(
+    *, path: Path | None = None, project_name: str | None = None
+) -> list[dict]:
     """Discoveries still awaiting an operator verdict.
 
     OPEN iff payload status is in ``OPEN_STATUSES`` (legacy records
@@ -716,6 +775,12 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
     Single chain pass; the SessionStart banner and ``episteme guide
     --deferred`` read this so a verdicted finding stops re-firing every
     session.
+
+    ``project_name`` scopes the result to one project (Event 163 —
+    mirrors the ``list_deferred_discoveries`` idiom). Unscoped is the
+    whole ledger, which is what the E158 cap consults: the cap bounds
+    TOTAL operator review load, so scoping it would silently multiply
+    the ceiling by project count.
     """
     target = path if path is not None else _deferred_discoveries_path()
     discoveries: list[dict] = []
@@ -733,10 +798,28 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
             status = payload.get("status")
             if status is None or status in OPEN_STATUSES:
                 discoveries.append(rec)
-    return [
+    out = [
         d for d in discoveries
         if str(d.get("entry_hash") or "") not in verdicted
     ]
+    if project_name is not None:
+        out = [
+            d for d in out
+            if entry_project(d.get("payload") or {}) == project_name
+        ]
+    return out
+
+
+def open_counts_by_project(*, path: Path | None = None) -> dict[str, int]:
+    """Open discoveries per project, with unattributable entries under
+    ``UNATTRIBUTED_KEY``. The counts always sum to the unscoped open
+    total — a scoped view may hide entries from a project's banner, but
+    the tally never loses one (Event 163 disconfirmation)."""
+    counts: dict[str, int] = {}
+    for env in open_deferred_discoveries(path=path):
+        name = entry_project(env.get("payload") or {}) or UNATTRIBUTED_KEY
+        counts[name] = counts.get(name, 0) + 1
+    return counts
 
 
 def _discovery_ref_sets(target: Path) -> tuple[list[dict], set[str], set[str]]:
