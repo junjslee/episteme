@@ -5164,7 +5164,15 @@ def _deferred_dispatch(args) -> int:
             # verdictable: an operator verdict supersedes the expiry.
             envelopes = _framework.expired_unverdicted_discoveries()
         else:
-            envelopes = _framework.open_deferred_discoveries()
+            # Event 163 — the ledger is global; scope to this project
+            # unless --all is asked for, and always name the remainder.
+            if getattr(args, "deferred_all_projects", False):
+                envelopes = _framework.open_deferred_discoveries()
+            else:
+                project = _framework.canonical_project_key(Path.cwd())
+                envelopes = _framework.open_deferred_discoveries(
+                    project_name=project
+                )
         # Piping into head is the expected drain workflow; a closed
         # stdout must not stack-trace (observed via a commit-hook
         # pipeline on 2026-07-03).
@@ -5184,9 +5192,15 @@ def _deferred_dispatch(args) -> int:
         print(f"[ok] verdict '{payload.get('verdict')}' chained for "
               f"{str(payload.get('ref') or '')[:12]} "
               f"(record {str(env.get('entry_hash') or '')[:12]})")
-        remaining = len(_framework.open_deferred_discoveries())
+        # Scoped like `deferred list` — an unscoped remainder mid-drain
+        # reports other repos' debt as this one's, the confusion this
+        # event exists to remove (Event 163 review).
+        project = _framework.canonical_project_key(Path.cwd())
+        remaining = len(
+            _framework.open_deferred_discoveries(project_name=project)
+        )
         noun = "discovery" if remaining == 1 else "discoveries"
-        print(f"{remaining} open deferred {noun} remain")
+        print(f"{remaining} open deferred {noun} remain in this project")
         return 0
 
     return 1
@@ -5209,11 +5223,34 @@ def _deferred_print_list(args, envelopes: list) -> int:
         print(f"{str(env.get('entry_hash') or '')[:12]}  "
               f"{str(env.get('ts') or '')[:10]}  {desc}")
     expired_view = getattr(args, "deferred_expired", False)
+    all_view = getattr(args, "deferred_all_projects", False)
     state = "expired-unreviewed" if expired_view else "open"
+    scope = "" if (expired_view or all_view) else " in this project"
     noun = "discovery" if len(envelopes) == 1 else "discoveries"
-    print(f"\n{len(envelopes)} {state} deferred {noun}. Resolve with: "
+    print(f"\n{len(envelopes)} {state} deferred {noun}{scope}. Resolve with: "
           f"episteme deferred resolve <ref> --verdict "
           f"resolved OR noise OR duplicate OR accepted --why '...'")
+    if not expired_view and not all_view:
+        # Name other projects' findings rather than hiding them (E163).
+        try:
+            import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+            project = _framework.canonical_project_key(Path.cwd())
+            counts = _framework.open_counts_by_project()
+            other = sum(v for k, v in counts.items() if k != project)
+            if other:
+                names = ", ".join(
+                    f"{k}: {v}" for k, v in sorted(counts.items())
+                    if k != project
+                )
+                print(f"{other} open in other projects ({names}) — "
+                      f"episteme deferred list --all-projects")
+        except Exception as exc:
+            # Never swallow: a silent failure here prints "0 open in
+            # this project" while the rest of the ledger is invisible
+            # (Event 163 review).
+            print(f"[warn] could not read other projects' counts "
+                  f"({exc.__class__.__name__}); this view may be partial",
+                  file=sys.stderr)
     if not expired_view:
         # Surface machine-expired findings so cap relief is never an
         # invisible loss (Event 158 review finding).
@@ -6322,6 +6359,10 @@ def build_parser() -> argparse.ArgumentParser:
     deferred_list.add_argument(
         "--json", dest="deferred_json", action="store_true",
         help="Machine-readable output",
+    )
+    deferred_list.add_argument(
+        "--all-projects", dest="deferred_all_projects", action="store_true",
+        help="Show open discoveries from every project in the global ledger (default: this project only)",
     )
     deferred_list.add_argument(
         "--expired", dest="deferred_expired", action="store_true",
