@@ -342,3 +342,42 @@ def ordered_stages() -> List[Stage]:
 def all_move_ids() -> List[str]:
     """All cognitive-move ids in registration order."""
     return list(COGNITIVE_MOVES.keys())
+
+
+# ---------------------------------------------------------------------------
+# Gate labels (Event 161)
+# ---------------------------------------------------------------------------
+
+# Hook-artifact field (the flat .episteme/reasoning-surface.json shape the
+# default PreToolUse gate validates) -> registry move id. The gate's block
+# message names the skipped COGNITIVE MOVE, so the practice reaches the
+# agent at the exact moment of failure instead of a bare schema-field name.
+GATE_FIELD_TO_MOVE: Dict[str, str] = {
+    "core_question": "frame.core_question",
+    "unknowns": "frame.unknowns",
+    "disconfirmation": "verify.disconfirmation_conditions",
+}
+
+
+def gate_move_label(field: str) -> Optional[str]:
+    """Render the gate-facing label for a hook-artifact field:
+    ``<Stage> · <Move name> — counters <short counter>``. The guard
+    duplicates these strings literally (hooks-stay-self-contained
+    convention); parity is CI-enforced by
+    ``tests/test_practice_cognitive_moves.py``."""
+    move_id = GATE_FIELD_TO_MOVE.get(field)
+    if move_id is None:
+        return None
+    move = COGNITIVE_MOVES[move_id]
+    stage = STAGES[move.stage]
+    counter = move.system_1_failure_counter.split(" — ")[0].strip()
+    return f"{stage.name} · {move.name} — counters {counter}"
+
+
+def gate_move_labels() -> Dict[str, str]:
+    """All gate labels keyed by hook-artifact field."""
+    return {
+        field: label
+        for field in GATE_FIELD_TO_MOVE
+        if (label := gate_move_label(field)) is not None
+    }

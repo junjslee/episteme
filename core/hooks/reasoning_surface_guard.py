@@ -963,6 +963,20 @@ def _is_lazy(text: str) -> bool:
     return stripped in LAZY_TOKENS
 
 
+# THE_WAY_TO_THINK gate labels (Event 161). The block message names the
+# skipped COGNITIVE MOVE, not just the schema field — the gate is where
+# the practice reaches the agent, so the message teaches the move at the
+# moment of failure. Literal duplicates of
+# core/practice/cognitive_moves.gate_move_labels() per the hooks-stay-
+# self-contained convention; parity is CI-enforced by
+# tests/test_practice_cognitive_moves.py::test_gate_labels_match_guard_duplicates.
+_MOVE_BY_FIELD = {
+    "core_question": "Frame · Core Question discipline — counters question substitution (Kahneman)",
+    "unknowns": "Frame · Unknowns ledger with cost_of_ignorance — counters WYSIATI (Kahneman)",
+    "disconfirmation": "Verify · Disconfirmation conditions (pre-committed) — counters motivated reasoning + post-hoc rationalization (cognitive_profile.md § Decision Engine)",
+}
+
+
 def _surface_missing_fields(surface: dict) -> list[str]:
     """Return the list of fields that fail the kernel's validation contract.
 
@@ -1370,8 +1384,10 @@ def _surface_status(cwd: Path) -> tuple[str, str]:
         return "stale", f"surface is {mins} minute(s) old (TTL {SURFACE_TTL_SECONDS // 60} min)"
     missing = _surface_missing_fields(surface)
     if missing:
+        moves = "; ".join(_MOVE_BY_FIELD.get(f, f) for f in missing)
         detail = (
-            f"surface fails validation on: {', '.join(missing)}. "
+            f"cognitive move(s) skipped — {moves}. "
+            f"Surface fails validation on: {', '.join(missing)}. "
             f"Disconfirmation must be a concrete observable condition "
             f"(>= {_min_disconfirmation_len()} chars, not 'none'/'n/a'/'tbd'/'해당 없음'). "
             f"At least one unknown must be sharp and specific (>= {_min_unknown_len()} chars)."
