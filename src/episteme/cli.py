@@ -6602,9 +6602,10 @@ def build_parser() -> argparse.ArgumentParser:
     start = sub.add_parser("start", help="Start the preferred agent surface")
     start.add_argument("tool", nargs="?", default="claude", choices=["claude"])
 
-    viewer = sub.add_parser("viewer", help="Start a local read-only dashboard over this repo")
+    viewer = sub.add_parser("viewer", help="Live local governance dashboard — global + current-project runtime state (auto-opens browser)")
     viewer.add_argument("--host", default="127.0.0.1")
     viewer.add_argument("--port", type=int, default=37776)
+    viewer.add_argument("--no-open", action="store_true", help="Do not auto-open the browser")
 
     capture = sub.add_parser(
         "capture",
@@ -7173,7 +7174,11 @@ def main(argv: Iterable[str] | None = None) -> int:
         return _start(args.tool, Path.cwd())
     if args.command == "viewer":
         from episteme.viewer.server import serve
-        return serve(host=args.host, port=args.port)
+        return serve(
+            host=args.host,
+            port=args.port,
+            open_browser=not getattr(args, "no_open", False),
+        )
     if args.command == "capture":
         from episteme.capture import run_capture
         return run_capture(

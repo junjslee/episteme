@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>episteme · operator console</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #12161f; --edge: #1e2530;
+    --text: #d7dde8; --dim: #7a8494; --accent: #5ec2a6;
+    --warn: #e0b25e; --bad: #e06c75; --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f6f7f9; --panel:#ffffff; --edge:#e3e7ee; --text:#1c2330; --dim:#6b7482; }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.5 var(--mono); padding: 24px; }
+  header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: .04em; }
+  #beat { color: var(--dim); font-size: 12px; }
+  #beat .dot { color: var(--accent); }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+  section { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: 16px 18px; }
+  section h2 { font-size: 11px; font-weight: 600; letter-spacing: .12em; color: var(--dim); text-transform: uppercase; margin-bottom: 12px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+  .row .k { color: var(--dim); }
+  .row .v { text-align: right; overflow-wrap: anywhere; }
+  .ok { color: var(--accent); } .warn { color: var(--warn); } .bad { color: var(--bad); }
+  .feed { grid-column: 1 / -1; }
+  .feed table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .feed th { text-align: left; color: var(--dim); font-weight: 500; padding: 4px 8px; border-bottom: 1px solid var(--edge); }
+  .feed td { padding: 4px 8px; border-bottom: 1px solid var(--edge); vertical-align: top; overflow-wrap: anywhere; }
+  .feed td.t { white-space: nowrap; color: var(--dim); }
+  .empty { color: var(--dim); padding: 8px 0; }
+  .q { color: var(--dim); font-size: 12px; margin-top: 8px; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<header>
+  <h1>episteme · operator console</h1>
+  <span id="beat"><span class="dot">●</span> <span id="beat-text">connecting…</span></span>
+</header>
+
+<div class="grid">
+  <section>
+    <h2>Project — <span id="p-name">…</span></h2>
+    <div class="row"><span class="k">branch</span><span class="v" id="p-branch">…</span></div>
+    <div class="row"><span class="k">reasoning surface</span><span class="v" id="p-surface">…</span></div>
+    <div class="row"><span class="k">posture</span><span class="v" id="p-posture">…</span></div>
+    <div class="row"><span class="k">doc map</span><span class="v" id="p-docmap">…</span></div>
+    <div class="row"><span class="k">living docs stale</span><span class="v" id="p-stale">…</span></div>
+    <div class="row"><span class="k">latest event</span><span class="v" id="p-event">…</span></div>
+    <div class="q" id="p-question"></div>
+  </section>
+
+  <section>
+    <h2>Global — operator home</h2>
+    <div class="row"><span class="k">gated ops (24h)</span><span class="v" id="g-ops">…</span></div>
+    <div class="row"><span class="k">verdicts</span><span class="v" id="g-verdicts">…</span></div>
+    <div class="row"><span class="k">spot-check pending</span><span class="v" id="g-queue">…</span></div>
+    <div class="row"><span class="k">protocols</span><span class="v" id="g-protocols">…</span></div>
+    <div class="row"><span class="k">deferred discoveries</span><span class="v" id="g-deferred">…</span></div>
+    <div class="row"><span class="k">noise watch</span><span class="v" id="g-noise">…</span></div>
+  </section>
+
+  <section class="feed">
+    <h2>Doc advisories — docs tracked as code changes</h2>
+    <div id="feed-empty" class="empty">No advisories logged yet in this project. Edit an implementation file that a doc cites and it will appear here.</div>
+    <table id="feed-table" hidden>
+      <thead><tr><th>when</th><th>edited path</th><th>docs claiming to describe it</th></tr></thead>
+      <tbody id="feed-body"></tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+const POLL_MS = 3000;
+const $ = (id) => document.getElementById(id);
+
+function fmtAge(mins) {
+  if (mins == null) return "—";
+  return mins < 90 ? `${Math.round(mins)}m` : `${(mins / 60).toFixed(1)}h`;
+}
+function since(ts) {
+  const d = (Date.now() - Date.parse(ts)) / 1000;
+  if (!isFinite(d)) return "—";
+  if (d < 90) return `${Math.round(d)}s ago`;
+  if (d < 5400) return `${Math.round(d / 60)}m ago`;
+  return `${(d / 3600).toFixed(1)}h ago`;
+}
+
+async function getJSON(path) {
+  const res = await fetch(path, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+function renderProject(p) {
+  $("p-name").textContent = p.name ?? "—";
+  $("p-branch").textContent = p.branch ?? "—";
+  const s = p.surface || {};
+  const el = $("p-surface");
+  if (!s.exists) { el.textContent = "none declared"; el.className = "v bad"; }
+  else if (s.fresh) { el.textContent = `fresh (${fmtAge(s.age_minutes)})`; el.className = "v ok"; }
+  else { el.textContent = `STALE (${fmtAge(s.age_minutes)})`; el.className = "v warn"; }
+  $("p-posture").textContent = s.posture ?? "—";
+  const dm = p.doc_map || {};
+  $("p-docmap").textContent = dm.targets != null ? `${dm.targets} targets · ${dm.edges} edges` : "unavailable";
+  const ds = p.doc_staleness || {};
+  const stale = $("p-stale");
+  stale.textContent = ds.living_docs != null ? `${ds.stale_docs}/${ds.living_docs} (worst ${ds.worst_lag_events} events)` : "—";
+  stale.className = "v " + (ds.stale_docs > 0 ? "warn" : "ok");
+  $("p-event").textContent = ds.latest_event != null ? `E${ds.latest_event}` : "—";
+  $("p-question").textContent = s.core_question ? `Q: ${s.core_question}` : "";
+}
+
+function renderGlobal(g) {
+  $("g-ops").textContent = g.gate_ops_24h ?? "—";
+  const v = g.gate_verdicts_24h || {};
+  $("g-verdicts").textContent = Object.keys(v).length
+    ? Object.entries(v).map(([k, n]) => `${k}:${n}`).join(" · ") : "—";
+  $("g-queue").textContent = g.spot_check_pending != null
+    ? g.spot_check_pending
+    : (g.spot_check_queue != null ? `${g.spot_check_queue} lines (raw)` : "—");
+  $("g-protocols").textContent = g.framework?.protocols ?? "—";
+  $("g-deferred").textContent = g.framework?.deferred_discoveries ?? "—";
+  $("g-noise").textContent = Array.isArray(g.noise_watch) && g.noise_watch.length
+    ? g.noise_watch.join(", ") : "—";
+}
+
+function renderFeed(items) {
+  const body = $("feed-body");
+  const table = $("feed-table");
+  const empty = $("feed-empty");
+  if (!items.length) { table.hidden = true; empty.hidden = false; return; }
+  table.hidden = false; empty.hidden = true;
+  body.replaceChildren(...items.slice().reverse().map((a) => {
+    const tr = document.createElement("tr");
+    const t = document.createElement("td"); t.className = "t"; t.textContent = since(a.ts);
+    const p = document.createElement("td"); p.textContent = a.path ?? "—";
+    const d = document.createElement("td");
+    d.textContent = (a.docs || []).join(", ") + (a.doc_count > (a.docs || []).length ? ` … +${a.doc_count - a.docs.length}` : "");
+    tr.append(t, p, d);
+    return tr;
+  }));
+}
+
+async function tick() {
+  try {
+    const [g, p, feed] = await Promise.all([
+      getJSON("/api/live/global"),
+      getJSON("/api/live/project"),
+      getJSON("/api/live/advisories"),
+    ]);
+    renderGlobal(g); renderProject(p); renderFeed(feed);
+    $("beat-text").textContent = `live · ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    $("beat-text").textContent = `disconnected — ${err.message}`;
+  } finally {
+    setTimeout(tick, POLL_MS);
+  }
+}
+tick();
+</script>
+</body>
+</html>
