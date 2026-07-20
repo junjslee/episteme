@@ -63,7 +63,11 @@ class GlobalStatusTests(unittest.TestCase):
         self.assertEqual(g["spot_check_queue"], 0)
         self.assertEqual(g["framework"], {"protocols": 0, "deferred_discoveries": 0})
 
-    def test_counts_come_from_state_files(self):
+    def test_counts_come_from_state_files_using_the_real_audit_schema(self):
+        # The canonical audit writer emits "status"/"action", NOT
+        # decision/verdict — the first version of this test invented a schema
+        # and the review caught the panel dead against real records. This
+        # test now pins the REAL field names.
         from datetime import datetime, timezone
 
         now = datetime.now(timezone.utc).isoformat()
@@ -71,8 +75,8 @@ class GlobalStatusTests(unittest.TestCase):
             self.home,
             "audit.jsonl",
             "\n".join(
-                json.dumps({"timestamp": now, "decision": d})
-                for d in ["passed", "passed", "advisory"]
+                json.dumps({"timestamp": now, "status": s})
+                for s in ["ok", "ok", "incomplete"]
             )
             + "\n",
         )
@@ -81,10 +85,24 @@ class GlobalStatusTests(unittest.TestCase):
         _write(self.home, "derived_knobs.json", '{"noise_watch_set": ["status-pressure"]}')
         g = live.global_status(self.home)
         self.assertEqual(g["gate_ops_24h"], 3)
-        self.assertEqual(g["gate_verdicts_24h"], {"passed": 2, "advisory": 1})
+        self.assertEqual(g["gate_verdicts_24h"], {"ok": 2, "incomplete": 1})
         self.assertEqual(g["framework"]["protocols"], 2)
         self.assertEqual(g["spot_check_queue"], 1)
         self.assertEqual(g["noise_watch"], ["status-pressure"])
+
+    def test_real_corpus_verdict_keys_are_not_all_unknown(self):
+        # Guard against schema drift between the audit writer and this
+        # reader: on the operator's real audit.jsonl (when present and
+        # active in the last 24h), the verdict breakdown must contain at
+        # least one canonical key — a panel of only 'unknown' means the
+        # reader's field names diverged from the writer's again.
+        g = live.global_status()
+        if g["gate_ops_24h"] == 0:
+            self.skipTest("no gated ops in the last 24h on this machine")
+        self.assertTrue(
+            set(g["gate_verdicts_24h"]) - {"unknown"},
+            f"all verdicts unknown: {g['gate_verdicts_24h']}",
+        )
 
 
 class ProjectStatusTests(unittest.TestCase):
@@ -97,6 +115,21 @@ class ProjectStatusTests(unittest.TestCase):
         p = live.project_status(self.root)
         self.assertFalse(p["surface"]["exists"])
         self.assertEqual(p["advisories_recent"], 0)
+
+    def test_naive_surface_timestamp_must_not_raise(self):
+        # Review disconfirmation scenario: a hand-edited surface with a
+        # zone-less timestamp made `now - ts` raise TypeError, 500 the
+        # route, and blank the whole dashboard. _parse_ts now coerces to
+        # UTC; this pins the no-raise contract on untrusted input.
+        _write(
+            self.root,
+            ".episteme/reasoning-surface.json",
+            json.dumps({"timestamp": "2026-01-01T00:00:00", "core_question": "Q"}),
+        )
+        p = live.project_status(self.root)
+        self.assertTrue(p["surface"]["exists"])
+        self.assertFalse(p["surface"]["fresh"])  # months old once coerced
+        self.assertIsNotNone(p["surface"]["age_minutes"])
 
     def test_surface_and_staleness_render(self):
         from datetime import datetime, timezone

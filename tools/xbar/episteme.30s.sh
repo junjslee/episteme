@@ -35,7 +35,9 @@ fi
 FRESH="$(echo "$STATUS" | "$JQ_BIN" -r '.surface.fresh')"
 AGE="$(echo "$STATUS" | "$JQ_BIN" -r '.surface.age_minutes // empty')"
 EXISTS="$(echo "$STATUS" | "$JQ_BIN" -r '.surface.exists')"
-BRANCH="$(echo "$STATUS" | "$JQ_BIN" -r '.branch')"
+# Strip xbar's directive separator from repo-controlled strings — a branch
+# named `feat|color=red` must not inject menu directives (review nit).
+BRANCH="$(echo "$STATUS" | "$JQ_BIN" -r '.branch' | tr -d '|')"
 PROTOCOLS="$(echo "$STATUS" | "$JQ_BIN" -r '.framework.protocols // 0')"
 DEFERRED="$(echo "$STATUS" | "$JQ_BIN" -r '.framework.deferred_discoveries // 0')"
 RIGOR="$(echo "$STATUS" | "$JQ_BIN" -r '.rigor.level // "?"')"

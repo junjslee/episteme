@@ -139,23 +139,31 @@ function renderFeed(items) {
     const t = document.createElement("td"); t.className = "t"; t.textContent = since(a.ts);
     const p = document.createElement("td"); p.textContent = a.path ?? "—";
     const d = document.createElement("td");
-    d.textContent = (a.docs || []).join(", ") + (a.doc_count > (a.docs || []).length ? ` … +${a.doc_count - a.docs.length}` : "");
+    const docs = a.docs || [];
+    d.textContent = docs.join(", ") + (a.doc_count > docs.length ? ` … +${a.doc_count - docs.length}` : "");
     tr.append(t, p, d);
     return tr;
   }));
 }
 
 async function tick() {
+  // allSettled: one failing endpoint must degrade its own panel, never
+  // blank the other two (review finding, E174).
+  const [g, p, feed] = await Promise.allSettled([
+    getJSON("/api/live/global"),
+    getJSON("/api/live/project"),
+    getJSON("/api/live/advisories"),
+  ]);
   try {
-    const [g, p, feed] = await Promise.all([
-      getJSON("/api/live/global"),
-      getJSON("/api/live/project"),
-      getJSON("/api/live/advisories"),
-    ]);
-    renderGlobal(g); renderProject(p); renderFeed(feed);
-    $("beat-text").textContent = `live · ${new Date().toLocaleTimeString()}`;
+    if (g.status === "fulfilled") renderGlobal(g.value);
+    if (p.status === "fulfilled") renderProject(p.value);
+    if (feed.status === "fulfilled") renderFeed(feed.value);
+    const failed = [g, p, feed].filter((r) => r.status === "rejected").length;
+    $("beat-text").textContent = failed
+      ? `partial (${3 - failed}/3 panels) · ${new Date().toLocaleTimeString()}`
+      : `live · ${new Date().toLocaleTimeString()}`;
   } catch (err) {
-    $("beat-text").textContent = `disconnected — ${err.message}`;
+    $("beat-text").textContent = `render error — ${err.message}`;
   } finally {
     setTimeout(tick, POLL_MS);
   }

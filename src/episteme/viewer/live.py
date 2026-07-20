@@ -72,12 +72,23 @@ def _count_lines(path: Path) -> int:
 
 
 def _parse_ts(value: Any) -> Optional[datetime]:
+    """ISO timestamp → aware UTC datetime, or None.
+
+    A naive timestamp is COERCED to UTC rather than returned naive: the
+    subtraction against aware `now` would raise TypeError, 500 the route,
+    and (via the client's fan-out fetch) blank the whole dashboard — the
+    exact failure the review's disconfirmation test produced from one
+    hand-edited surface timestamp.
+    """
     if not isinstance(value, str):
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        ts = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts
 
 
 def global_status(home: Optional[Path] = None) -> dict:
@@ -92,7 +103,12 @@ def global_status(home: Optional[Path] = None) -> dict:
         ts = _parse_ts(rec.get("timestamp") or rec.get("ts"))
         if ts is not None and (now - ts).total_seconds() <= 86_400:
             day_ago_ops += 1
-            verdict = str(rec.get("decision") or rec.get("verdict") or "unknown")
+            # The canonical audit writer (reasoning_surface_guard) emits
+            # "status" (ok/incomplete/missing/invalid/stale) and "action";
+            # review confirmed zero real records carry decision/verdict.
+            verdict = str(
+                rec.get("status") or rec.get("action") or "unknown"
+            )
             verdicts[verdict] = verdicts.get(verdict, 0) + 1
 
     knobs: dict = {}

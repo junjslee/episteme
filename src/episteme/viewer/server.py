@@ -250,7 +250,19 @@ class _Handler(BaseHTTPRequestHandler):
 
 def serve(host: str = "127.0.0.1", port: int = 37776, open_browser: bool = True) -> int:
     server = ThreadingHTTPServer((host, port), _Handler)
-    url = f"http://{host}:{port}/"
+    loopback = host in ("127.0.0.1", "localhost", "::1")
+    # A non-loopback bind serves the operator's core_question, absolute
+    # home/project paths, and edit activity over UNAUTHENTICATED HTTP —
+    # never do it silently (review finding, E174).
+    if not loopback:
+        print(
+            f"⚠ episteme viewer: binding {host} exposes live governance state "
+            "(reasoning surface, paths, edit activity) to the network WITHOUT "
+            "authentication. Use only on a network you trust."
+        )
+    # Browsers cannot connect to a 0.0.0.0/:: bind address; open loopback.
+    open_host = "127.0.0.1" if host in ("0.0.0.0", "::") else host
+    url = f"http://{open_host}:{port}/"
     print(f"episteme viewer: {url}")
     print(f"project: {PROJECT_ROOT}")
     print("(Ctrl-C to stop)")
