@@ -597,6 +597,12 @@ def sync(governance_mode: str = "balanced") -> None:
             {
                 "governance_pack": (governance_mode or "balanced").strip().lower(),
                 "synced_at": datetime.now(timezone.utc).isoformat(),
+                # Event 166 — which checkout deployed. The next sync
+                # compares against this to refuse a clobber from a
+                # second clone/worktree (a scratchpad clone once
+                # rewrote the operator's global memory to point at its
+                # own example files).
+                "repo_root": str(_cli.REPO_ROOT),
                 "deployed_skills": deployed_skills,
                 "deployed_agents": deployed_agents,
             },
