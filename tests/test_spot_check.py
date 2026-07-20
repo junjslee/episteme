@@ -989,6 +989,94 @@ class DirectEnqueue(unittest.TestCase):
             self.assertEqual(_spot_check.stats()["expired"], 1)
 
 
+class DirectEnqueueValidation(unittest.TestCase):
+    """Review findings (Event 157): a payload without a parseable
+    ``queued_at`` must not enter the queue — the relief valve ages
+    entries by that stamp, so an unstampable entry would jam a cap
+    slot forever (immortal-entry defect)."""
+
+    def test_missing_queued_at_rejected(self):
+        with EphemeralHome():
+            p = _fresh_payload("iv-nostamp")
+            del p["queued_at"]
+            r = _spot_check.enqueue_direct(p)
+            self.assertFalse(r.queued)
+            self.assertEqual(r.reason, "error")
+            self.assertEqual(_spot_check.count_pending(), 0)
+
+    def test_malformed_queued_at_rejected(self):
+        with EphemeralHome():
+            p = _fresh_payload("iv-badstamp")
+            p["queued_at"] = "not-a-date"
+            r = _spot_check.enqueue_direct(p)
+            self.assertFalse(r.queued)
+            self.assertEqual(r.reason, "error")
+            self.assertEqual(_spot_check.count_pending(), 0)
+
+    def test_legacy_unparseable_queued_at_is_expiry_eligible(self):
+        # Defense in depth: an unstampable entry that reached the
+        # queue anyway (legacy writer, corruption) must not be
+        # immortal — its review-window start is unknowable, so the
+        # valve treats it as expiry-eligible rather than letting it
+        # jam the cap.
+        with EphemeralHome():
+            bad = _fresh_payload("iv-legacy-bad")
+            bad["queued_at"] = "garbage"
+            _spot_check._chain_append(_spot_check._queue_path(), bad)
+            self.assertEqual(_spot_check.count_pending(), 1)
+            r = _spot_check.enqueue_direct(_fresh_payload("iv-new"), cap=1)
+            self.assertTrue(r.queued)
+            self.assertEqual(_spot_check.stats()["expired"], 1)
+            pending = _spot_check.list_pending()
+            self.assertEqual(
+                [e.payload["correlation_id"] for e in pending], ["iv-new"]
+            )
+
+
+class CapZeroSemantics(unittest.TestCase):
+    """Pin the ``cap=0`` knob: it disables sampling entirely (every
+    attempt declines; the empty queue offers nothing to relieve) and
+    must never raise — an operator footgun worth a contract test."""
+
+    def test_maybe_sample_cap_zero_declines(self):
+        import contextlib
+        with EphemeralHome(), contextlib.ExitStack() as stack:
+            cwd = stack.enter_context(tempfile.TemporaryDirectory())
+            (Path(cwd) / ".episteme").mkdir()
+            (Path(cwd) / ".episteme" / "spot_check_rate").write_text("1.0\n")
+            r = _spot_check.maybe_sample(
+                **_sample_inputs(correlation_id="cid-z"),
+                cwd=Path(cwd), cap=0,
+            )
+            self.assertFalse(r.queued)
+            self.assertEqual(r.reason, "cap_exceeded")
+
+    def test_enqueue_direct_cap_zero_declines(self):
+        with EphemeralHome():
+            r = _spot_check.enqueue_direct(_fresh_payload("iv-z"), cap=0)
+            self.assertFalse(r.queued)
+            self.assertEqual(r.reason, "cap_exceeded")
+
+
+class ResetFailureTolerance(unittest.TestCase):
+    """A degraded skip-counter write must never break the verdict
+    write (same never-block discipline as _bump_skip_counter)."""
+
+    def test_write_verdict_survives_unwritable_counter_path(self):
+        with EphemeralHome() as home:
+            r = _seed_entry("cid-rf")
+            self.assertTrue(r.queued)
+            blocker = home / "not-a-dir"
+            blocker.write_text("file, not a directory")
+            env = _spot_check.write_verdict(
+                "cid-rf",
+                {"surface_validity": "real"},
+                skip_counter_path=blocker / "counter.json",
+            )
+            self.assertIn("entry_hash", env)
+            self.assertEqual(_spot_check.stats()["verdicted"], 1)
+
+
 class SkipCounterReset(unittest.TestCase):
     """The banner reads 'skipped since last drain' — so drain activity
     (a verdict write) must reset the counter, or the label lies

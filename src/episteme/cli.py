@@ -5386,7 +5386,19 @@ def _review_dispatch(args) -> int:
     if getattr(args, "review_skip", False):
         # Operator snooze (Event 157 — wires the previously-unwired
         # write_skip): defer the entry 7 days; it re-presents after.
+        # Only a genuinely-pending entry can be snoozed — a skip on a
+        # verdicted/expired entry would never re-present (the terminal
+        # record wins), so the deferral message would lie and stats
+        # would double-count the entry.
         cid = entry.payload.get("correlation_id", "")
+        if entry.verdict is not None or getattr(entry, "expiry", None) is not None:
+            state = "verdicted" if entry.verdict is not None else "expired"
+            print(
+                f"[episteme review] {cid} is {state} — --skip only defers "
+                f"a pending entry (a terminal entry never re-presents)",
+                file=sys.stderr,
+            )
+            return 2
         try:
             _spot_check.write_skip(cid)
         except Exception as exc:

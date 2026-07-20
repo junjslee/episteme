@@ -434,14 +434,22 @@ def _expire_stale_pending(
     ``spot_check_expiry`` record for every pending entry older than
     the age floor, so sampling resumes instead of silently stopping.
     Terminal is deliberate — ``SKIP_TYPE`` is a snooze that re-presents
-    after its TTL and would re-saturate the cap on schedule. Returns
-    the count expired; ``ChainError``/``OSError`` propagate to the
+    after its TTL and would re-saturate the cap on schedule. Drains ALL
+    stale entries in one pass (not just enough to duck under cap): the
+    cohort is bounded by the cap itself, the measured cost is ~57ms at
+    200 records (accepted one-time spike per cohort), and a full drain
+    lets the SessionStart banner clear honestly instead of riding at
+    cap forever. Returns the count expired; errors propagate to the
     caller's guard."""
     cutoff = now_dt - timedelta(seconds=age_seconds)
     expired = 0
     for e in list_pending(path=target, now=now_dt):
         queued = _parse_iso(str(e.payload.get("queued_at", "")))
-        if queued is None or queued > cutoff:
+        # queued is None → the review-window start is unknowable
+        # (legacy writer / corruption); an unstampable entry must not
+        # jam a cap slot forever, so it is expiry-eligible (immortal-
+        # entry review finding, Event 157).
+        if queued is not None and queued > cutoff:
             continue
         _chain_append(target, {
             "type": EXPIRY_TYPE,
@@ -469,7 +477,10 @@ def _cap_admit(target: Path, cap_value: int, now_dt: datetime) -> bool:
     try:
         if _expire_stale_pending(target, now_dt):
             pending = count_pending(path=target, now=now_dt)
-    except (ChainError, OSError):
+    except Exception:
+        # The relief pass must never break either enqueue path — the
+        # same never-raise contract maybe_sample documents (review
+        # finding, Event 157: (ChainError, OSError) alone narrowed it).
         pass
     return pending < cap_value
 
@@ -748,6 +759,14 @@ def enqueue_direct(
     cid = str(payload.get("correlation_id") or "").strip()
     try:
         if payload.get("type") != ENTRY_TYPE or not cid:
+            return SampleResult(
+                queued=False, correlation_id=cid, effective_rate=0.0,
+                multipliers=(), entry_hash=None, reason="error",
+            )
+        # The relief valve ages entries by ``queued_at``; an entry
+        # without a parseable stamp would jam a cap slot forever
+        # (immortal-entry review finding, Event 157) — reject it here.
+        if _parse_iso(str(payload.get("queued_at") or "")) is None:
             return SampleResult(
                 queued=False, correlation_id=cid, effective_rate=0.0,
                 multipliers=(), entry_hash=None, reason="error",
