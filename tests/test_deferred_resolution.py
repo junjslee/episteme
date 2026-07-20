@@ -391,7 +391,7 @@ class CliDrain(unittest.TestCase):
             "--verdict", "noise", "--why", "no such reference exists",
         ])
         self.assertEqual(rc, 1)
-        self.assertIn("no OPEN deferred discovery matches", err)
+        self.assertIn("no verdictable deferred discovery matches", err)
 
 
 if __name__ == "__main__":

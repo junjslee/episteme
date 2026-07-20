@@ -54,7 +54,9 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -110,6 +112,29 @@ DISCOVERY_VERDICT_TYPE = "deferred_discovery_verdict"
 RESOLUTION_VERDICTS = frozenset({"resolved", "noise", "duplicate", "accepted"})
 _VERDICT_RATIONALE_FLOOR = 15  # same lazy-value bar as surface fields
 _REF_PREFIX_FLOOR = 8
+
+# Terminal, machine-written aging-out of an OPEN discovery by the
+# at-cap relief valve (Event 158 — sibling of Event 157's
+# ``spot_check_expiry``). Deliberately NOT a RESOLUTION_VERDICTS value:
+# that enum records operator judgment; an expiry records the absence of
+# it, honestly. An expiry closes the entry (open_deferred_discoveries
+# treats its ref like a verdict ref) and is not re-openable.
+DISCOVERY_EXPIRY_TYPE = "deferred_discovery_expiry"
+
+# Open-set backpressure (Event 158, M1 follow-through). Blueprint D
+# auto-enqueues discoveries on the live write path; the only drain is
+# the operator verdict CLI. Without a bound the open set grows without
+# limit (178 open at audit time; 1,208 records historically). The cap
+# mirrors the spot-check queue's DEFAULT_PENDING_CAP — one mental
+# model for operator review load — with its own env knob. At cap,
+# open entries older than the age floor expire as chained records so
+# writes resume; the floor is 30 days (vs the spot-check queue's 7)
+# because architectural-debt entries deserve a longer review window
+# than op samples. Budgets are code — changing either constant IS the
+# decision.
+DEFAULT_DEFERRED_OPEN_CAP = 100
+DEFERRED_EXPIRY_AGE_SECONDS = 30 * 24 * 60 * 60
+_DEFERRED_SKIP_COUNTER_FILENAME = "deferred_skipped.json"
 CP5_FORMAT_VERSION = "cp5-pre-chain"
 UPGRADED_FORMAT_MARKER = "cp7-chained-v1"
 
@@ -172,6 +197,179 @@ def _protocols_path() -> Path:
 
 def _deferred_discoveries_path() -> Path:
     return _episteme_home() / "framework" / "deferred_discoveries.jsonl"
+
+
+def _deferred_skip_counter_path() -> Path:
+    return _episteme_home() / "state" / _DEFERRED_SKIP_COUNTER_FILENAME
+
+
+# ---------------------------------------------------------------------------
+# Open-set backpressure (Event 158 — mirrors _spot_check's Event 148/157
+# machinery; small helpers duplicated per the hooks-stay-self-contained
+# convention)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_deferred_open_cap(explicit: int | None = None) -> int:
+    """Resolve the open-set cap. Precedence: explicit arg (test seam) >
+    ``EPISTEME_DEFERRED_OPEN_CAP`` env var > ``DEFAULT_DEFERRED_OPEN_CAP``.
+    Non-parseable / NON-POSITIVE values fall back to the default — a
+    bad knob must never break the write path, and unlike the spot-check
+    sampler (where cap=0 merely quiets sampling) a zero cap here would
+    silently drop architectural-debt records with the banner notice
+    suppressed (Event 158 review finding). Never raises."""
+    if explicit is not None:
+        try:
+            val = int(explicit)
+        except (TypeError, ValueError):
+            return DEFAULT_DEFERRED_OPEN_CAP
+        return val if val > 0 else DEFAULT_DEFERRED_OPEN_CAP
+    raw = os.environ.get("EPISTEME_DEFERRED_OPEN_CAP", "").strip()
+    if raw:
+        try:
+            val = int(raw)
+            if val > 0:
+                return val
+        except ValueError:
+            pass
+    return DEFAULT_DEFERRED_OPEN_CAP
+
+
+def read_deferred_skip_counter(path: Path | None = None) -> dict:
+    """Read the backpressure skip sidecar — ``{"skipped_count": 0}``
+    when absent or unreadable. Never raises."""
+    target = path if path is not None else _deferred_skip_counter_path()
+    try:
+        if target.is_file():
+            data = json.loads(target.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(
+                data.get("skipped_count"), int
+            ):
+                return data
+    except (OSError, json.JSONDecodeError, ValueError):
+        pass
+    return {"skipped_count": 0}
+
+
+def _write_deferred_skip_counter(payload: dict, target: Path) -> bool:
+    """Atomic temp+rename sidecar write. Returns False when degraded —
+    callers must not block the write path on it."""
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(
+            prefix=target.name + ".tmp-", dir=str(target.parent)
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, target)
+        except OSError:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            return False
+    except OSError:
+        return False
+    return True
+
+
+def _bump_deferred_skip_counter(
+    reason: str, now: datetime, *, path: Path | None = None
+) -> int | None:
+    target = path if path is not None else _deferred_skip_counter_path()
+    current = read_deferred_skip_counter(target).get("skipped_count", 0)
+    if not isinstance(current, int) or current < 0:
+        current = 0
+    payload = {
+        "skipped_count": current + 1,
+        "last_skipped_at": now.isoformat(),
+        "last_reason": reason,
+    }
+    if not _write_deferred_skip_counter(payload, target):
+        return None
+    return current + 1
+
+
+def _reset_deferred_skip_counter(
+    now: datetime, *, path: Path | None = None
+) -> None:
+    """Zero the counter — an operator verdict is drain activity and
+    starts a new 'since last drain' window. Best-effort: never raises."""
+    target = path if path is not None else _deferred_skip_counter_path()
+    _write_deferred_skip_counter(
+        {"skipped_count": 0, "last_reset_at": now.isoformat()}, target
+    )
+
+
+def _parse_iso_ts(value: str) -> datetime | None:
+    try:
+        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _expire_stale_open(
+    target: Path,
+    now_dt: datetime,
+    *,
+    age_seconds: int = DEFERRED_EXPIRY_AGE_SECONDS,
+) -> int:
+    """At-cap relief valve (Event 158): append a terminal
+    ``deferred_discovery_expiry`` record for every OPEN discovery older
+    than the age floor. Age comes from payload ``logged_at``, falling
+    back to the envelope's append ``ts`` (machine-written, always
+    present); an entry with neither parseable is expiry-eligible — an
+    unstampable entry must not jam a cap slot forever (Event 157
+    immortal-entry lesson, baked in from the start here). Drains ALL
+    stale entries in one pass — the cohort is bounded by the cap and a
+    full drain lets the SessionStart banner clear honestly. Returns the
+    count expired; errors propagate to the caller's guard."""
+    cutoff = now_dt - timedelta(seconds=age_seconds)
+    expired = 0
+    for env in open_deferred_discoveries(path=target):
+        payload = env.get("payload") if isinstance(env, dict) else None
+        payload = payload if isinstance(payload, dict) else {}
+        stamp = _parse_iso_ts(str(payload.get("logged_at") or ""))
+        if stamp is None:
+            stamp = _parse_iso_ts(str(env.get("ts") or ""))
+        if stamp is not None and stamp > cutoff:
+            continue
+        _chain_append(target, {
+            "type": DISCOVERY_EXPIRY_TYPE,
+            "ref": str(env.get("entry_hash") or ""),
+            "expired_at": now_dt.isoformat(),
+            "logged_at": payload.get("logged_at"),
+            "reason": "cap_relief",
+        })
+        expired += 1
+    return expired
+
+
+def _deferred_cap_admit(
+    target: Path, cap_value: int, now_dt: datetime
+) -> bool:
+    """Cap consult for the discovery write path. At cap, run the relief
+    valve then recount; True when there is room. A count error fails
+    toward admit — backpressure must never break Blueprint D's
+    bookkeeping (its writer already degrades gracefully)."""
+    try:
+        open_n = len(open_deferred_discoveries(path=target))
+    except Exception:
+        return True
+    if open_n < cap_value:
+        return True
+    try:
+        if _expire_stale_open(target, now_dt):
+            open_n = len(open_deferred_discoveries(path=target))
+    except Exception:
+        pass
+    return open_n < cap_value
 
 
 # ---------------------------------------------------------------------------
@@ -357,6 +555,9 @@ def write_deferred_discovery(
     dedup: bool = True,
     dedup_tail_n: int = DEFAULT_DEDUP_TAIL_N,
     dedup_desc_prefix: int = DEFAULT_DEDUP_DESC_PREFIX,
+    cap: int | None = None,
+    now: datetime | None = None,
+    skip_counter_path: Path | None = None,
 ) -> dict:
     """Append a deferred_discovery record. Type-tagged like
     ``write_protocol``; independent chain stream.
@@ -404,6 +605,22 @@ def write_deferred_discovery(
                     "matched_ts": existing.get("ts"),
                     "reason": "cp-dedup-01 suppression",
                 }
+    # Open-set backpressure + relief (Event 158). Consulted AFTER dedup
+    # so a suppressed duplicate never bumps the decline counter. At cap
+    # the relief valve first ages out open entries past the floor; if
+    # the set stays saturated the write declines with a marker dict
+    # (same tolerate-discarding contract as suppressed_duplicate).
+    now_dt = now or datetime.now(timezone.utc)
+    cap_value = _resolve_deferred_open_cap(cap)
+    if not _deferred_cap_admit(target, cap_value, now_dt):
+        _bump_deferred_skip_counter(
+            "cap_exceeded", now_dt, path=skip_counter_path
+        )
+        return {
+            "declined_at_cap": True,
+            "open_cap": cap_value,
+            "reason": "cap_exceeded",
+        }
     return _chain_append(target, payload)
 
 
@@ -493,10 +710,12 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
 
     OPEN iff payload status is in ``OPEN_STATUSES`` (legacy records
     without a status count as open — the historical Blueprint-D writer
-    emitted none) AND no ``deferred_discovery_verdict`` record
-    references the discovery's ``entry_hash``. Single chain pass; the
-    SessionStart banner and ``episteme guide --deferred`` read this so
-    a verdicted finding stops re-firing every session.
+    emitted none) AND no ``deferred_discovery_verdict`` OR
+    ``deferred_discovery_expiry`` record references the discovery's
+    ``entry_hash`` (Event 158: an expiry closes like a verdict does).
+    Single chain pass; the SessionStart banner and ``episteme guide
+    --deferred`` read this so a verdicted finding stops re-firing every
+    session.
     """
     target = path if path is not None else _deferred_discoveries_path()
     discoveries: list[dict] = []
@@ -506,7 +725,7 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
         if not isinstance(payload, dict):
             continue
         ptype = payload.get("type")
-        if ptype == DISCOVERY_VERDICT_TYPE:
+        if ptype in (DISCOVERY_VERDICT_TYPE, DISCOVERY_EXPIRY_TYPE):
             ref = payload.get("ref")
             if isinstance(ref, str) and ref:
                 verdicted.add(ref)
@@ -517,6 +736,75 @@ def open_deferred_discoveries(*, path: Path | None = None) -> list[dict]:
     return [
         d for d in discoveries
         if str(d.get("entry_hash") or "") not in verdicted
+    ]
+
+
+def _discovery_ref_sets(target: Path) -> tuple[list[dict], set[str], set[str]]:
+    """Single chain pass → (open-shaped discovery envelopes,
+    verdict refs, expiry refs). Open-shaped = status pending/None;
+    callers apply the closing semantics they need."""
+    discoveries: list[dict] = []
+    verdict_refs: set[str] = set()
+    expiry_refs: set[str] = set()
+    for rec in _chain_iter(target, verify=True):
+        payload = rec.get("payload") if isinstance(rec, dict) else None
+        if not isinstance(payload, dict):
+            continue
+        ptype = payload.get("type")
+        if ptype == DISCOVERY_VERDICT_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                verdict_refs.add(ref)
+        elif ptype == DISCOVERY_EXPIRY_TYPE:
+            ref = payload.get("ref")
+            if isinstance(ref, str) and ref:
+                expiry_refs.add(ref)
+        elif ptype == DEFERRED_DISCOVERY_TYPE:
+            status = payload.get("status")
+            if status is None or status in OPEN_STATUSES:
+                discoveries.append(rec)
+    return discoveries, verdict_refs, expiry_refs
+
+
+def _verdictable_discoveries(*, path: Path | None = None) -> list[dict]:
+    """Discoveries an operator verdict may target: OPEN ones plus
+    expiry-closed ones with no verdict yet. An operator verdict
+    SUPERSEDES a machine expiry (Event 158 review — mirrors the Event
+    157 spot-check semantics): cap relief must not permanently block a
+    real disposition, especially the Event 152 ``accepted`` verdict
+    whose whole point is naming the cost of ignorance."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, _ = _discovery_ref_sets(target)
+    return [
+        d for d in discoveries
+        if str(d.get("entry_hash") or "") not in verdict_refs
+    ]
+
+
+def expired_unverdicted_count(*, path: Path | None = None) -> int:
+    """Count of discoveries machine-expired by cap relief with no
+    operator verdict recorded. Surfaced by the SessionStart banner and
+    ``episteme deferred list`` so mass expiry is never invisible
+    (Event 158 review)."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, expiry_refs = _discovery_ref_sets(target)
+    return sum(
+        1 for d in discoveries
+        if str(d.get("entry_hash") or "") in expiry_refs
+        and str(d.get("entry_hash") or "") not in verdict_refs
+    )
+
+
+def expired_unverdicted_discoveries(*, path: Path | None = None) -> list[dict]:
+    """The machine-expired, still-unverdicted discovery envelopes —
+    ``episteme deferred list --expired`` renders these with full refs so
+    the supersede path is actually reachable."""
+    target = path if path is not None else _deferred_discoveries_path()
+    discoveries, verdict_refs, expiry_refs = _discovery_ref_sets(target)
+    return [
+        d for d in discoveries
+        if str(d.get("entry_hash") or "") in expiry_refs
+        and str(d.get("entry_hash") or "") not in verdict_refs
     ]
 
 
@@ -567,15 +855,19 @@ def append_discovery_verdict(
         _, _, bare = entry_hash.partition(":")
         return bool(bare) and bare.startswith(ref)
 
+    # Event 158 review: match against verdictable (open OR expiry-closed
+    # -but-unverdicted) discoveries — an operator verdict supersedes a
+    # machine expiry; only a prior operator verdict blocks.
     matches = [
-        d for d in open_deferred_discoveries(path=target)
+        d for d in _verdictable_discoveries(path=target)
         if _ref_matches(str(d.get("entry_hash") or ""))
     ]
     if not matches:
         raise ChainError(
-            f"no OPEN deferred discovery matches {ref!r} — it may "
-            "already be verdicted, or the ref is wrong "
-            "(see `episteme guide --deferred` for open entries)"
+            f"no verdictable deferred discovery matches {ref!r} — it "
+            "may already carry an operator verdict, or the ref is wrong "
+            "(open: `episteme deferred list` · machine-expired: "
+            "`episteme deferred list --expired`)"
         )
     if len(matches) > 1:
         raise ChainError(
@@ -583,12 +875,16 @@ def append_discovery_verdict(
             "use a longer prefix"
         )
     full_hash = str(matches[0]["entry_hash"])
-    return _chain_append(target, {
+    envelope = _chain_append(target, {
         "type": DISCOVERY_VERDICT_TYPE,
         "ref": full_hash,
         "verdict": verdict,
         "rationale": rationale,
     })
+    # Drain activity — reset the backpressure window (Event 158) so the
+    # banner's 'skipped since last drain' stays truthful.
+    _reset_deferred_skip_counter(datetime.now(timezone.utc))
+    return envelope
 
 
 # ---------------------------------------------------------------------------
@@ -928,16 +1224,20 @@ def compact_deferred_discoveries(
                 f"before compaction."
             )
 
-        # Verdicts couple to discoveries by entry_hash (see § Resolution
-        # layer). A GENESIS rebuild recomputes every entry_hash, so any
-        # verdict ref would dangle and a resolved discovery would re-open —
-        # unless we (1) never drop a verdicted discovery as a duplicate, and
-        # (2) remap verdict refs old->new during the rebuild. Collect the
-        # referenced hashes first.
+        # Verdicts AND cap-relief expiries couple to discoveries by
+        # entry_hash (see § Resolution layer; Event 158 review finding —
+        # an unremapped expiry ref would dangle after the rebuild and a
+        # machine-expired discovery would silently RE-OPEN). A GENESIS
+        # rebuild recomputes every entry_hash, so any closing ref would
+        # dangle — unless we (1) never drop a closed discovery as a
+        # duplicate, and (2) remap closing refs old->new during the
+        # rebuild. Collect the referenced hashes first.
         verdict_refs: set[str] = set()
         for rec in parsed:
             payload = rec.get("payload")
-            if isinstance(payload, dict) and payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            if isinstance(payload, dict) and payload.get("type") in (
+                DISCOVERY_VERDICT_TYPE, DISCOVERY_EXPIRY_TYPE
+            ):
                 ref = payload.get("ref")
                 if isinstance(ref, str) and ref:
                     verdict_refs.add(ref)
@@ -1002,7 +1302,9 @@ def compact_deferred_discoveries(
                     f"{target}: kept record missing payload / ts during rebuild "
                     f"(payload={type(payload).__name__}, ts={type(ts).__name__})"
                 )
-            if payload.get("type") == DISCOVERY_VERDICT_TYPE:
+            if payload.get("type") in (
+                DISCOVERY_VERDICT_TYPE, DISCOVERY_EXPIRY_TYPE
+            ):
                 old_ref = payload.get("ref")
                 if isinstance(old_ref, str) and old_ref in hash_remap:
                     payload = {**payload, "ref": hash_remap[old_ref]}

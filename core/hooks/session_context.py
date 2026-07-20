@@ -157,11 +157,41 @@ def _framework_digest_line() -> str | None:
         return None
     protocol_noun = "protocol" if since_last == 1 else "protocols"
     deferred_noun = "discovery" if pending_deferred == 1 else "discoveries"
-    return (
+    line = (
         f"framework: {since_last} {protocol_noun} synthesized since "
         f"last session ({total} total), {pending_deferred} deferred "
         f"{deferred_noun} pending"
     )
+    # Event 158 — at/over the open cap the discovery writer declines
+    # (relief valve permitting); surface the degradation instead of
+    # letting the ledger go silently lossy. Machine-expired findings are
+    # ALSO surfaced so a mass expiry is never invisible (review
+    # finding): they left the open count without any operator judgment.
+    # Below cap with zero expiries the line is byte-identical to
+    # before. Any read failure degrades to the plain line.
+    try:
+        expired_n = _framework.expired_unverdicted_count()
+        if expired_n:
+            noun = "y" if expired_n == 1 else "ies"
+            line += (
+                f", {expired_n} expired-unreviewed discover{noun} "
+                f"(`episteme deferred list --expired`)"
+            )
+    except Exception:
+        pass
+    try:
+        cap = _framework._resolve_deferred_open_cap()
+        if cap and pending_deferred >= cap:
+            skipped = _framework.read_deferred_skip_counter().get(
+                "skipped_count", 0
+            )
+            line += (
+                f" — queue AT CAP ({cap}): writes paused, "
+                f"{skipped} record(s) skipped since last drain"
+            )
+    except Exception:
+        pass
+    return line
 
 
 _E1_PROTOCOL_FLOOR = 3
