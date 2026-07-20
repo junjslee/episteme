@@ -284,6 +284,33 @@ class WorkflowGuardTargetedAdvisoryTests(unittest.TestCase):
             context = self._run_hook(self._payload(root))
         self.assertIn("WORKFLOW ADVISORY", context)
 
+    def test_symlinked_doc_edit_is_suppressed_not_resolved_away(self):
+        # docs/NEXT_STEPS.md-style setup: the authoritative doc is a symlink
+        # into a tree OUTSIDE the project. resolve() would follow it out of
+        # cwd and defeat the doc-path suppression; the textual prefix-strip
+        # must keep the repo-relative spelling and stay silent.
+        root = self._project(with_git=True, with_citation=False)
+        outside = TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        real = Path(outside.name) / "NEXT_STEPS.md"
+        real.write_text("# next\n", encoding="utf-8")
+        link = root / "docs" / "NEXT_STEPS.md"
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(real)
+        payload = {
+            "tool_name": "Edit",
+            "tool_input": {"file_path": str(link)},
+            "session_type": "main",
+            "cwd": str(root),
+        }
+        raw = json.dumps(payload)
+        with patch("sys.stdin", new=io.StringIO(raw)), patch(
+            "sys.stdout", new=io.StringIO()
+        ) as fake_out:
+            rc = workflow_guard.main()
+        self.assertEqual(rc, 0)
+        self.assertEqual(fake_out.getvalue(), "")  # suppressed, no advisory
+
     def test_overflow_is_counted_never_silent(self):
         root = self._project(with_git=True, with_citation=True)
         for i in range(8):

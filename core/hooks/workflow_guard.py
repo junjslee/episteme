@@ -166,13 +166,24 @@ def main() -> int:
     # and `lstrip("./")` strips a character set, not a prefix, so the doc-path
     # suppression never matched absolute spellings — the guard nagged on doc
     # edits it was designed to stay silent on. Normalize to the project-relative
-    # spelling before the policy test.
+    # spelling before the policy test. Textual prefix-strip FIRST: this repo's
+    # authoritative docs are symlinks into a private tree, and resolve() would
+    # follow them out of the project and defeat the suppression for exactly the
+    # files it exists to cover; resolve() is only the fallback for spelling
+    # mismatches like /tmp vs /private/tmp.
     policy_path = target_path
     if os.path.isabs(target_path):
-        try:
-            policy_path = str(Path(target_path).resolve().relative_to(cwd.resolve()))
-        except (ValueError, OSError):
-            policy_path = target_path
+        norm_t = os.path.normpath(target_path)
+        norm_c = os.path.normpath(str(cwd))
+        if norm_t.startswith(norm_c + os.sep):
+            policy_path = norm_t[len(norm_c) + 1 :].replace(os.sep, "/")
+        else:
+            try:
+                policy_path = str(
+                    Path(target_path).resolve().relative_to(cwd.resolve())
+                ).replace(os.sep, "/")
+            except (ValueError, OSError):
+                policy_path = target_path
 
     if _is_doc_or_policy_path(policy_path):
         return 0
