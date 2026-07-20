@@ -36,9 +36,9 @@ const satoshi = localFont({
 });
 
 const SITE_URL = "https://www.epistemekernel.com";
-const SITE_TITLE = "episteme — a way to think when the model can finish your sentences";
+const SITE_TITLE = "episteme — make the AI show its work";
 const SITE_DESCRIPTION =
-  "episteme is a way to think — 생각의 틀 — an epistemic engine that makes AI-assisted decisions earn their confidence before they land. A load-bearing conclusion gets decomposed into tiered claims, verified in a fresh context against external evidence, argued from the other side, and stamped with a verdict the file-system gate reads. Verified lessons become hash-chained protocols that resurface at the next matching decision.";
+  "episteme is 생각의 틀 — a way to think, enforced at the moment before irreversible action. Before an agent does something it cannot take back, it writes down what it knows, what it doesn't, and what would prove it wrong; a deterministic gate holds until that artifact is real. What the decision teaches is hash-chained into a protocol that resurfaces at the next matching decision.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -68,31 +68,12 @@ export default function RootLayout({
       className={`${fraunces.variable} ${satoshi.variable} ${jetbrains.variable}`}
     >
       <body className="min-h-screen antialiased">
+        {/* Ambient chrome, all pointer-events:none and behind content. The
+            hero's WebGL scene supplies its own depth, so these layers stay
+            deliberately faint — they carry the sections below the fold. */}
         <div className="atmosphere" aria-hidden />
-        <div className="column-grid" aria-hidden>
-          <div className="column-grid-inner">
-            <div>
-              <span className="data-stream" style={{ animationDuration: "6s", animationDelay: "0s" }} />
-            </div>
-            <div>
-              <span className="data-stream" style={{ animationDuration: "8s", animationDelay: "1.4s" }} />
-            </div>
-            <div>
-              <span className="data-stream" style={{ animationDuration: "5.5s", animationDelay: "0.7s" }} />
-            </div>
-            <div>
-              <span className="data-stream" style={{ animationDuration: "7.2s", animationDelay: "2.1s" }} />
-            </div>
-          </div>
-        </div>
         <div className="grid-overlay" aria-hidden />
         <div className="noise-layer" aria-hidden />
-        <div className="gradient-blur" aria-hidden>
-          <div />
-          <div />
-          <div />
-          <div />
-        </div>
         {children}
       </body>
     </html>

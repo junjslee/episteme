@@ -1,19 +1,21 @@
 import { Header } from "@/components/site/Header";
 import { Hero } from "@/components/site/Hero";
-import { Sectioned } from "@/components/ui/Sectioned";
-import { EngineFlowLoader } from "@/components/site/EngineFlowLoader";
-import { SurfaceWalk } from "@/components/site/SurfaceWalk";
-import { ThreeLayers } from "@/components/site/ThreeLayers";
-import { ProofSection } from "@/components/site/ProofSection";
-import { FrameworkExplainer } from "@/components/site/FrameworkExplainer";
-import { InstallSection } from "@/components/site/InstallSection";
+import { MomentItWorks } from "@/components/site/MomentItWorks";
+import { HowItWorks } from "@/components/site/HowItWorks";
+import { WayToThink } from "@/components/site/WayToThink";
+import { Install } from "@/components/site/Install";
 import { Footer } from "@/components/site/Footer";
 
-// Six-beat one-scroll arc: WHAT IS THIS → HOW DOES IT WORK → FEEL IT →
-// WHERE IT RUNS → IS IT REAL → HOW DO I GET IT. Empty legacy anchors keep
-// old deep links (/#framework, /#surface, /#protocols) scrolling to the
-// nearest successor.
-
+/**
+ * Landing — "The Gate & the Lattice" (Event 164).
+ *
+ * Arc: SEE IT (the 3D gate holding an action) → BELIEVE IT (a real block
+ * message and its repair) → UNDERSTAND IT (declare / gate / learn) → WHY IT
+ * MATTERS (the practice) → GET IT (install).
+ *
+ * Empty legacy anchors keep old deep links (/#framework, /#surface,
+ * /#protocols, /#proof) scrolling to their nearest successor section.
+ */
 export default function Home() {
   return (
     <>
@@ -21,21 +23,13 @@ export default function Home() {
       <main>
         <Hero />
         <span id="framework" aria-hidden />
-        <Sectioned
-          id="how-it-works"
-          index="01"
-          label="how it works"
-          kicker="decision → interrogation → verdict → chain"
-        >
-          <EngineFlowLoader />
-        </Sectioned>
+        <span id="proof" aria-hidden />
+        <MomentItWorks />
         <span id="surface" aria-hidden />
-        <SurfaceWalk />
-        <ThreeLayers />
-        <ProofSection />
-        <FrameworkExplainer />
+        <HowItWorks />
         <span id="protocols" aria-hidden />
-        <InstallSection />
+        <WayToThink />
+        <Install />
       </main>
       <Footer />
     </>

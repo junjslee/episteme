@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
 /* ──────────────────────────────────────────────────────────────────────────
-   episteme — editorial light substrate (Event 102)
-   Warm cream substrate, dark warm ink, four scarce signal accents
-   recalibrated for light-contrast. No gradients on type. No saturated
-   blues. Cream is not pure white; ink is not pure black — both warm.
+   episteme — "The Gate & the Lattice" (Event 164)
+   Dark-first substrate. Near-black page, warm near-white ink, cyan/ink-blue
+   node accents, warm amber for verified, desaturated red for blocked.
+   Token NAMES are preserved from the prior editorial-light system so every
+   route (/readme, /commands, /dashboard) and shared primitive inherits the
+   new palette by cascade — only the VALUES change.
    ────────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Substrate (light, layered cream — book paper) */
-  --color-void: #f4f0e8;          /* page substrate — warm cream */
-  --color-surface: #ece6d8;        /* layered surface */
-  --color-elevated: #e0d8c5;       /* panel / card */
-  --color-hairline: #d0c7b0;       /* delicate borders */
-  --color-line: #a89a7e;           /* stronger lines */
-  --color-line-strong: #807156;    /* deepest line */
+  /* Substrate (dark, layered) */
+  --color-void: #0a0c10;           /* page substrate — near-black */
+  --color-surface: #0f131a;        /* layered surface */
+  --color-elevated: #151a23;       /* panel / card / code block */
+  --color-hairline: #212836;       /* delicate borders */
+  --color-line: #313a4c;           /* stronger lines */
+  --color-line-strong: #46516a;    /* deepest line */
 
-  /* Type on substrate (warm ink — not pure black) */
-  --color-bone: #1a1612;           /* primary ink */
-  --color-ash: #524a40;            /* secondary text */
-  --color-muted: #8a8174;          /* muted */
-  --color-whisper: #b8ae9c;        /* very light, near-hairline */
+  /* Type on substrate (warm near-white — not pure white) */
+  --color-bone: #f2efe8;           /* primary ink */
+  --color-ash: #b7bdca;            /* secondary text */
+  --color-muted: #7b8496;          /* muted */
+  --color-whisper: #49515f;        /* very light, near-hairline */
 
-  /* Signals — recalibrated for light substrate (deeper hues, no neon).
-     Each pulled toward editorial-print accent palette. */
-  --color-verified: #2f7a4f;       /* forest green */
-  --color-unknown: #b07013;        /* ochre / amber */
-  --color-disconfirm: #b33c28;     /* terra-cotta */
-  --color-chain: #2d5ba3;          /* deep blue — chain identity preserved */
+  /* Signals — dark-substrate calibration.
+     chain = the lattice / hash chain; verified = the gate opening;
+     disconfirm = the gate holding; unknown = ochre for open questions. */
+  --color-verified: #f2b134;       /* warm amber — verified / proceed */
+  --color-unknown: #e0952f;        /* ochre — open questions */
+  --color-disconfirm: #e0563f;     /* desaturated red — blocked / held */
+  --color-chain: #57c7ff;          /* cyan / ink-blue — nodes + chain */
 
   /* Fonts wired via next/font in layout.tsx */
   --font-display: var(--font-fraunces);
@@ -40,7 +43,7 @@
   --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Base reset anchored to the substrate */
+/* Base reset anchored to the dark substrate */
 html,
 body {
   background: var(--color-void);
@@ -55,110 +58,74 @@ body {
 }
 
 ::selection {
-  background: var(--color-chain);
+  background: color-mix(in oklab, var(--color-chain) 85%, transparent);
   color: var(--color-void);
 }
 
-/* Hairline grid overlay — 1px, 4% opacity, 48px cadence.
-   Rendered once in <body>, pointer-events none, z-index -1.
-   On light substrate, ink-on-cream rather than light-on-dark. */
+/* Hairline grid overlay — 1px, low opacity, 56px cadence. Light-on-dark. */
 .grid-overlay {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
   background-image:
-    linear-gradient(to right, rgba(0, 0, 0, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+    linear-gradient(to right, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.026) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 40%, black 12%, transparent 78%);
 }
 
-/* Noise layer — film grain, lower opacity on light substrate so it
-   reads as paper texture, not as visible noise. */
+/* Noise layer — film grain over the dark substrate. Screen blend so it lifts
+   rather than darkens. */
 .noise-layer {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: 0.035;
-  mix-blend-mode: multiply;
+  opacity: 0.045;
+  mix-blend-mode: screen;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
-/* Scrollbar — thin, muted, ink-on-cream */
+/* Scrollbar — thin, muted, light-on-dark */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 ::-webkit-scrollbar-track {
   background: var(--color-void);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--color-line);
-  border-radius: 1px;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-line-strong);
 }
 
-/* Utility: ambient pulse for unknown quadrants */
-@keyframes pulse-unknown {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(176, 112, 19, 0); }
-  50% { box-shadow: 0 0 24px -4px rgba(176, 112, 19, 0.3); }
-}
-.pulse-unknown {
-  animation: pulse-unknown 4.2s var(--ease-standard) infinite;
-}
-
-/* Hash chain new-entry flash */
-@keyframes flash-chain {
-  0% { background: rgba(45, 91, 163, 0.18); border-color: rgba(45, 91, 163, 0.65); }
-  100% { background: transparent; border-color: var(--color-hairline); }
-}
-.flash-chain {
-  animation: flash-chain 420ms var(--ease-exit) forwards;
-}
-
-/* Broken-link alert */
-@keyframes flash-break {
-  0%, 100% { background: rgba(179, 60, 40, 0.16); }
-  50% { background: rgba(179, 60, 40, 0.26); }
-}
-.flash-break {
-  animation: flash-break 1.8s var(--ease-standard) infinite;
-}
-
 /* ──────────────────────────────────────────────────────────────────────────
-   Editorial richness — atmosphere, gradient borders, progressive blur,
-   column-grid data streams, mask-word reveal, corner markers.
-   Recalibrated for light substrate: ink-on-cream rather than
-   light-on-dark; chromatic glows softened to whispers, not auras.
+   Atmosphere — ambient chromatic glows in the page corners. On the dark
+   substrate these read as auras: cyan chain up-left, amber verified low-right.
    ────────────────────────────────────────────────────────────────────────── */
-
-/* 1. Atmospheric chromatic whispers.
-   On light substrate, signal-color glows read as faint warm tints in
-   the page corners, not as dark-mode auras. Opacity reduced 30-50%. */
 .atmosphere {
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 8%, rgba(45, 91, 163, 0.045), transparent 42%),
-    radial-gradient(circle at 82% 92%, rgba(176, 112, 19, 0.038), transparent 42%),
-    radial-gradient(circle at 50% 50%, rgba(47, 122, 79, 0.022), transparent 55%);
-  filter: blur(80px);
+    radial-gradient(circle at 15% 6%, rgba(87, 199, 255, 0.10), transparent 40%),
+    radial-gradient(circle at 85% 96%, rgba(242, 177, 52, 0.06), transparent 42%),
+    radial-gradient(circle at 50% 55%, rgba(87, 199, 255, 0.03), transparent 60%);
+  filter: blur(90px);
 }
 
-/* 2. Gradient-lit panel borders — light-from-top simulation.
-   On cream substrate, the "light" comes from a soft ink shadow at top
-   fading to near-transparent at bottom. Inverts the dark-mode logic. */
+/* Panel treatments — gradient-lit borders lit from the top edge (light
+   catches the top rim on a dark card). */
 .panel-gradient {
   background:
-    linear-gradient(color-mix(in oklab, var(--color-surface) 92%, transparent), color-mix(in oklab, var(--color-surface) 92%, transparent))
+    linear-gradient(color-mix(in oklab, var(--color-surface) 88%, transparent), color-mix(in oklab, var(--color-surface) 88%, transparent))
       padding-box,
-    linear-gradient(180deg, rgba(0, 0, 0, 0.10) 0%, rgba(0, 0, 0, 0.02) 55%, rgba(0, 0, 0, 0.05) 100%)
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.02) 45%, rgba(255, 255, 255, 0.05) 100%)
       border-box;
   border: 1px solid transparent;
 }
@@ -166,17 +133,17 @@ body {
 .panel-gradient-strong {
   background:
     linear-gradient(var(--color-elevated), var(--color-elevated)) padding-box,
-    linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0%, rgba(0, 0, 0, 0.03) 50%, rgba(0, 0, 0, 0.08) 100%)
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 50%, rgba(255, 255, 255, 0.08) 100%)
       border-box;
   border: 1px solid transparent;
 }
 
-/* 3. Progressive-blur top gradient (theme-agnostic — blur is opacity-free) */
+/* Progressive-blur top gradient (theme-agnostic — blur is opacity-free) */
 .gradient-blur {
   position: fixed;
   z-index: 40;
   inset: 0 0 auto 0;
-  height: 9%;
+  height: 8%;
   pointer-events: none;
 }
 .gradient-blur > div,
@@ -224,86 +191,40 @@ body {
   mask: linear-gradient(to top, rgba(0, 0, 0, 0) 75%, rgba(0, 0, 0, 1) 87.5%, rgba(0, 0, 0, 1) 100%);
 }
 
-/* 4. Animated column-grid data streams — ink-on-cream with chain tint. */
-.column-grid {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  display: flex;
-  justify-content: center;
-  padding: 0 1.5rem;
+/* ──────────────────────────────────────────────────────────────────────────
+   Utility keyframes preserved for the dashboard viz + shared primitives.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@keyframes pulse-unknown {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 149, 47, 0); }
+  50% { box-shadow: 0 0 24px -4px rgba(224, 149, 47, 0.4); }
 }
-.column-grid-inner {
-  width: 100%;
-  max-width: 80rem;
-  height: 100%;
-  border-left: 1px solid rgba(0, 0, 0, 0.05);
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  position: relative;
-}
-.column-grid-inner > div {
-  border-right: 1px solid rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: hidden;
-  display: none;
-}
-@media (min-width: 768px) {
-  .column-grid-inner > div { display: block; }
-}
-.column-grid-inner > div:last-child {
-  border-right: 0;
-}
-.data-stream {
-  position: absolute;
-  right: -1px;
-  width: 1px;
-  height: 8rem;
-  top: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    rgba(45, 91, 163, 0.0) 10%,
-    rgba(45, 91, 163, 0.45) 50%,
-    rgba(45, 91, 163, 0.0) 90%,
-    transparent 100%
-  );
-  animation: data-stream-flow linear infinite;
-}
-@keyframes data-stream-flow {
-  0% { transform: translateY(-120%); }
-  100% { transform: translateY(1200%); }
+.pulse-unknown {
+  animation: pulse-unknown 4.2s var(--ease-standard) infinite;
 }
 
-/* 5. Word-mask reveal — staggered slide-up from behind an overflow mask. */
-.mask-word {
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: top;
-  line-height: 1.05;
-  padding-bottom: 0.06em;
+@keyframes flash-chain {
+  0% { background: rgba(87, 199, 255, 0.20); border-color: rgba(87, 199, 255, 0.7); }
+  100% { background: transparent; border-color: var(--color-hairline); }
 }
-.mask-word-inner {
-  display: inline-block;
-  transform: translateY(110%);
-  opacity: 0;
-  animation: mask-word-rise 900ms var(--ease-enter) forwards;
-}
-@keyframes mask-word-rise {
-  0% { transform: translateY(110%); opacity: 0; }
-  60% { opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
+.flash-chain {
+  animation: flash-chain 420ms var(--ease-exit) forwards;
 }
 
-/* 6. Corner markers — outward-offset + glyphs at panel corners.
-   Ink-on-cream visibility: 0.30 alpha vs prior 0.22 white-on-dark. */
+@keyframes flash-break {
+  0%, 100% { background: rgba(224, 86, 63, 0.16); }
+  50% { background: rgba(224, 86, 63, 0.28); }
+}
+.flash-break {
+  animation: flash-break 1.8s var(--ease-standard) infinite;
+}
+
+/* Corner markers — outward-offset glyphs at panel corners. Light-on-dark. */
 .corner-marker {
   position: absolute;
   width: 10px;
   height: 10px;
-  color: rgba(0, 0, 0, 0.30);
+  color: rgba(255, 255, 255, 0.26);
   pointer-events: none;
 }
 .corner-marker svg { width: 100%; height: 100%; }
@@ -312,29 +233,49 @@ body {
 .corner-marker.bl { bottom: -5px; left: -5px; }
 .corner-marker.br { bottom: -5px; right: -5px; }
 
-/* 7. Ambient status pulse dot — consumed by AmbientStatus. */
+/* Ambient status pulse dot */
 @keyframes status-pulse {
   0%, 100% { opacity: 0.6; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.2); }
+  50% { opacity: 1; transform: scale(1.25); }
 }
 .status-pulse {
   animation: status-pulse 2.4s var(--ease-standard) infinite;
 }
 
-/* 8. Event 139 redesign motion — rise stagger (Hero), stamp-in
-   (InterrogationStrip chips, InstallSection transcript), bar-shift
-   (ProofSection MIRROR bars). Initial-hidden state is CLASS-owned so
-   the reduced-motion block in section 9 can force end-states without
-   touching markup. */
+/* ──────────────────────────────────────────────────────────────────────────
+   Revamp motion — word-mask reveal, rise stagger, terminal stamp-in.
+   Initial-hidden state is CLASS-owned so the reduced-motion block can force
+   end-states without touching markup.
+   ────────────────────────────────────────────────────────────────────────── */
+
+.mask-word {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  line-height: 1.02;
+  padding-bottom: 0.08em;
+}
+.mask-word-inner {
+  display: inline-block;
+  transform: translateY(110%);
+  opacity: 0;
+  animation: mask-word-rise 1000ms var(--ease-enter) forwards;
+}
+@keyframes mask-word-rise {
+  0% { transform: translateY(110%); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
 .rise-1, .rise-2, .rise-3, .rise-4 {
   opacity: 0;
-  transform: translateY(14px);
-  animation: rise-enter 700ms var(--ease-enter) forwards;
+  transform: translateY(16px);
+  animation: rise-enter 780ms var(--ease-enter) forwards;
 }
-.rise-1 { animation-delay: 700ms; }
-.rise-2 { animation-delay: 900ms; }
-.rise-3 { animation-delay: 1100ms; }
-.rise-4 { animation-delay: 1300ms; }
+.rise-1 { animation-delay: 500ms; }
+.rise-2 { animation-delay: 680ms; }
+.rise-3 { animation-delay: 860ms; }
+.rise-4 { animation-delay: 1040ms; }
 @keyframes rise-enter {
   to { opacity: 1; transform: translateY(0); }
 }
@@ -357,12 +298,10 @@ body {
 .stamp-in:nth-child(12) { animation-delay: 1440ms; }
 .stamp-in:nth-child(n+13) { animation-delay: 1560ms; }
 @keyframes stamp-enter {
-  0% { opacity: 0; transform: scale(1.25); }
+  0% { opacity: 0; transform: scale(1.2); }
   100% { opacity: 1; transform: scale(1); }
 }
 
-/* Bars carry their final width inline; animating only `from` keeps the
-   inline value as the no-animation / no-support end-state. */
 .bar-shift {
   animation: bar-grow 1200ms var(--ease-standard) both;
 }
@@ -370,10 +309,24 @@ body {
   from { width: 0%; }
 }
 
-/* 9. Reduced motion — force END-states, never blank content.
-   `animation: none` alone would freeze .mask-word-inner / .rise-N /
-   .stamp-in at their hidden initial states (opacity 0, translateY) —
-   the end-state must be explicit. Ambient infinite loops simply stop. */
+/* Gate-hold red flash — used by the reduced-motion poster and terminal. */
+@keyframes held-flash {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.held-flash { animation: held-flash 1.4s var(--ease-standard) infinite; }
+
+/* Slow drift for the static poster lattice */
+@keyframes poster-drift {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+.poster-drift { animation: poster-drift 14s ease-in-out infinite; }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Reduced motion — force END-states, never blank content.
+   ────────────────────────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   .mask-word-inner,
   .rise-1, .rise-2, .rise-3, .rise-4,
@@ -384,7 +337,10 @@ body {
   }
   .bar-shift,
   .status-pulse,
-  .data-stream {
+  .held-flash,
+  .poster-drift,
+  .pulse-unknown,
+  .flash-break {
     animation: none;
   }
 }
