@@ -804,6 +804,148 @@ def _write_cp5_prechain_fixture(path: Path, count: int = 3) -> None:
     path.write_text("\n".join(json.dumps(r) for r in recs) + "\n")
 
 
+class DeferredCapRelief(unittest.TestCase):
+    """Event 158 — the deferred-discovery queue gets the Event 157
+    drain: open-cap with at-cap expiry relief (terminal chained
+    ``deferred_discovery_expiry`` records), a decline counter, and a
+    truthful reset on operator verdict."""
+
+    def test_at_cap_declines_and_bumps_counter(self):
+        with EphemeralHome():
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "fresh finding one",
+                 "logged_at": datetime.now(timezone.utc).isoformat()}
+            )
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "distinct second finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertTrue(res.get("declined_at_cap"))
+            self.assertEqual(len(_framework.open_deferred_discoveries()), 1)
+            self.assertEqual(
+                _framework.read_deferred_skip_counter()["skipped_count"], 1
+            )
+
+    def test_at_cap_stale_relief_then_appends(self):
+        with EphemeralHome():
+            old = (
+                datetime.now(timezone.utc) - timedelta(days=31)
+            ).isoformat()
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "ancient finding", "logged_at": old}
+            )
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "distinct new finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertIn("entry_hash", res)
+            open_now = _framework.open_deferred_discoveries()
+            self.assertEqual(len(open_now), 1)
+            self.assertEqual(
+                open_now[0]["payload"]["description"], "distinct new finding"
+            )
+            chains = _framework.verify_chains()
+            self.assertTrue(chains["deferred_discoveries"].intact)
+
+    def test_expiry_uses_envelope_ts_when_logged_at_missing(self):
+        # Entries without a payload stamp age by the envelope's append
+        # ts (machine-written, always present) — a young entry without
+        # logged_at must NOT be expired.
+        with EphemeralHome():
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "young unstamped finding"}
+            )
+            res = _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "distinct newer finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertTrue(res.get("declined_at_cap"))
+            self.assertEqual(len(_framework.open_deferred_discoveries()), 1)
+
+    def test_expired_discovery_not_verdictable(self):
+        with EphemeralHome():
+            old = (
+                datetime.now(timezone.utc) - timedelta(days=31)
+            ).isoformat()
+            env = _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "ancient finding", "logged_at": old}
+            )
+            expired_hash = env["entry_hash"]
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "distinct new finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            with self.assertRaises(_framework.ChainError):
+                _framework.append_discovery_verdict(
+                    expired_hash, "resolved",
+                    "attempting to verdict an expiry-closed entry",
+                )
+
+    def test_blueprint_d_writer_does_not_count_declined_entries(self):
+        from core.hooks import _blueprint_d  # pyright: ignore[reportAttributeAccessIssue]
+        with EphemeralHome():
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "fresh occupant of the only cap slot",
+                 "logged_at": datetime.now(timezone.utc).isoformat()}
+            )
+            surface = {
+                "flaw_classification": "doc-code-drift",
+                "deferred_discoveries": [
+                    {"description": "a genuinely distinct adjacent gap",
+                     "observable": "obs", "log_only_rationale": "why"},
+                ],
+            }
+            with patch.dict(
+                os.environ, {"EPISTEME_DEFERRED_OPEN_CAP": "1"}
+            ):
+                count = _blueprint_d.write_cascade_deferred_discoveries(
+                    surface, correlation_id="cid-bd", op_label="git push",
+                    cwd=Path("."),
+                )
+            self.assertEqual(count, 0)
+            self.assertEqual(len(_framework.open_deferred_discoveries()), 1)
+            self.assertEqual(
+                _framework.read_deferred_skip_counter()["skipped_count"], 1
+            )
+
+    def test_verdict_resets_deferred_skip_counter(self):
+        with EphemeralHome():
+            env = _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "fresh finding one",
+                 "logged_at": datetime.now(timezone.utc).isoformat()}
+            )
+            _framework.write_deferred_discovery(
+                {"flaw_classification": "doc-code-drift",
+                 "description": "distinct second finding",
+                 "logged_at": datetime.now(timezone.utc).isoformat()},
+                cap=1,
+            )
+            self.assertEqual(
+                _framework.read_deferred_skip_counter()["skipped_count"], 1
+            )
+            _framework.append_discovery_verdict(
+                env["entry_hash"], "resolved",
+                "drained by operator in test — resets the window",
+            )
+            self.assertEqual(
+                _framework.read_deferred_skip_counter()["skipped_count"], 0
+            )
+
+
 class Cp5RetroactiveUpgrade(unittest.TestCase):
     def test_upgrade_wraps_prechain_records_in_cp7_envelope(self):
         with tempfile.TemporaryDirectory() as td:
