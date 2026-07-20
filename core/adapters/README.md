@@ -8,7 +8,7 @@ Platform configuration paths and conventions change. By encoding each adapter as
 - be updated for a platform change by editing one JSON file
 - support community-contributed adapters by dropping a new JSON file here
 - document exactly what each adapter does and doesn't touch
-- provide a machine-readable registry for `episteme doctor` conformance checks
+- provide a machine-readable registry whose conformance is CI-enforced: `tests/test_adapter_registry.py` fails the build when a declared adapter has no implementation or an implementation is undeclared (both drifts happened — codex.json sat unimplemented for months while omo/omx shipped undeclared; Events 167/169)
 
 ## File format
 
@@ -35,7 +35,7 @@ Each adapter JSON has:
 1. Create `<name>.json` following the format above.
 2. Implement `_sync_<name>_runtime()` in `src/episteme/cli.py` referencing the JSON for paths.
 3. Call it from `_sync_user_runtime()`.
-4. Add a `[ok]` / `[missing]` check in `_doctor()`.
+4. The registry bijection test (`tests/test_adapter_registry.py`) picks the new adapter up automatically — it fails until the JSON and the implementation both exist.
 5. Document it in `adapters/<name>/README.md`.
 
 ## Keeping adapters current
