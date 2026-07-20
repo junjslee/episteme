@@ -316,8 +316,10 @@ def enqueue_verdict_spot_check(cwd: Path, *, op_label: str) -> bool:
             "multipliers_applied": ["interrogation_verdict"],
             "effective_rate_at_sample": 1.0,
         }
-        _spot_check._chain_append(_spot_check._queue_path(), payload)
-        return True
+        # Event 157: sample-all stays the design, but through the cap-
+        # aware path — the raw _chain_append here was the one enqueue
+        # route that could push pending past the E148 cap (and did).
+        return bool(_spot_check.enqueue_direct(payload).queued)
     except Exception:
         return False
 

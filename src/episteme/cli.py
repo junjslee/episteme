@@ -5361,6 +5361,7 @@ def _review_dispatch(args) -> int:
             mults = ",".join(e.payload.get("multipliers_applied") or []) or "(none)"
             state = (
                 "verdicted" if e.verdict is not None
+                else "expired" if getattr(e, "expiry", None) is not None
                 else "skipped" if e.skip_until is not None
                 else "pending"
             )
@@ -5381,6 +5382,30 @@ def _review_dispatch(args) -> int:
             print("(no pending entries — queue empty)")
             return 0
         entry = pending[0]
+
+    if getattr(args, "review_skip", False):
+        # Operator snooze (Event 157 — wires the previously-unwired
+        # write_skip): defer the entry 7 days; it re-presents after.
+        # Only a genuinely-pending entry can be snoozed — a skip on a
+        # verdicted/expired entry would never re-present (the terminal
+        # record wins), so the deferral message would lie and stats
+        # would double-count the entry.
+        cid = entry.payload.get("correlation_id", "")
+        if entry.verdict is not None or getattr(entry, "expiry", None) is not None:
+            state = "verdicted" if entry.verdict is not None else "expired"
+            print(
+                f"[episteme review] {cid} is {state} — --skip only defers "
+                f"a pending entry (a terminal entry never re-presents)",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            _spot_check.write_skip(cid)
+        except Exception as exc:
+            print(f"[episteme review] skip error: {exc}", file=sys.stderr)
+            return 2
+        print(f"Deferred {cid} for 7 days (re-presents after TTL).")
+        return 0
 
     return _run_interactive_review(_spot_check, entry, revise=revise)
 
@@ -6314,6 +6339,10 @@ def build_parser() -> argparse.ArgumentParser:
     review_cmd.add_argument(
         "--correlation-id", dest="review_correlation_id", default=None,
         help="Review the entry matching this correlation id (instead of the oldest pending)",
+    )
+    review_cmd.add_argument(
+        "--skip", dest="review_skip", action="store_true",
+        help="Defer the selected entry for 7 days instead of verdicting it",
     )
     review_cmd.add_argument(
         "--revise", action="store_true",
