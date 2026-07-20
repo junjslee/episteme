@@ -16,13 +16,12 @@ Read in this order at session start:
 Read on demand:
 - `CLAUDE.md`
 - `docs/REQUIREMENTS.md`
-- `docs/PLAN.md`
 - `docs/RUN_CONTEXT.md`
 
 ## 🎭 Cognitive Loop (Workflow)
 1. **Initialize Awareness**: Read project memory to define the **Reasoning Surface**.
 2. **Deconstruct Knowledge**: Separate Knowns, Unknowns, and Assumptions.
-3. **Map the Mind**: Update `docs/PLAN.md` with staged, logical transitions.
+3. **Map the Mind**: Decompose into staged, bounded steps in `docs/NEXT_STEPS.md` before executing.
 4. **Challenge Logic (Disconfirmation)**: Before acting, state one reason why the current plan might fail.
 5. **Manifest Change**: Execute implementation with continuous verification.
 6. **Self-Audit**: Validate against the original requirements and your assigned Cognitive Profile.

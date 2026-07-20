@@ -1,4 +1,4 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E161 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E168 -->
 # The Way to Think — 생각의 틀
 
 > *"The product is a way to think when the model can finish your sentences."*
@@ -65,7 +65,7 @@ Validate against the success metric, not effort spent. Distinguish proven facts 
 | Hypothesis evaluation: validated / refined / invalidated | Keeps thinking as a bet, not as a story | (post-action; operator-authored update to the surface chain) |
 
 ### 1.5 Handoff
-Update authoritative docs: `docs/NEXT_STEPS.md` (REPLACE-form, capped), one `docs/EVENTS.md` index line, and `docs/PLAN.md` when the plan changed. Capture unresolved risks and the exact next action. (Handoff semantics revised at Event 147 — the earlier append-style PROGRESS flow is retired; see MEMORY_CONTRACT.md for the doc lifecycle contract.)
+Update authoritative docs: `docs/NEXT_STEPS.md` (REPLACE-form, capped — it carries the active plan) and one `docs/EVENTS.md` index line. Capture unresolved risks and the exact next action. (Handoff semantics revised at Event 147 — the earlier append-style PROGRESS flow is retired; see MEMORY_CONTRACT.md for the doc lifecycle contract.)
 
 | Cognitive move | What it forces | Artifact field |
 |---|---|---|

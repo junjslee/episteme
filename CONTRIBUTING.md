@@ -13,7 +13,7 @@ Short version, so you don't have to click through if you're scanning:
    (currently 1170 tests, 54 subtests).
 4. Include narrative context in the PR description for substantive
    changes — what changed, why, expected impact. The maintainer
-   handles the private operational docs (`docs/PLAN.md` etc.); you
+   handles the private operational docs (`docs/NEXT_STEPS.md` etc.); you
    don't need to update those.
 5. By contributing, you agree your contribution is licensed under
    [AGPL-3.0-or-later](./LICENSE) (the project's license).

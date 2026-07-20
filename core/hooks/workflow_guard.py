@@ -16,7 +16,6 @@ ALLOWED_DOC_PATHS = {
     "AGENTS.md",
     "CLAUDE.md",
     "docs/REQUIREMENTS.md",
-    "docs/PLAN.md",
     "docs/EVENTS.md",
     "docs/NEXT_STEPS.md",
     "docs/RUN_CONTEXT.md",
@@ -53,7 +52,6 @@ def _is_doc_or_policy_path(path_str: str) -> bool:
 def _project_has_authoritative_docs(cwd: Path) -> bool:
     required = [
         cwd / "AGENTS.md",
-        cwd / "docs" / "PLAN.md",
         cwd / "docs" / "EVENTS.md",
         cwd / "docs" / "NEXT_STEPS.md",
     ]
@@ -99,7 +97,7 @@ def main() -> int:
             "hookEventName": "PreToolUse",
             "additionalContext": (
                 f"WORKFLOW ADVISORY: Editing '{Path(target_path).name}' outside authoritative docs. "
-                "Keep docs/PLAN.md, docs/EVENTS.md, and docs/NEXT_STEPS.md aligned with this change."
+                "Keep docs/EVENTS.md and docs/NEXT_STEPS.md aligned with this change."
             ),
         }
     }

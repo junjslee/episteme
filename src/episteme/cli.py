@@ -3066,9 +3066,10 @@ def _score_from_flags(flags: list[tuple[bool, str]]) -> tuple[int, list[str]]:
 
 
 def _profile_infer(project_root: Path) -> dict:
+    # PLAN.md retired at Event 168 — the doc set is the three that
+    # actually get tracked (ten consecutive handoffs proved it).
     docs_files = [
         project_root / "docs" / "REQUIREMENTS.md",
-        project_root / "docs" / "PLAN.md",
         project_root / "docs" / "EVENTS.md",
         project_root / "docs" / "NEXT_STEPS.md",
     ]
@@ -3096,8 +3097,8 @@ def _profile_infer(project_root: Path) -> dict:
     evidence: dict[str, list[str]] = {}
 
     scores["planning_strictness"], evidence["planning_strictness"] = _score_from_flags([
-        (docs_present >= 2 and (project_root / "docs" / "PLAN.md").exists() and (project_root / "docs" / "NEXT_STEPS.md").exists(), "PLAN and NEXT_STEPS detected"),
-        (docs_present >= 4, "full staged docs set detected (REQUIREMENTS/PLAN/EVENTS/NEXT_STEPS)"),
+        (docs_present >= 2 and (project_root / "docs" / "NEXT_STEPS.md").exists(), "EVENTS/NEXT_STEPS handoff docs detected"),
+        (docs_present >= 3, "full staged docs set detected (REQUIREMENTS/EVENTS/NEXT_STEPS)"),
         ("plan" in commit_text or "phase" in commit_text or "milestone" in commit_text, "commit history references planning/milestones"),
     ])
 
@@ -3407,11 +3408,11 @@ def _compile_workflow_policy(scores: dict[str, int], mode: str) -> str:
     ]
     if planning >= 3:
         lines += [
-            "- Require staged plan updates in `docs/PLAN.md` before major implementation.",
+            "- Require a written decomposition in `docs/NEXT_STEPS.md` before major implementation.",
             "- Large tasks should be decomposed into bounded steps before execution.",
         ]
     elif planning >= 2:
-        lines += ["- Keep staged execution notes in `docs/PLAN.md` for non-trivial work."]
+        lines += ["- Keep staged execution notes in `docs/NEXT_STEPS.md` for non-trivial work."]
     elif planning >= 1:
         lines += ["- Maintain at least a short plan/checklist before substantial edits."]
     else:
@@ -4331,9 +4332,10 @@ def _write_cognitive_artifacts(mode: str, payload: dict) -> tuple[Path, Path]:
 
 
 def _cognition_infer(project_root: Path) -> dict:
+    # PLAN.md retired at Event 168 — the doc set is the three that
+    # actually get tracked (ten consecutive handoffs proved it).
     docs_files = [
         project_root / "docs" / "REQUIREMENTS.md",
-        project_root / "docs" / "PLAN.md",
         project_root / "docs" / "EVENTS.md",
         project_root / "docs" / "NEXT_STEPS.md",
     ]
@@ -4344,7 +4346,8 @@ def _cognition_infer(project_root: Path) -> dict:
     commit_text = _git_text(["git", "log", "--oneline", "-n", "120"], project_root)
     branch_text = _git_text(["git", "for-each-ref", "--format=%(refname:short)", "refs/heads"], project_root)
     agents_text = _safe_read_text(project_root / "AGENTS.md").lower()
-    plan_text = _safe_read_text(project_root / "docs" / "PLAN.md").lower()
+    # PLAN.md retired (Event 168); NEXT_STEPS carries the decision prose.
+    plan_text = _safe_read_text(project_root / "docs" / "NEXT_STEPS.md").lower()
     req_text = _safe_read_text(project_root / "docs" / "REQUIREMENTS.md").lower()
     settings_text = _safe_read_text(project_root / ".claude" / "settings.json")
 
@@ -4366,11 +4369,11 @@ def _cognition_infer(project_root: Path) -> dict:
     scores["first_principles_depth"], evidence["first_principles_depth"] = _score_from_flags([
         ("assumption" in agents_text or "first-principles" in agents_text, "AGENTS.md references assumptions/first-principles reasoning"),
         ("root cause" in commit_text or "analysis" in commit_text or "rationale" in commit_text, "commit history references analytical decomposition"),
-        ("why" in plan_text or "assumption" in plan_text, "PLAN.md contains rationale/assumption language"),
+        ("why" in plan_text or "assumption" in plan_text, "NEXT_STEPS.md contains rationale/assumption language"),
     ])
 
     scores["exploration_breadth"], evidence["exploration_breadth"] = _score_from_flags([
-        ("option" in plan_text or "alternative" in plan_text, "PLAN.md references options/alternatives"),
+        ("option" in plan_text or "alternative" in plan_text, "NEXT_STEPS.md references options/alternatives"),
         ("research/" in branch_text, "research branch prefix detected"),
         ("explore" in agents_text or "research" in agents_text, "AGENTS.md references exploration workflow"),
     ])
@@ -4388,7 +4391,7 @@ def _cognition_infer(project_root: Path) -> dict:
     ])
 
     scores["uncertainty_tolerance"], evidence["uncertainty_tolerance"] = _score_from_flags([
-        ("constraint" in plan_text or "risk" in plan_text, "PLAN.md includes constraints/risks"),
+        ("constraint" in plan_text or "risk" in plan_text, "NEXT_STEPS.md includes constraints/risks"),
         ("non-goal" in req_text, "REQUIREMENTS.md includes explicit non-goals"),
         (docs_dir_exists, "docs discipline suggests explicit uncertainty handling"),
     ])
@@ -4753,7 +4756,6 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
         "AGENTS.md",
         "CLAUDE.md",
         "docs/REQUIREMENTS.md",
-        "docs/PLAN.md",
         "docs/EVENTS.md",
         "docs/RUN_CONTEXT.md",
         "docs/NEXT_STEPS.md",
@@ -4811,7 +4813,7 @@ def _bootstrap_project(project_root: Path, *, harness_name: str | None = None) -
         _apply_harness(resolved, project_root)
 
     print("\nNext:")
-    print("  1. edit docs/REQUIREMENTS.md and docs/PLAN.md to describe this project")
+    print("  1. edit docs/REQUIREMENTS.md to describe this project")
     print("  2. `episteme sync` if you haven't already (propagates kernel memory to Claude/Hermes)")
     print("  3. `episteme start claude` to launch the agent surface in this project")
 
@@ -5648,10 +5650,11 @@ def _run_interactive_review(_spot_check, entry, *, revise: bool) -> int:
 def _audit(fix: bool = False) -> int:
     """Reasoning audit: verify the current project session has addressed cognitive unknowns."""
 
-    # PROGRESS.md dropped at Event 150: the append-log is retired (E145
-    # tombstone pattern) and its Reasoning Surface duty lives in
-    # NEXT_STEPS.md, which is already audited below.
-    TARGET_FILES = ["PLAN.md", "NEXT_STEPS.md"]
+    # PROGRESS.md dropped at Event 150; PLAN.md dropped at Event 168
+    # (operator-ordered — it never got tracked; ten consecutive handoffs
+    # updated only NEXT_STEPS/EVENTS). NEXT_STEPS.md carries the whole
+    # Reasoning Surface duty now.
+    TARGET_FILES = ["NEXT_STEPS.md"]
     REASONING_SECTIONS = ["## Knowns", "## Unknowns", "## Assumptions", "## Disconfirmation"]
     REASONING_SURFACE_HEADER = "## Reasoning Surface"
     SOWATNOW_PATTERNS = ["## So-What Now?", "## TL;DR", "## So What Now?"]
@@ -5738,8 +5741,9 @@ def _audit(fix: bool = False) -> int:
             if not has_sowatnow:
                 files_needing_sowatnow_stub.append(fpath)
 
-        # PLAN.md: check for verification checkpoints
-        if fname == "PLAN.md":
+        # NEXT_STEPS.md: check for verification checkpoints (was PLAN's
+        # duty until Event 168 retired it)
+        if fname == "NEXT_STEPS.md":
             has_checkpoints = any(pat in content_lower for pat in CHECKPOINT_PATTERNS)
             results.append(
                 (f"{fname}: Verification Checkpoints", str(fpath), has_checkpoints,

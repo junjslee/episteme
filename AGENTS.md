@@ -361,7 +361,7 @@ Before creating or moving any doc under `docs/`, classify it. The repo splits `d
 
 **PRIVATE tier (symlink to `~/episteme-private/docs/<name>`, gitignore the symlink):**
 
-- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `PLAN.md` (active-plan pointer), `NEXT_STEPS.md` (REPLACE-on-handoff), `EVENTS.md` (append-one-line history index), `PROGRESS.md` (retired tombstone), `*_TRIAGE.md`, `*_CALIBRATION.md`.
+- Operational state — *"where I am, what I'm doing, what I'm fighting"*: `NEXT_STEPS.md` (REPLACE-on-handoff; carries the active-plan pointer since PLAN.md was retired at Event 168 — it never got tracked), `EVENTS.md` (append-one-line history index), `PROGRESS.md` (retired tombstone), `*_TRIAGE.md`, `*_CALIBRATION.md`.
 - Operating contract / positioning narrative — *"how I work / how I market"*: `PLAYBOOK.md` (merged operating contract), `POSTURE.md`, `NARRATIVE.md`.
 - Historical decision logs (`DECISION_STORY.md`-class once filled with content).
 - Anything that documents the operator's *how I work* or *how I market*.

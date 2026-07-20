@@ -154,8 +154,10 @@ class FreshUserJourney(unittest.TestCase):
         project = Path(self.tmp.name) / "proj"
         rc, out = self._run("bootstrap", str(project))
         self.assertEqual(rc, 0, out)
+        # PLAN.md retired at Event 168 — the scaffold seeds only docs
+        # that actually get tracked across handoffs.
         for rel in ("AGENTS.md", "CLAUDE.md", "docs/REQUIREMENTS.md",
-                    "docs/PLAN.md", "docs/EVENTS.md",
+                    "docs/EVENTS.md",
                     "docs/RUN_CONTEXT.md", "docs/NEXT_STEPS.md",
                     ".claude/settings.json"):
             with self.subTest(scaffold=rel):
@@ -228,7 +230,7 @@ class FreshUserJourney(unittest.TestCase):
         self.assertEqual(rc, 0, out)
 
         seeded_docs = (
-            "REQUIREMENTS.md", "PLAN.md", "EVENTS.md",
+            "REQUIREMENTS.md", "EVENTS.md",
             "NEXT_STEPS.md", "RUN_CONTEXT.md",
         )
         for name in seeded_docs:
