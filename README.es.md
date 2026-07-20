@@ -125,7 +125,7 @@ Puedes regrabar tú mismo la demo estrella: `scripts/demo_posture.sh` (la receta
 
 ## Bajo el capó
 
-Estado: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · La práctica son cinco etapas — Frame → Decompose → Execute → Verify → Handoff — y cada una existe para contrarrestar una forma concreta en que la mente falla bajo la fluidez: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. La historia completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Estado: **<!-- episteme-fact:version -->1.10.0-rc.1<!-- /episteme-fact:version -->** · La práctica son cinco etapas — Frame → Decompose → Execute → Verify → Handoff — y cada una existe para contrarrestar una forma concreta en que la mente falla bajo la fluidez: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. La historia completa está en [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); los cuatro Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) están especificados en [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD

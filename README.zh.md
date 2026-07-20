@@ -125,7 +125,7 @@ episteme doctor    # verify wiring
 
 ## 底层原理
 
-状态：**<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · 这套实践一共五步 —— Frame → Decompose → Execute → Verify → Handoff —— 而每一步的存在，都是为了对付人在"顺畅"状态下出错的一种特定方式：question substitution、WYSIATI、anchoring、narrative fallacy、planning fallacy、overconfidence。完整的来龙去脉在 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)；四个 Cognitive Blueprints（Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade）的规格在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)。
+状态：**<!-- episteme-fact:version -->1.10.0-rc.1<!-- /episteme-fact:version -->** · 这套实践一共五步 —— Frame → Decompose → Execute → Verify → Handoff —— 而每一步的存在，都是为了对付人在"顺畅"状态下出错的一种特定方式：question substitution、WYSIATI、anchoring、narrative fallacy、planning fallacy、overconfidence。完整的来龙去脉在 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)；四个 Cognitive Blueprints（Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade）的规格在 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)。
 
 ```mermaid
 graph TD

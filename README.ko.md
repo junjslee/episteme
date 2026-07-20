@@ -125,7 +125,7 @@ episteme doctor    # verify wiring
 
 ## 내부 구조
 
-상태: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · 실천은 다섯 단계입니다 — Frame → Decompose → Execute → Verify → Handoff — 그리고 각 단계는 유창함 아래에서 사고가 무너지는 특정한 방식에 맞서기 위해 존재합니다: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. 전체 이야기는 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)에 있고, 네 개의 Cognitive Blueprint(Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade)는 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)에 명세돼 있습니다.
+상태: **<!-- episteme-fact:version -->1.10.0-rc.1<!-- /episteme-fact:version -->** · 실천은 다섯 단계입니다 — Frame → Decompose → Execute → Verify → Handoff — 그리고 각 단계는 유창함 아래에서 사고가 무너지는 특정한 방식에 맞서기 위해 존재합니다: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. 전체 이야기는 [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md)에 있고, 네 개의 Cognitive Blueprint(Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade)는 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)에 명세돼 있습니다.
 
 ```mermaid
 graph TD
