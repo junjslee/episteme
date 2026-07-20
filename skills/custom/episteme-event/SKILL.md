@@ -39,6 +39,13 @@ declares its own flow, the project's declaration wins on mechanics.
    commit, matching the `Merge pull request #N` history). Independent review
    for high-impact changes; constitution-tier changes (memory/policy files)
    stay OPEN for the operator unless explicitly cleared.
+   - **Review subagents: "diff only, no checkout."** Say it in the prompt —
+     a reviewer sharing the working tree once checked it back to master
+     mid-session (E157). The branch commit survives; the working state
+     doesn't.
+   - **Branch deletion only via `gh pr merge --delete-branch`.** A raw
+     `git push --delete` on a stacked PR's base CLOSES its children on
+     GitHub instead of retargeting them (E156 — #135/#136 died this way).
 8. **release-please awareness:** on a prerelease base, a `feat:` merge advances
    the MINOR (`1.X.0-rcN` → `1.(X+1).0-rc1`), not the rc counter. GA is a
    single `Release-As: X.Y.0` commit. Don't hand-edit versions the bot owns

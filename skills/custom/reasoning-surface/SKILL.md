@@ -55,3 +55,13 @@ A long session often needs both: surface for the work, verdict for the conclusio
 A schema filled without the thinking is theater, and the spot-check loop samples
 for exactly that. Reason first, record second: the artifact documents work that
 already happened.
+
+## Close the loop at handoff (Event 162)
+
+A surface is a promise, not just a snapshot: before REPLACE-ing
+`NEXT_STEPS.md`, re-read the current surface's `blast_radius_map` and verify
+every `needs_update` surface was actually touched (or its `sync_plan` action
+consciously superseded — say so in the handoff). A declared-but-untouched
+surface is doc-code drift at birth, and no hook checks this yet (the
+fulfillment mechanism is a designed, operator-gated follow-up) — until it
+exists, this re-check is the wire.
