@@ -6152,6 +6152,9 @@ def build_parser() -> argparse.ArgumentParser:
     d_index = docs_sub.add_parser("index", help="Regenerate the docs/README.md index from lifecycle markers")
     d_index.add_argument("--check", action="store_true", help="Verify the committed index is up to date (CI gate); do not write")
     d_index.add_argument("--root", type=Path, default=None, help="Repo root to index (default: git top-level of the current working directory)")
+    d_map = docs_sub.add_parser("map", help="Code→doc reverse index: which docs claim to describe a code path (derived from citation edges; E173)")
+    d_map.add_argument("paths", nargs="*", help="Code paths to query (repo-relative or absolute); omit to dump the full target ← docs map")
+    d_map.add_argument("--root", type=Path, default=None, help="Repo root to map (default: git top-level of the current working directory)")
 
     kernel = sub.add_parser("kernel", help="Kernel integrity manifest + ledger maintenance operations")
     kernel_sub = kernel.add_subparsers(dest="kernel_action", required=True)
@@ -6958,6 +6961,12 @@ def main(argv: Iterable[str] | None = None) -> int:
             return _dl.run_index_cli(
                 root=getattr(args, "root", None),
                 check=getattr(args, "check", False),
+            )
+        if args.docs_action == "map":
+            from . import doc_references as _dr
+            return _dr.run_map_cli(
+                root=getattr(args, "root", None),
+                paths=getattr(args, "paths", []),
             )
         return 0
     if args.command == "memory":

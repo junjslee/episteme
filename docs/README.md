@@ -42,6 +42,7 @@ hand-edit between the markers; run the command and commit the result.
 - [`README.md`](./README.md) · living · episteme docs index
 - [`SETUP.md`](./SETUP.md) · living · Setup — Profile, Cognition, One-Command
 - [`SKILLS_AND_PERSONAS.md`](./SKILLS_AND_PERSONAS.md) · living · Skills and Agent Personas
+- [`SPEC_DOC_MAP.md`](./SPEC_DOC_MAP.md) · spec-implemented · SPEC — Code→Doc Reverse Index (`docs map`) and the Targeted DOC ADVISORY
 - [`SPEC_REASONING_SURFACE_BRANCHING.md`](./SPEC_REASONING_SURFACE_BRANCHING.md) · spec-implemented · Spec — Reasoning Surface branching
 - [`SPEC_RIGOR_KNOB.md`](./SPEC_RIGOR_KNOB.md) · spec-implemented · Spec — `episteme rigor` (rigor knob)
 - [`SUBSTRATE_BRIDGE.md`](./SUBSTRATE_BRIDGE.md) · living · Substrate Bridge — A Generalizable Contract for External Memory Systems

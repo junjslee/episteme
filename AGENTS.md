@@ -118,6 +118,8 @@ All consequential edits follow the kernel's own loop:
 
 High-impact decisions must record to `.episteme/reasoning-surface.json` before the action. See `kernel/HOOKS_MAP.md`.
 
+**Docs follow implementation (E173).** When you edit an implementation file, the `workflow_guard` hook names the docs whose citations claim to describe that path — repair them in the same change or record why not. Query the same map directly: `episteme docs map <path>` (full dump with no args). The map is derived from citation edges (see `src/episteme/doc_references.py`), so it cannot rot; a doc earns edit-time surfacing by citing the code it describes.
+
 > **Novel decisions vs. mechanical implementations.** A full Reasoning Surface fires on *novel decisions* — questions still open, alternatives still live. Mechanical implementations of an already-declared pattern produce a minimal `implementation-of` reference instead. See [`kernel/PATTERN_GOVERNANCE.md`](./kernel/PATTERN_GOVERNANCE.md) for the pattern-declaration artifact shape, the promotion gate, and the deviation-from-pattern escape hatch that promotes a "mostly mechanical" change back to novel.
 
 ---
