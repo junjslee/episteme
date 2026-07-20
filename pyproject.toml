@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "episteme"
-version = "1.10.0-rc"
+version = "1.10.0-rc.1"
 description = "episteme: epistemic control plane for AI coding agents across Claude Code, Codex, Cursor, and Hermes"
 readme = "README.md"
 license = { file = "LICENSE" }

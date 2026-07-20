@@ -92,6 +92,52 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.10.0-rc.1](https://github.com/junjslee/episteme/compare/episteme-v1.10.0-rc...episteme-v1.10.0-rc.1) (2026-07-20)
+
+
+### Features
+
+* **adapters:** Event 167 — implement the Codex adapter (declared, never wired) ([ce83f22](https://github.com/junjslee/episteme/commit/ce83f22338ea0a002699522f0331a8247a16c33d))
+* **adapters:** implement the Codex adapter — it was declared but never wired (Event 167) ([432792b](https://github.com/junjslee/episteme/commit/432792bcd807e6c5c691589f8e73ed372887e0b0))
+* **ci:** Event 160 — doc-consistency gate (docs lint + index check in CI) ([1a99a06](https://github.com/junjslee/episteme/commit/1a99a064e303b7e7c194be9f19dc8bc0038b659c))
+* **ci:** wire the doc-consistency gate — docs lint + index check fail the PR (Event 160) ([5ec1118](https://github.com/junjslee/episteme/commit/5ec1118649e6428458a786a5b4ecf472a0d3347c))
+* **deferred-ledger:** add `accepted` verdict for conscious wontfix (Event 152) ([2f2f458](https://github.com/junjslee/episteme/commit/2f2f4583269902806c0185947d2ed60cc4a48465))
+* **deferred-ledger:** add `accepted` verdict for conscious wontfix (Event 152) ([6b820aa](https://github.com/junjslee/episteme/commit/6b820aade5344df7fc3d0aa7d7a8def691d5ff83))
+* **harnesses,memory:** encode operator's proven engineering practices from sanomap evidence (Event 155, recreated) ([22f4ccc](https://github.com/junjslee/episteme/commit/22f4ccc43bc54171c0aa3906f08498f00c2cb2df))
+* **harnesses,memory:** encode operator's proven engineering practices from sanomap evidence (Event 155) ([63e7ac5](https://github.com/junjslee/episteme/commit/63e7ac545e8f982ed9e637c3f1ea98c1ad9f413f))
+* **memory:** precedence contract + automation layer policy (Event 153) ([bdbd9ef](https://github.com/junjslee/episteme/commit/bdbd9ef216bb8c9848fe927e283821249050c5b8))
+* **memory:** precedence contract + automation layer policy in global memory templates (Event 153) ([751c5af](https://github.com/junjslee/episteme/commit/751c5af533e958a2059968fb73ada0d7f2a4eb1c))
+* **practice:** Event 161 — THE_WAY_TO_THINK enforcement parity (gate teaches the move, mirror reads the doc, overclaims corrected) ([ac97b65](https://github.com/junjslee/episteme/commit/ac97b65ec9f96410f6a337c87c5da3531968619a))
+* **practice:** THE_WAY_TO_THINK enforcement parity — gate names the skipped cognitive move; mirror reads the real doc; overclaims corrected (Event 161) ([d7d2ede](https://github.com/junjslee/episteme/commit/d7d2edeb0a682c8268e5ea0ddaab8dc147fd868f))
+* **skills:** distill octo+autoresearch mechanisms into existing assets (Event 154, recreated) ([6dff961](https://github.com/junjslee/episteme/commit/6dff9613748ab155c1d6df2f4f1ad7040b3c8013))
+* **skills:** distill octo+autoresearch mechanisms into existing assets (Event 154) ([a4fb57d](https://github.com/junjslee/episteme/commit/a4fb57d14d4dcb0b45a5c896466fb03c6b451a36))
+* **skills:** Event 162 — governance skills hardened with E156–E159 earned lessons ([e459b82](https://github.com/junjslee/episteme/commit/e459b825a458b5d697c77f7e2149bb378933a15e))
+* **skills:** harden governance skills with E156-E159 earned lessons (Event 162) ([b0a1756](https://github.com/junjslee/episteme/commit/b0a1756adfa3762cc731e592d9b22d4e40acb2f1))
+* **skills:** usage-based automation triage — prune 14 dormant skills, add 3 ritual skills (Event 153) ([6bf25f6](https://github.com/junjslee/episteme/commit/6bf25f61d378a8b8bd22f4ce450787a54aaa5947))
+* **skills:** usage-based automation triage — prune 14 dormant skills, add 3 ritual skills (Event 153) ([80069ec](https://github.com/junjslee/episteme/commit/80069ec1b1ac423218f1404d0f444b8078b31504))
+* **sync:** deploy layer cleans up after itself — manifest-based orphan prune (Event 159) ([aa9f043](https://github.com/junjslee/episteme/commit/aa9f043d483f7b7a2b4f1c921a718ec645d97c32))
+* **sync:** Event 159 — deploy layer cleans up after itself (manifest-based orphan prune) ([f8448e7](https://github.com/junjslee/episteme/commit/f8448e737e4a32199aa4d6dbebee58cd86e9b50f))
+* **web:** Event 164 — landing revamp: The Gate & the Lattice (three.js) ([ba0df5d](https://github.com/junjslee/episteme/commit/ba0df5d791b02504fe15010d90361a9fd76e342d))
+* **web:** Event 164 — landing revamp: The Gate & the Lattice (three.js) ([538037f](https://github.com/junjslee/episteme/commit/538037f7a4c2c505f9d3209400e0983a514d6c97))
+
+
+### Bug Fixes
+
+* **deferred-ledger:** resolve a bare-hex ref (Event 152) ([b50a443](https://github.com/junjslee/episteme/commit/b50a4433d4ba5ed611cfba2a8c174b4543e44ee5))
+* **deferred-ledger:** resolve a bare-hex ref, not just sha256:-prefixed (Event 152) ([d2caef1](https://github.com/junjslee/episteme/commit/d2caef1953aa75ba395a3b14fe3f13400ebf8984))
+* **framework:** drain the deferred ledger and scope it per project — the ledger was global all along (Event 163) ([ce2d7cc](https://github.com/junjslee/episteme/commit/ce2d7cc844348ed163f19d6ea1c96ce1b02692e6))
+* **framework:** Event 158 — deferred-discovery queue gets the Event 157 drain (open-cap, expiry relief, truthful counter) ([bdbcbbd](https://github.com/junjslee/episteme/commit/bdbcbbd2ff75c07e751ff920768d8b64ebfdf56c))
+* **framework:** Event 163 — drain the deferred ledger; it was global across every repo all along ([2629020](https://github.com/junjslee/episteme/commit/262902051f120797763cdd322ecd43f854156d53))
+* **framework:** give the deferred-discovery queue the Event 157 drain — open-cap, at-cap expiry relief, truthful decline counter (Event 158) ([6782215](https://github.com/junjslee/episteme/commit/678221595179ede1048b95e8be30a45468fd266e))
+* **framework:** harden Event 158 per independent review — compaction expiry-ref remap, verdict supersedes expiry, expiry visibility, cap knob safety ([7259bb6](https://github.com/junjslee/episteme/commit/7259bb6ef30f50eba8c7e499caabf124629a65e8))
+* **framework:** harden Event 163 per independent review — canonical project keys, honest cap banner, no cross-project relief, explicit global ceiling ([acea596](https://github.com/junjslee/episteme/commit/acea596f6b1ba9bce0539b7e4c9f8c718126c204))
+* **spot-check:** Event 157 — turn the E148 cap into a drain (at-cap expiry relief, cap-aware interrogation enqueue, truthful skip counter) ([7c79e03](https://github.com/junjslee/episteme/commit/7c79e037d7099e98ea39799d77ed23451d943a28))
+* **spot-check:** harden Event 157 per independent review — unstampable entries, --skip terminal guard, never-raise breadth ([879b943](https://github.com/junjslee/episteme/commit/879b943907da503ae9aed7dff680e692f384879c))
+* **spot-check:** turn the E148 cap into a drain — at-cap expiry relief, cap-aware interrogation enqueue, truthful skip counter (Event 157) ([d46de3a](https://github.com/junjslee/episteme/commit/d46de3a6a21442e691ba5712427cee34f202e235))
+* **sync:** Event 166 — refuse to deploy from a non-primary checkout (live incident) ([3e5573b](https://github.com/junjslee/episteme/commit/3e5573b68876ffc18dc288ea10cd88bb71fd3278))
+* **sync:** harden Event 159 per independent review — case-alias guard, archive-verbatim before delete, --check deletion preview, symlink skip ([086ff07](https://github.com/junjslee/episteme/commit/086ff07f310496542e70d70204df622d362c3d7c))
+* **sync:** refuse to deploy from a non-primary checkout (Event 166) ([d97b9b9](https://github.com/junjslee/episteme/commit/d97b9b9f397b0a5ef5f55edd9eed55f21c416364))
+
 ## [1.10.0-rc](https://github.com/junjslee/episteme/compare/episteme-v1.9.0...episteme-v1.10.0-rc) (2026-07-11)
 
 
