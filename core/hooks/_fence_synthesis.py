@@ -620,30 +620,9 @@ def finalize_on_success_with_fallback(
 # Test helpers — not part of the public API surface.
 # ---------------------------------------------------------------------------
 
-def _reset_paths_for_tests(episteme_home: Path) -> None:
-    """Point all module paths at a test-local episteme_home. Tests are
-    expected to set EPISTEME_HOME via os.environ directly; this helper
-    exists for the subset that cannot use env patching."""
-    os.environ["EPISTEME_HOME"] = str(episteme_home)
-
-
 def pending_dir_for_tests() -> Path:
     return _pending_dir()
 
 
-def framework_path_for_tests() -> Path:
-    return _framework_path()
-
-
 def build_protocol_for_tests(marker: dict, exit_code: int | None) -> dict:
     return _build_protocol(marker, exit_code)
-
-
-def _extract_payload_values_for_tests(payload: dict) -> tuple[str, str]:
-    """Expose the payload-normalization helpers used by the PostToolUse
-    hook — mirrors calibration_telemetry's shape for test parity."""
-    cmd = ""
-    ti = payload.get("tool_input") or payload.get("toolInput") or {}
-    if isinstance(ti, dict):
-        cmd = str(ti.get("command") or ti.get("cmd") or "")
-    return cmd, str(payload.get("cwd") or os.getcwd())

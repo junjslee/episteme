@@ -328,16 +328,6 @@ def acked_ids(*, state_dir: Path | None = None) -> set[str]:
     return {aid for aid, state in _walk_latest_state(state_dir).items() if state == "ack"}
 
 
-def list_all_entries(*, state_dir: Path | None = None) -> list[dict]:
-    """Return all chain envelopes in file order. Forensic / audit
-    helper — used by `episteme profile audit ack --list-history` if/when
-    that flag lands; not currently CLI-exposed."""
-    path = _resolve_path(state_dir)
-    if not path.exists():
-        return []
-    return list(_chain.iter_records(path, verify=True))
-
-
 def list_outstanding_audits(
     *,
     reflective_dir: Path | None = None,

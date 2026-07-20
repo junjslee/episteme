@@ -314,6 +314,24 @@ def _reaper_line() -> str | None:
         summary = _marker_reaper.format_sweep_summary(_marker_reaper.sweep_all())
     except Exception:
         return None
+    # Event 171 — wire the drain that existed with zero callers. The
+    # pending-contracts queue has a LIVE enqueue (write_contract via the
+    # registered guard) but its intended consumer (Phase 12) was never
+    # built, and auto_archive_beyond_grace — the module's own "safety
+    # net against unbounded growth" — was called by nothing (the
+    # write_skip/M1 class). Best-effort: GC must never break session
+    # open.
+    try:
+        import _pending_contracts  # type: ignore  # pyright: ignore[reportMissingImports]
+        archived = _pending_contracts.auto_archive_beyond_grace()
+        if archived:
+            extra = (
+                f"pending-contracts: {archived} past-grace contract(s) "
+                f"auto-archived as expired_without_audit"
+            )
+            summary = f"{summary} · {extra}" if summary else extra
+    except Exception:
+        pass
     if not summary:
         return None
     return summary

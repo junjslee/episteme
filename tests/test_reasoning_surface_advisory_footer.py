@@ -13,6 +13,7 @@ per Event 25 scope.
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -22,30 +23,31 @@ from core.hooks import reasoning_surface_guard as guard
 
 
 class _TmpKnobs:
-    """Point `reasoning_surface_guard._DERIVED_KNOBS_PATH` at a tmp file.
-
-    reasoning_surface_guard.py inlines its own `_load_derived_knob` +
-    `_DERIVED_KNOBS_PATH` (for hook-standalone independence, same
-    pattern the rest of the hook layer uses). Patch the guard module's
-    own constant — no dual-module-instance concern here because
-    `_advisory_footer` calls the local `_load_derived_knob` directly.
+    """Point the guard's derived-knobs read at a tmp dir via
+    EPISTEME_HOME — the guard resolves the path per call since Event
+    171 (the module-load constant was the sandbox-escape bug class).
     """
     def __init__(self, knobs: dict | None):
         self._tmp = tempfile.TemporaryDirectory()
         self._knobs = knobs
-        self._orig = None
+        self._patch = None
 
-    def __enter__(self) -> Path:
-        path = Path(self._tmp.name) / "derived_knobs.json"
+    def __enter__(self):
+        from unittest.mock import patch as _patch
+        home = Path(self._tmp.name)
         if self._knobs is not None:
-            path.write_text(json.dumps(self._knobs), encoding="utf-8")
-        self._orig = guard._DERIVED_KNOBS_PATH  # type: ignore[attr-defined]
-        guard._DERIVED_KNOBS_PATH = path  # type: ignore[attr-defined]
-        return path
+            (home / "derived_knobs.json").write_text(
+                json.dumps(self._knobs), encoding="utf-8")
+        self._patch = _patch.dict(os.environ, {"EPISTEME_HOME": str(home)})
+        self._patch.start()
+        return home / "derived_knobs.json"
 
-    def __exit__(self, *a):  # noqa: ARG002
-        guard._DERIVED_KNOBS_PATH = self._orig  # type: ignore[attr-defined]
+    def __exit__(self, *exc):
+        if self._patch is not None:
+            self._patch.stop()
         self._tmp.cleanup()
+        return False
+
 
 
 class AdvisoryFooterProducer(unittest.TestCase):

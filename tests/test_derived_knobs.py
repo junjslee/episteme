@@ -112,7 +112,7 @@ class LoadKnobTests(unittest.TestCase):
                 path = Path(self_inner.tmp.name) / "derived_knobs.json"
                 if contents is not None:
                     path.write_text(contents)
-                self_inner.patch = patch.object(dk, "_KNOBS_PATH", path)
+                self_inner.patch = patch.dict(os.environ, {"EPISTEME_HOME": str(path.parent)})
                 self_inner.patch.start()
                 return path
 
@@ -159,7 +159,7 @@ class GuardConsumesDerivedKnobsTests(unittest.TestCase):
                     "disconfirmation_specificity_min": disc_min,
                     "unknown_specificity_min": unknown_min,
                 }))
-                self_inner.patch = patch.object(guard, "_DERIVED_KNOBS_PATH", path)
+                self_inner.patch = patch.dict(os.environ, {"EPISTEME_HOME": str(path.parent)})
                 self_inner.patch.start()
                 return path
 

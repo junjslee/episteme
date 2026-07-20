@@ -25,6 +25,15 @@ def _detect_python_prefix() -> Path:
     Precedence: explicit override env → legacy conda env vars → running interpreter's prefix.
     No hardcoded default path — works for conda, venv, pyenv, system Python, or anything else.
     """
+    # EPISTEME_PYTHON pins the interpreter BINARY directly — documented
+    # in the operator's python_runtime_policy since day one but honored
+    # by nothing until Event 171 (the dead-mechanism sweep found the
+    # promise without the wire). A binary path implies its prefix.
+    binary = os.environ.get("EPISTEME_PYTHON")
+    if binary:
+        b = Path(binary)
+        # <prefix>/bin/python -> <prefix>; tolerate a bare prefix too.
+        return b.parent.parent if b.name.startswith("python") else b
     for var in ("EPISTEME_PYTHON_PREFIX", "EPISTEME_CONDA_ROOT", "COGNITIVE_OS_CONDA_ROOT"):
         val = os.environ.get(var)
         if val:
@@ -1728,6 +1737,58 @@ def _enforce_sync_origin(claude_root: Path, force: bool) -> int | None:
     return 2
 
 
+def _regenerate_derived_knobs() -> list[str]:
+    """Event 171 — the derived-knobs WRITE path existed with zero
+    callers ("called by the adapter at sync time" per its own docstring)
+    while three live hooks read ~/.episteme/derived_knobs.json — frozen
+    since Apr 20, so profile changes never propagated to the gates.
+
+    Regenerates knobs from the generated profile scores when present.
+    Returns human-readable change lines (old -> new) because changed
+    knobs SHIFT LIVE GATE BEHAVIOR (specificity minimums, lens order) —
+    a silent regeneration would be a governance-surface change nobody
+    saw. Empty list = no scores yet or nothing changed. Never raises."""
+    lines: list[str] = []
+    try:
+        hooks_dir = REPO_ROOT / "core" / "hooks"
+        if str(hooks_dir) not in sys.path:
+            sys.path.insert(0, str(hooks_dir))
+        import _derived_knobs  # type: ignore  # pyright: ignore[reportMissingImports]
+
+        workstyle, cognitive = _load_generated_scores(REPO_ROOT)
+        if not workstyle and not cognitive:
+            return []
+        derived = _derived_knobs.compute_knobs_from_scores(
+            workstyle or {}, cognitive or {}
+        )
+        knobs_file = _derived_knobs.knobs_path()
+        old: dict = {}
+        if knobs_file.exists():
+            try:
+                old = json.loads(knobs_file.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                old = {}
+        # MERGE, never replace (Event 171 incident): the derivation
+        # covers only a subset of the knob vocabulary — the live file
+        # also carries operator knobs the formulas don't produce
+        # (preferred_lens_order, noise_watch_set, explanation_form,
+        # fence_check_strictness). A replace-write dropped them once;
+        # the gates lost their posture lines until restoration.
+        knobs = {**old, **derived}
+        changed = {
+            k: (old.get(k), v) for k, v in derived.items()
+            if old.get(k) != v
+        }
+        if not changed and old:
+            return []
+        _derived_knobs.write_knobs(knobs)
+        for k, (before, after) in sorted(changed.items()):
+            lines.append(f"derived knob {k}: {before!r} -> {after!r}")
+    except Exception:
+        return lines
+    return lines
+
+
 def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     from .adapters import claude as _claude
     from .adapters import codex as _codex
@@ -1750,6 +1811,8 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
         except Exception:
             pass
 
+    _knob_changes = _regenerate_derived_knobs()
+
     _claude.sync(governance_mode)
     hermes_synced = _hermes.sync()
     # Event 167 — Codex was declared in core/adapters/codex.json but had
@@ -1763,6 +1826,9 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     print(f"  - Governance pack: {governance_mode}")
     if _stamped:
         print(f"  - Stamped version facts in {len(_stamped)} doc(s)")
+    for change in _knob_changes:
+        # Loud on purpose: these shift live gate thresholds.
+        print(f"  - {change}")
     if hermes_synced:
         print(f"  - Hermes: {HOME / '.hermes'}")
     if codex_synced:

@@ -35,14 +35,23 @@ from pathlib import Path
 from typing import Any
 
 
-_KNOBS_PATH = Path.home() / ".episteme" / "derived_knobs.json"
+def _knobs_path() -> Path:
+    """Resolved per call, honoring EPISTEME_HOME like every other state
+    path (Event 171 — the module-load constant ignored the sandbox env
+    var, so a TEST of the newly-wired writer escaped its EphemeralHome
+    and overwrote the operator's real derived_knobs.json; restored from
+    the session's own gate-output evidence)."""
+    import os
+    return Path(
+        os.environ.get("EPISTEME_HOME") or (Path.home() / ".episteme")
+    ) / "derived_knobs.json"
 
 
 def _load_all() -> dict:
     try:
-        if not _KNOBS_PATH.is_file():
+        if not _knobs_path().is_file():
             return {}
-        with open(_KNOBS_PATH, "r", encoding="utf-8") as f:
+        with open(_knobs_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
     except (OSError, json.JSONDecodeError):
@@ -141,15 +150,16 @@ def compute_knobs_from_scores(
 
 def write_knobs(knobs: dict[str, Any]) -> Path:
     """Atomic write of the derived-knobs file. Adapter entry point."""
-    _KNOBS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    tmp = _KNOBS_PATH.with_suffix(".json.tmp")
+    target = _knobs_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(knobs, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
-    tmp.replace(_KNOBS_PATH)
-    return _KNOBS_PATH
+    tmp.replace(target)
+    return target
 
 
 def knobs_path() -> Path:
     """Public accessor for the knobs file location (used by doctor/tests)."""
-    return _KNOBS_PATH
+    return _knobs_path()

@@ -177,7 +177,3 @@ def new_task(
     (task_dir / "repo-state" / ".gitkeep").write_text("")
 
     return task_dir
-
-
-def list_categories() -> str:
-    return "\n".join(f"  {c}" for c in CATEGORIES)
