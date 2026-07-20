@@ -40,7 +40,7 @@ cannot rot by construction. New functions, same module:
 
 | Function | Contract |
 |---|---|
-| `build_reverse_index(root, doc_files=None)` | resolved cited path → `[DocEdge]` over the obligation corpus; dangling citations excluded (they are drift findings, not obligations) |
+| `build_reverse_index(root, doc_files=None)` | claimed cited path → `[DocEdge]` over the obligation corpus. Unresolved citations are indexed as claims: a doc that pre-documents a not-yet-existing file must obligate the Write that creates it, and claims-in-index keeps the index a pure function of the markdown corpus — the property the cache digest relies on (review finding, this event). Dangling claims remain `find_drift`'s findings; the mechanisms stay separate |
 | `edges_for_path(root, path, index=None)` | citing edges, strongest claim first: exact file > deeper dir > shallower dir; one edge per doc; self-citations excluded |
 | `docs_for_path(root, path, ...)` | the sorted doc list (thin wrapper) |
 | `annotate_docs(root, docs)` | display labels: `status · reviewed_as_of · N events behind` (lifecycle marker + `docs/EVENTS.md` scan), `manifest-managed` (kernel manifest membership), else empty — every lookup degrades, never raises |
@@ -85,10 +85,23 @@ E172-class sweeps remain the backstop, now with a smaller tail to catch).
 
 ## Verification
 
-`tests/test_doc_map.py`: inversion semantics (exact/dir/dangling/exempt/self),
-query normalization (absolute, outside-root, not-yet-existing files under a
-cited dir — a Write creating a hook must fire), strongest-first ordering,
-cache hit/invalidation/corruption/footprint rules, two real-corpus edges this
-repo relies on (`core/hooks/workflow_guard.py` → `docs/HOOKS.md`;
+`tests/test_doc_map.py`: inversion semantics (exact/dir/dangling-as-claim/
+exempt/self), query normalization (absolute, outside-root, not-yet-existing
+files under a cited dir — a Write creating a hook must fire), strongest-first
+ordering, cache hit/invalidation/corruption/footprint rules plus the
+adversarial-review scenario (cache built while a cited target is absent, file
+created later with no markdown change — the cached answer must still name the
+citing doc), symlinked-doc suppression (the guard must not `resolve()` the
+private-doc symlinks out of the project), two real-corpus edges this repo
+relies on (`core/hooks/workflow_guard.py` → `docs/HOOKS.md`;
 `src/episteme/cli.py` → `docs/COMMANDS.md` via the source-of-truth citation
 added in this event), and the hook's full fallback ladder end-to-end.
+
+Independent review (E173, adversarial): no blockers; one should-fix (the
+cache-staleness hole above — fixed by claims-in-index) and residual nits
+consciously accepted: compound symlink-escape via the `resolve()` fallback
+branch (reasoned, not reproducible from real harness payloads), ~40ms
+steady-state hook overhead on this repo's 233-file corpus (rebuild ~180ms when
+markdown changed), deleted-but-indexed markdown disabling the cache until
+`git rm` (self-healing, correct answers throughout), and case-sensitive index
+keys.

@@ -635,14 +635,19 @@ class DocEdge:
     line: int     # 1-based line in the citing doc
 
 
-def _resolved_target(root: Path, ref: Reference, citing: str) -> Optional[str]:
-    """The repo-relative path ``ref`` actually resolves to, or ``None``.
+def _edge_target(root: Path, ref: Reference, citing: str) -> str:
+    """The repo-relative path this citation claims to describe.
 
-    Mirrors :func:`resolve_exists`'s two-root policy, but returns WHICH
+    Mirrors :func:`resolve_exists`'s two-root policy and returns WHICH
     interpretation resolved — the reverse index must key edges by the real
     on-disk path (``web/src/lib/x.ts``), not the citing-relative spelling
-    (``src/lib/x.ts``). Dangling citations return ``None``: they are drift
-    findings for :func:`find_drift`, not obligations.
+    (``src/lib/x.ts``). An UNRESOLVED citation keeps its root-relative
+    spelling rather than vanishing: a citation is a CLAIM, and a doc that
+    cites a not-yet-existing file must still obligate the Write that creates
+    it (E173 review finding — dropping these made the index depend on target
+    existence, which the markdown-only cache digest cannot observe, so the
+    cache served stale empty answers for pre-documented new files). Dangling
+    claims remain :func:`find_drift`'s findings; here they are edges.
     """
     probe = root / ref.target
     if probe.is_dir() if ref.kind == "dir" else probe.exists():
@@ -655,19 +660,21 @@ def _resolved_target(root: Path, ref: Reference, citing: str) -> Optional[str]:
         alt_probe = root / alt
         if alt_probe.is_dir() if ref.kind == "dir" else alt_probe.exists():
             return alt
-    return None
+    return ref.target
 
 
 def build_reverse_index(
     repo_root: Path,
     doc_files: Optional[Sequence[str]] = None,
 ) -> dict:
-    """Map resolved cited path → list[:class:`DocEdge`] over the live corpus.
+    """Map claimed cited path → list[:class:`DocEdge`] over the live corpus.
 
     ``doc_files`` is injectable for tests (same contract as :func:`find_drift`);
     when ``None`` the tracked-markdown corpus is used. One edge per
     (doc, target, kind) — repeated citations of the same path by the same doc
-    collapse to the first occurrence.
+    collapse to the first occurrence. Unresolved citations are indexed as
+    claims (see :func:`_edge_target`), keeping the index a pure function of
+    the markdown corpus — the property the cache digest relies on.
     """
     root = Path(repo_root)
     if doc_files is None:
@@ -683,9 +690,7 @@ def build_reverse_index(
         except (OSError, UnicodeError):
             continue
         for ref in extract_references(text, rel):
-            target = _resolved_target(root, ref, citing=rel)
-            if target is None:
-                continue
+            target = _edge_target(root, ref, citing=rel)
             edges = index.setdefault(target, [])
             if not any(e.doc == rel and e.kind == ref.kind for e in edges):
                 edges.append(
@@ -849,7 +854,9 @@ def cached_reverse_index(repo_root: Path) -> dict:
     if digest is not None and (root / ".episteme").is_dir():
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = cache_path.with_suffix(".json.tmp")
+            # pid-suffixed: two concurrent hook processes must not interleave
+            # writes into one tmp file (review nit; replace() stays atomic).
+            tmp = cache_path.with_suffix(f".json.tmp.{os.getpid()}")
             tmp.write_text(
                 _json.dumps(
                     {

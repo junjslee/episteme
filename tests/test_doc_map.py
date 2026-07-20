@@ -75,10 +75,16 @@ class ReverseIndexUnitTests(unittest.TestCase):
         )
         self.assertEqual(docs, ["docs/MAP.md"])
 
-    def test_dangling_citation_creates_no_obligation(self):
+    def test_dangling_citation_is_indexed_as_a_claim(self):
+        # A citation of a not-yet-existing path stays in the index (a claim,
+        # not a resolved fact): the doc that pre-documents a file must
+        # obligate the Write that later creates it, and indexing claims keeps
+        # the index a pure function of the markdown corpus — the property the
+        # cache digest relies on (E173 review finding). Dangling claims remain
+        # find_drift's findings; the two mechanisms stay separate.
         _write(self.root, "docs/MAP.md", "See `core/gone.py` for details.\n")
-        index = dr.build_reverse_index(self.root, doc_files=["docs/MAP.md"])
-        self.assertEqual(index, {})
+        docs = dr.docs_for_path(self.root, "core/gone.py", doc_files=["docs/MAP.md"])
+        self.assertEqual(docs, ["docs/MAP.md"])
 
     def test_archive_and_fixture_trees_are_obligation_exempt(self):
         _write(self.root, "core/hooks/x.py", "pass\n")
@@ -205,6 +211,27 @@ class ReverseIndexCacheTests(unittest.TestCase):
         self._cache_path().write_text("{not json", encoding="utf-8")
         index = dr.cached_reverse_index(self.root)
         self.assertIn("core/hooks/x.py", index)
+
+    def test_cached_index_sees_pre_documented_file_created_later(self):
+        # The reviewer's disconfirmation scenario: a doc cites a file that
+        # does not exist yet, the cache is built, THEN the file is created —
+        # no markdown changed, so the digest cannot move. The cached answer
+        # must still name the citing doc; claims-in-index is what makes the
+        # cache honest here.
+        (self.root / ".episteme").mkdir()
+        _write(
+            self.root, "docs/PLANNED.md", "Will be implemented in `core/new.py`.\n"
+        )
+        subprocess.run(["git", "-C", str(self.root), "add", "-A"], check=True)
+        dr.cached_reverse_index(self.root)  # cache built while target absent
+        _write(self.root, "core/new.py", "pass\n")
+        with patch.object(dr, "build_reverse_index") as rebuild:
+            index = dr.cached_reverse_index(self.root)
+            rebuild.assert_not_called()  # digest unchanged — served from cache
+        self.assertIn(
+            "docs/PLANNED.md",
+            dr.docs_for_path(self.root, "core/new.py", index=index),
+        )
 
 
 class RealCorpusEdges(unittest.TestCase):
