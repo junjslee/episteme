@@ -352,10 +352,22 @@ class CliDrain(unittest.TestCase):
         return rc, out.getvalue(), err.getvalue()
 
     def test_list_shows_open_with_ref(self):
-        rc, out, _ = self._main(["deferred", "list"])
+        # Event 163 — `deferred list` scopes to the current project by
+        # default (the ledger is global across every repo the operator
+        # works in); --all-projects restores the whole-ledger view that
+        # this fixture's entry belongs to.
+        rc, out, _ = self._main(["deferred", "list", "--all-projects"])
         self.assertEqual(rc, 0)
         self.assertIn(self.entry["entry_hash"][:12], out)
         self.assertIn("1 open deferred discovery", out)
+
+    def test_list_scopes_to_current_project_by_default(self):
+        rc, out, _ = self._main(["deferred", "list"])
+        self.assertEqual(rc, 0)
+        # The fixture entry carries no project matching this cwd, so the
+        # scoped view is empty — but it must be NAMED, never hidden.
+        self.assertIn("open in other projects", out)
+        self.assertIn("--all-projects", out)
 
     def test_resolve_then_list_empty(self):
         rc, out, err = self._main([

@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -1647,6 +1648,84 @@ def _stamp_volatile_facts(
                 continue
             changed.append(path)
     return changed
+
+
+def sync_origin_problem(repo_root: Path, claude_root: Path) -> str | None:
+    """Why this checkout must not deploy — or None when it may.
+
+    Event 166, from a live incident: a sync run from a scratchpad CLONE
+    rewrote the operator's real ``~/.claude/CLAUDE.md`` to @-reference
+    that clone's EXAMPLE memory files, silently replacing the encoded
+    operator profile with defaults for every future session. The kernel
+    already carried the rule ("[K] never run episteme sync from a
+    worktree") but it was prose wired to no gate — inert by the kernel's
+    own D11 standard.
+
+    Three refusals, cheapest first. Each names a checkout that is
+    structurally NOT the operator's primary one:
+
+    1. a linked git worktree (``.git`` is a FILE, not a directory),
+    2. a checkout under a temp root (``/tmp``, ``/private/tmp``, ...),
+    3. a repo root differing from the one the last sync recorded.
+
+    (3) is the general case; (1) and (2) catch a FIRST-EVER sync from a
+    throwaway checkout, which has no prior root to differ from. The
+    escape hatch is explicit (``--force``): moving the primary checkout
+    is legitimate and must stay possible.
+    """
+    git_path = repo_root / ".git"
+    if git_path.is_file():
+        return (
+            f"this checkout is a linked git worktree ({repo_root}). Sync "
+            f"resolves memory from the CURRENT checkout, so deploying from "
+            f"a worktree overwrites the operator's real ~/.claude with the "
+            f"worktree's copy."
+        )
+    tmp_roots = (Path("/tmp"), Path("/private/tmp"), Path(tempfile.gettempdir()))
+    for tmp_root in tmp_roots:
+        try:
+            repo_root.relative_to(tmp_root.resolve())
+        except (ValueError, OSError):
+            continue
+        return (
+            f"this checkout lives under a temp root ({repo_root}). A "
+            f"throwaway clone must never become the source of the "
+            f"operator's global memory."
+        )
+    try:
+        from .adapters import claude as _claude_meta
+        prior = _claude_meta.read_sync_meta(claude_root).get("repo_root")
+    except Exception:
+        prior = None
+    if isinstance(prior, str) and prior.strip():
+        prior_path = Path(prior).resolve()
+        if prior_path != repo_root.resolve() and prior_path.exists():
+            return (
+                f"this checkout ({repo_root}) is not the one that last "
+                f"deployed ({prior_path}). Syncing from a second checkout "
+                f"replaces the operator's global memory with this copy's."
+            )
+    return None
+
+
+def _enforce_sync_origin(claude_root: Path, force: bool) -> int | None:
+    """Print + refuse when the origin is wrong. Returns an exit code to
+    propagate, or None to proceed. ``--force`` downgrades to a warning
+    so a deliberate primary-checkout move stays possible."""
+    problem = sync_origin_problem(REPO_ROOT, claude_root)
+    if problem is None:
+        return None
+    if force:
+        print(f"[warn] sync origin: {problem}\n"
+              f"       Proceeding because --force was passed.", file=sys.stderr)
+        return None
+    print(
+        f"[episteme sync] refused — {problem}\n"
+        f"  Deploy from the primary checkout instead, or pass --force if "
+        f"you intend this checkout to become the primary one.",
+        file=sys.stderr,
+    )
+    return 2
 
 
 def _sync_user_runtime(governance_mode: str = "balanced") -> None:
@@ -5164,7 +5243,15 @@ def _deferred_dispatch(args) -> int:
             # verdictable: an operator verdict supersedes the expiry.
             envelopes = _framework.expired_unverdicted_discoveries()
         else:
-            envelopes = _framework.open_deferred_discoveries()
+            # Event 163 — the ledger is global; scope to this project
+            # unless --all is asked for, and always name the remainder.
+            if getattr(args, "deferred_all_projects", False):
+                envelopes = _framework.open_deferred_discoveries()
+            else:
+                project = _framework.canonical_project_key(Path.cwd())
+                envelopes = _framework.open_deferred_discoveries(
+                    project_name=project
+                )
         # Piping into head is the expected drain workflow; a closed
         # stdout must not stack-trace (observed via a commit-hook
         # pipeline on 2026-07-03).
@@ -5184,9 +5271,15 @@ def _deferred_dispatch(args) -> int:
         print(f"[ok] verdict '{payload.get('verdict')}' chained for "
               f"{str(payload.get('ref') or '')[:12]} "
               f"(record {str(env.get('entry_hash') or '')[:12]})")
-        remaining = len(_framework.open_deferred_discoveries())
+        # Scoped like `deferred list` — an unscoped remainder mid-drain
+        # reports other repos' debt as this one's, the confusion this
+        # event exists to remove (Event 163 review).
+        project = _framework.canonical_project_key(Path.cwd())
+        remaining = len(
+            _framework.open_deferred_discoveries(project_name=project)
+        )
         noun = "discovery" if remaining == 1 else "discoveries"
-        print(f"{remaining} open deferred {noun} remain")
+        print(f"{remaining} open deferred {noun} remain in this project")
         return 0
 
     return 1
@@ -5209,11 +5302,34 @@ def _deferred_print_list(args, envelopes: list) -> int:
         print(f"{str(env.get('entry_hash') or '')[:12]}  "
               f"{str(env.get('ts') or '')[:10]}  {desc}")
     expired_view = getattr(args, "deferred_expired", False)
+    all_view = getattr(args, "deferred_all_projects", False)
     state = "expired-unreviewed" if expired_view else "open"
+    scope = "" if (expired_view or all_view) else " in this project"
     noun = "discovery" if len(envelopes) == 1 else "discoveries"
-    print(f"\n{len(envelopes)} {state} deferred {noun}. Resolve with: "
+    print(f"\n{len(envelopes)} {state} deferred {noun}{scope}. Resolve with: "
           f"episteme deferred resolve <ref> --verdict "
           f"resolved OR noise OR duplicate OR accepted --why '...'")
+    if not expired_view and not all_view:
+        # Name other projects' findings rather than hiding them (E163).
+        try:
+            import _framework  # type: ignore  # pyright: ignore[reportMissingImports]
+            project = _framework.canonical_project_key(Path.cwd())
+            counts = _framework.open_counts_by_project()
+            other = sum(v for k, v in counts.items() if k != project)
+            if other:
+                names = ", ".join(
+                    f"{k}: {v}" for k, v in sorted(counts.items())
+                    if k != project
+                )
+                print(f"{other} open in other projects ({names}) — "
+                      f"episteme deferred list --all-projects")
+        except Exception as exc:
+            # Never swallow: a silent failure here prints "0 open in
+            # this project" while the rest of the ledger is invisible
+            # (Event 163 review).
+            print(f"[warn] could not read other projects' counts "
+                  f"({exc.__class__.__name__}); this view may be partial",
+                  file=sys.stderr)
     if not expired_view:
         # Surface machine-expired findings so cap relief is never an
         # invisible loss (Event 158 review finding).
@@ -5776,6 +5892,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Dry-run: show what would be written/updated without making changes. Exits 1 if changes needed.",
     )
+    sync.add_argument(
+        "--force",
+        action="store_true",
+        help="Deploy even when this checkout is not the one that last synced (worktree / clone / moved primary). Use when you intend THIS checkout to become the primary one.",
+    )
     sub.add_parser("update", help="Pull the latest episteme from git")
     sub.add_parser("list", help="Show installed agents, skills, plugins, and active hooks")
     sub.add_parser("validate", help="Check manifest integrity — every declared skill must have a SKILL.md")
@@ -6324,6 +6445,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="Machine-readable output",
     )
     deferred_list.add_argument(
+        "--all-projects", dest="deferred_all_projects", action="store_true",
+        help="Show open discoveries from every project in the global ledger (default: this project only)",
+    )
+    deferred_list.add_argument(
         "--expired", dest="deferred_expired", action="store_true",
         help="Show machine-expired (cap relief) discoveries instead of open ones — still verdictable; an operator verdict supersedes the expiry",
     )
@@ -6795,6 +6920,14 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "sync":
         if getattr(args, "check", False):
             return _sync_check(getattr(args, "governance_pack", "balanced"))
+        # Event 166 — refuse to deploy from a checkout that is not the
+        # operator's primary one; a clobbered ~/.claude/CLAUDE.md is
+        # silent and affects every future session.
+        _refusal = _enforce_sync_origin(
+            HOME / ".claude", getattr(args, "force", False)
+        )
+        if _refusal is not None:
+            return _refusal
         print("🛸 Transitioning Soul to all available vessels...")
         _sync_user_runtime(getattr(args, "governance_pack", "balanced"))
         print("✅ Transition complete. Your agents are now aware.")
