@@ -1730,6 +1730,7 @@ def _enforce_sync_origin(claude_root: Path, force: bool) -> int | None:
 
 def _sync_user_runtime(governance_mode: str = "balanced") -> None:
     from .adapters import claude as _claude
+    from .adapters import codex as _codex
     from .adapters import hermes as _hermes
     from .adapters import omo as _omo
     from .adapters import omx as _omx
@@ -1751,6 +1752,9 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
 
     _claude.sync(governance_mode)
     hermes_synced = _hermes.sync()
+    # Event 167 — Codex was declared in core/adapters/codex.json but had
+    # no implementation, so `episteme sync` never reached it.
+    codex_synced = _codex.sync()
     omo_synced = _omo.sync(governance_mode)
     omx_synced = _omx.sync(governance_mode)
 
@@ -1761,6 +1765,8 @@ def _sync_user_runtime(governance_mode: str = "balanced") -> None:
         print(f"  - Stamped version facts in {len(_stamped)} doc(s)")
     if hermes_synced:
         print(f"  - Hermes: {HOME / '.hermes'}")
+    if codex_synced:
+        print(f"  - Codex: {HOME / '.codex'} (managed region in AGENTS.md)")
     if omo_synced:
         print(f"  - OMO: {HOME / '.omo'}")
     if omx_synced:

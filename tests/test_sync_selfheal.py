@@ -356,3 +356,132 @@ class SyncOriginGuardTests(unittest.TestCase):
             self.assertIsNone(
                 ecli._enforce_sync_origin(th.claude_root, True)
             )
+
+
+class CodexAdapterTests(unittest.TestCase):
+    """Event 167 — the Codex adapter was DECLARED in
+    core/adapters/codex.json but never implemented, so `episteme sync`
+    never reached ~/.codex. AGENTS.md there is the operator's own
+    contract (428 lines of hand-authored directives when this shipped),
+    so the adapter must ADD a managed region and preserve every byte
+    outside it — the E166 clobber class, hours old at the time."""
+
+    def _codex_home(self, stack):
+        td = stack.enter_context(tempfile.TemporaryDirectory())
+        home = Path(td)
+        (home / ".codex").mkdir()
+        return home
+
+    def test_not_installed_is_a_no_op(self):
+        import contextlib
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        with contextlib.ExitStack() as stack:
+            td = stack.enter_context(tempfile.TemporaryDirectory())
+            orig, ecli.HOME = ecli.HOME, Path(td)  # no ~/.codex
+            try:
+                self.assertFalse(cadex.sync())
+            finally:
+                ecli.HOME = orig
+
+    def test_preserves_operator_authored_agents_md(self):
+        import contextlib
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        with contextlib.ExitStack() as stack:
+            home = self._codex_home(stack)
+            agents = home / ".codex" / "AGENTS.md"
+            operator_text = (
+                "<!-- AUTONOMY DIRECTIVE — DO NOT REMOVE -->\n"
+                "YOU ARE AN AUTONOMOUS CODING AGENT.\n\n"
+                "## My own section\n\nhand-authored, exists nowhere else\n"
+            )
+            agents.write_text(operator_text, encoding="utf-8")
+            orig, ecli.HOME = ecli.HOME, home
+            try:
+                self.assertTrue(cadex.sync())
+                after = agents.read_text(encoding="utf-8")
+            finally:
+                ecli.HOME = orig
+            # Every operator line survives, verbatim.
+            for line in operator_text.strip().splitlines():
+                self.assertIn(line, after)
+            self.assertIn("episteme — operator governance contract", after)
+
+    def test_resync_is_idempotent_and_still_preserves(self):
+        import contextlib
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        with contextlib.ExitStack() as stack:
+            home = self._codex_home(stack)
+            agents = home / ".codex" / "AGENTS.md"
+            agents.write_text("## operator\nkeep me\n", encoding="utf-8")
+            orig, ecli.HOME = ecli.HOME, home
+            try:
+                runs = []
+                for _ in range(3):
+                    cadex.sync()
+                    runs.append(agents.read_text(encoding="utf-8"))
+            finally:
+                ecli.HOME = orig
+            # The shared _compose_managed_file primitive normalizes one
+            # blank line between the appended block and pre-existing
+            # content on the SECOND write, then converges. That is
+            # pre-existing behavior of the primitive (shared with the
+            # Claude and Hermes adapters), not something this adapter
+            # introduces — pinned here as the real contract rather than
+            # asserted away. Filed as a deferred discovery.
+            self.assertEqual(runs[1], runs[2], "must converge after the first resync")
+            # The properties that actually matter hold on EVERY run.
+            for r in runs:
+                self.assertIn("keep me", r)
+                self.assertEqual(r.count("episteme — operator governance contract"), 1)
+
+    def test_creates_agents_md_when_absent(self):
+        import contextlib
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        with contextlib.ExitStack() as stack:
+            home = self._codex_home(stack)
+            orig, ecli.HOME = ecli.HOME, home
+            try:
+                self.assertTrue(cadex.sync())
+            finally:
+                ecli.HOME = orig
+            self.assertTrue((home / ".codex" / "AGENTS.md").is_file())
+
+    def test_managed_skills_added_without_touching_operator_skills(self):
+        import contextlib
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        with contextlib.ExitStack() as stack:
+            home = self._codex_home(stack)
+            skills = home / ".codex" / "skills"
+            (skills / "ask-claude").mkdir(parents=True)
+            (skills / "ask-claude" / "SKILL.md").write_text("operator's own", encoding="utf-8")
+            system = skills / ".system"
+            system.mkdir()
+            (system / "bundled.md").write_text("codex bundled", encoding="utf-8")
+            orig, ecli.HOME = ecli.HOME, home
+            try:
+                cadex.sync()
+            finally:
+                ecli.HOME = orig
+            # Operator + Codex-bundled content untouched...
+            self.assertEqual(
+                (skills / "ask-claude" / "SKILL.md").read_text(encoding="utf-8"),
+                "operator's own",
+            )
+            self.assertEqual(
+                (system / "bundled.md").read_text(encoding="utf-8"), "codex bundled"
+            )
+            # ...and managed skills landed alongside.
+            managed = {d.name for d in ecli._managed_skills()}
+            deployed = {p.name for p in skills.iterdir() if p.is_dir()}
+            self.assertTrue(managed.issubset(deployed))
+
+    def test_declared_adapter_spec_matches_implementation(self):
+        # The JSON registry is the contract; drift between it and the
+        # code is what let this adapter sit unimplemented for months.
+        from episteme.adapters import codex as cadex  # pyright: ignore[reportMissingImports]
+        spec = json.loads(
+            (ecli.REPO_ROOT / "core" / "adapters" / "codex.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(spec["sync"]["skills_dir"], "~/.codex/skills")
+        self.assertEqual(spec["project_contract"], "AGENTS.md")
+        self.assertIn(".system", cadex.PROTECTED_SKILL_DIRS)
