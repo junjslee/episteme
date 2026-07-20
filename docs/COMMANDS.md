@@ -1,8 +1,13 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E172 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E173 -->
 # episteme — command reference
 
 A one-page map of every `episteme` subcommand, grouped by lifecycle phase.
 Run `episteme <command> --help` for flags and arguments.
+
+Source of truth: the argparse tree in `src/episteme/cli.py` — the
+completeness of this page against it is CI-enforced both directions
+(`tests/test_commands_doc_drift.py`), and naming the source here puts this
+page on the reverse index so CLI edits surface it (`episteme docs map`).
 
 Scope key:
 - **global** — targets `~/episteme` or `~/.claude` / `~/.hermes`, ignores CWD

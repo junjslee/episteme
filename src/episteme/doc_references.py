@@ -591,6 +591,384 @@ def _format_stale_citations(findings: Sequence[StaleCitation]) -> str:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Code→doc reverse index (Event 173)                                           #
+# --------------------------------------------------------------------------- #
+#
+# Counters FAILURE_MODES: doc-code drift discovered late — a code edit lands,
+# the docs that claim to describe that code stay unchanged, and the divergence
+# is only found by a later batch sweep (the E172 class of repair). The citation
+# walk above already materializes every doc→code edge, and CI keeps those edges
+# non-dangling; INVERTING them answers "which docs claim to describe this code
+# path" with zero hand-maintained state, so the map itself cannot rot.
+#
+# Rule-shape (operator's positive/negative-system rule): positive system — an
+# obligation exists ONLY where a live authored doc cites the path (exact file,
+# or an enclosing directory via a ``dir`` citation). Uncited code carries no
+# obligation. The citing set excludes the fixture/scaffold trees
+# (:data:`EXEMPT_CITING_PREFIXES`), the historical ledgers
+# (:data:`EXEMPT_CITING_FILES`), and ``archive/`` — frozen history must not
+# generate present-tense obligations.
+#
+# Replaces (anti-accretion): the path-blind static advisory in
+# ``core/hooks/workflow_guard.py``. That hook now consumes
+# :func:`docs_for_path` and names the actual citing docs, keeping the generic
+# string only as fallback when this module is unimportable (plugin context,
+# non-git project) or the edited path has no citing docs.
+
+#: Citing prefixes that never generate edit-time obligations. Extends the
+#: linter's exemptions with ``archive/``: archived reports legitimately cite
+#: code (they are validated for drift above), but a frozen point-in-time
+#: artifact must not obligate present-day edits.
+OBLIGATION_EXEMPT_CITING_PREFIXES: tuple[str, ...] = EXEMPT_CITING_PREFIXES + (
+    "archive/",
+)
+
+
+@dataclass(frozen=True)
+class DocEdge:
+    """One inverted citation: ``doc`` claims to describe ``target``."""
+
+    doc: str      # citing doc, repo-root-relative
+    target: str   # resolved cited path, repo-root-relative, no trailing slash
+    kind: str     # "file" | "dir"
+    line: int     # 1-based line in the citing doc
+
+
+def _edge_target(root: Path, ref: Reference, citing: str) -> str:
+    """The repo-relative path this citation claims to describe.
+
+    Mirrors :func:`resolve_exists`'s two-root policy and returns WHICH
+    interpretation resolved — the reverse index must key edges by the real
+    on-disk path (``web/src/lib/x.ts``), not the citing-relative spelling
+    (``src/lib/x.ts``). An UNRESOLVED citation keeps its root-relative
+    spelling rather than vanishing: a citation is a CLAIM, and a doc that
+    cites a not-yet-existing file must still obligate the Write that creates
+    it (E173 review finding — dropping these made the index depend on target
+    existence, which the markdown-only cache digest cannot observe, so the
+    cache served stale empty answers for pre-documented new files). Dangling
+    claims remain :func:`find_drift`'s findings; here they are edges.
+    """
+    probe = root / ref.target
+    if probe.is_dir() if ref.kind == "dir" else probe.exists():
+        return ref.target
+    citing_dir = os.path.dirname(citing)
+    if citing_dir:
+        alt = os.path.normpath(os.path.join(citing_dir, ref.target)).replace(
+            os.sep, "/"
+        )
+        alt_probe = root / alt
+        if alt_probe.is_dir() if ref.kind == "dir" else alt_probe.exists():
+            return alt
+    return ref.target
+
+
+def build_reverse_index(
+    repo_root: Path,
+    doc_files: Optional[Sequence[str]] = None,
+) -> dict:
+    """Map claimed cited path → list[:class:`DocEdge`] over the live corpus.
+
+    ``doc_files`` is injectable for tests (same contract as :func:`find_drift`);
+    when ``None`` the tracked-markdown corpus is used. One edge per
+    (doc, target, kind) — repeated citations of the same path by the same doc
+    collapse to the first occurrence. Unresolved citations are indexed as
+    claims (see :func:`_edge_target`), keeping the index a pure function of
+    the markdown corpus — the property the cache digest relies on.
+    """
+    root = Path(repo_root)
+    if doc_files is None:
+        doc_files = tracked_markdown(root)
+    index: dict = {}
+    for rel in doc_files:
+        if rel in EXEMPT_CITING_FILES or rel.startswith(
+            OBLIGATION_EXEMPT_CITING_PREFIXES
+        ):
+            continue
+        try:
+            text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        except (OSError, UnicodeError):
+            continue
+        for ref in extract_references(text, rel):
+            target = _edge_target(root, ref, citing=rel)
+            edges = index.setdefault(target, [])
+            if not any(e.doc == rel and e.kind == ref.kind for e in edges):
+                edges.append(
+                    DocEdge(doc=rel, target=target, kind=ref.kind, line=ref.line)
+                )
+    return index
+
+
+def _normalize_query_path(root: Path, path: str) -> Optional[str]:
+    """Normalize a query path to repo-root-relative form, or ``None``.
+
+    Accepts absolute paths (hook payloads carry absolute ``file_path``) and
+    repo-relative spellings; a path outside ``root`` yields ``None``.
+    """
+    norm = str(path).replace("\\", "/")
+    if os.path.isabs(norm):
+        try:
+            norm = str(Path(norm).resolve().relative_to(Path(root).resolve()))
+        except (ValueError, OSError):
+            return None
+    norm = os.path.normpath(norm).replace(os.sep, "/")
+    if norm in (".", "") or norm.startswith(".."):
+        return None
+    return norm
+
+
+def docs_for_path(
+    repo_root: Path,
+    path: str,
+    index: Optional[dict] = None,
+    doc_files: Optional[Sequence[str]] = None,
+) -> List[str]:
+    """Sorted docs that cite ``path`` — exactly, or via an enclosing dir.
+
+    Self-citations are excluded (a doc citing itself creates no obligation).
+    Raises nothing extra beyond :func:`build_reverse_index`'s git requirement
+    when ``index``/``doc_files`` are not supplied.
+    """
+    root = Path(repo_root)
+    if index is None:
+        index = build_reverse_index(root, doc_files=doc_files)
+    norm = _normalize_query_path(root, path)
+    if norm is None:
+        return []
+    hits = {e.doc for e in index.get(norm, ()) if e.doc != norm}
+    for edges in index.values():
+        for e in edges:
+            if (
+                e.kind == "dir"
+                and e.doc != norm
+                and (norm == e.target or norm.startswith(e.target + "/"))
+            ):
+                hits.add(e.doc)
+    return sorted(hits)
+
+
+def edges_for_path(
+    repo_root: Path,
+    path: str,
+    index: Optional[dict] = None,
+    doc_files: Optional[Sequence[str]] = None,
+) -> List[DocEdge]:
+    """The citing edges for ``path``, strongest claim first.
+
+    Exact-file citations are strong claims ("this doc describes THIS file") and
+    sort before directory citations (weak: the doc mentions an enclosing tree);
+    within dir edges, the most specific (longest) target wins. One edge per
+    citing doc — a doc citing both the file and its directory contributes only
+    its file edge. Self-citations excluded.
+    """
+    root = Path(repo_root)
+    if index is None:
+        index = build_reverse_index(root, doc_files=doc_files)
+    norm = _normalize_query_path(root, path)
+    if norm is None:
+        return []
+    best: dict = {}
+    for e in index.get(norm, ()):
+        if e.doc != norm:
+            best[e.doc] = e
+    for edges in index.values():
+        for e in edges:
+            if (
+                e.kind == "dir"
+                and e.doc != norm
+                and e.doc not in best
+                and (norm == e.target or norm.startswith(e.target + "/"))
+            ):
+                held = best.get(e.doc)
+                if held is None or (
+                    held.kind == "dir" and len(e.target) > len(held.target)
+                ):
+                    best[e.doc] = e
+    return sorted(
+        best.values(),
+        key=lambda e: (e.kind != "file", -len(e.target), e.doc),
+    )
+
+
+#: Reverse-index cache schema version; bump when DocEdge shape or extraction
+#: semantics change so stale caches self-invalidate.
+_CACHE_VERSION = 1
+
+
+def _corpus_digest(root: Path, doc_files: Sequence[str]) -> Optional[str]:
+    """sha256 over (path, mtime_ns, size) of the obligation-citing corpus."""
+    import hashlib
+
+    h = hashlib.sha256()
+    h.update(f"v{_CACHE_VERSION}".encode())
+    for rel in sorted(doc_files):
+        if rel in EXEMPT_CITING_FILES or rel.startswith(
+            OBLIGATION_EXEMPT_CITING_PREFIXES
+        ):
+            continue
+        try:
+            st = os.stat(root / rel)
+        except OSError:
+            return None
+        h.update(f"{rel}\0{st.st_mtime_ns}\0{st.st_size}\n".encode())
+    return h.hexdigest()
+
+
+def cached_reverse_index(repo_root: Path) -> dict:
+    """:func:`build_reverse_index` behind an mtime-digest cache.
+
+    A cold build costs ~200ms on this repo's corpus — too heavy for a
+    per-edit PreToolUse hook — while the digest check costs ~25ms. The cache
+    lives at ``.episteme/cache/doc_map.json`` and is written ONLY when
+    ``.episteme/`` already exists (positive system: episteme caches where it
+    already has a footprint, never scattering dotdirs into foreign projects).
+    Every cache failure — unreadable, stale, malformed — degrades to a fresh
+    build; a wrong answer is never served to avoid a rebuild.
+    """
+    import json as _json
+
+    root = Path(repo_root)
+    doc_files = tracked_markdown(root)  # raises RuntimeError without git — caller's contract
+    digest = _corpus_digest(root, doc_files)
+    cache_path = root / ".episteme" / "cache" / "doc_map.json"
+
+    if digest is not None:
+        try:
+            payload = _json.loads(cache_path.read_text(encoding="utf-8"))
+            if (
+                payload.get("version") == _CACHE_VERSION
+                and payload.get("digest") == digest
+            ):
+                return {
+                    target: [
+                        DocEdge(doc=d, target=target, kind=k, line=ln)
+                        for d, k, ln in rows
+                    ]
+                    for target, rows in payload.get("targets", {}).items()
+                }
+        except (OSError, ValueError, TypeError):
+            pass
+
+    index = build_reverse_index(root, doc_files=doc_files)
+
+    if digest is not None and (root / ".episteme").is_dir():
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            # pid-suffixed: two concurrent hook processes must not interleave
+            # writes into one tmp file (review nit; replace() stays atomic).
+            tmp = cache_path.with_suffix(f".json.tmp.{os.getpid()}")
+            tmp.write_text(
+                _json.dumps(
+                    {
+                        "version": _CACHE_VERSION,
+                        "digest": digest,
+                        "targets": {
+                            target: [[e.doc, e.kind, e.line] for e in edges]
+                            for target, edges in index.items()
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            tmp.replace(cache_path)
+        except OSError:
+            pass
+    return index
+
+
+def annotate_docs(repo_root: Path, docs: Sequence[str]) -> List[tuple]:
+    """``(doc, label)`` pairs for display: lifecycle state, or manifest tier.
+
+    Labels, in precedence order: a parsed lifecycle marker renders as
+    ``status · reviewed_as_of`` plus ``· N events behind`` when the marker is
+    event-tagged and ``docs/EVENTS.md`` yields a later corpus event (same
+    ``E<n>`` scan as session_context's staleness banner — conscious sibling);
+    a manifest-managed kernel file renders as ``manifest-managed``; anything
+    else gets an empty label. Every lookup degrades to a weaker label rather
+    than raising — annotation must never break a caller's advisory.
+    """
+    root = Path(repo_root)
+    latest_event: Optional[int] = None
+    try:
+        events_text = (root / "docs" / "EVENTS.md").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        nums = [int(m) for m in re.findall(r"\bE(\d+)\b", events_text)]
+        if nums:
+            latest_event = max(nums)
+    except OSError:
+        latest_event = None
+
+    managed: frozenset = frozenset()
+    try:
+        from episteme.kernel_integrity import MANAGED_KERNEL_FILES
+
+        managed = frozenset(MANAGED_KERNEL_FILES)
+    except Exception:
+        managed = frozenset()
+
+    out: List[tuple] = []
+    for rel in docs:
+        label = ""
+        marker = None
+        try:
+            from episteme import doc_lifecycle
+
+            marker = doc_lifecycle.parse_marker(root / rel)
+        except Exception:
+            marker = None
+        if marker is not None and marker.status:
+            label = marker.status
+            if marker.reviewed_as_of:
+                label += f" · {marker.reviewed_as_of}"
+                ev = re.match(r"^E(\d+)$", marker.reviewed_as_of)
+                if ev is not None and latest_event is not None:
+                    lag = latest_event - int(ev.group(1))
+                    if lag > 0:
+                        label += f" · {lag} events behind"
+        elif rel in managed:
+            label = "manifest-managed"
+        out.append((rel, label))
+    return out
+
+
+def run_map_cli(root: Optional[Path] = None, paths: Sequence[str] = ()) -> int:
+    """``episteme docs map [path ...]`` — query or dump the reverse index.
+
+    With paths: the citing docs (annotated) per path. Without: the full
+    ``target ← docs`` map. Informational — always exits 0; an empty answer is
+    an answer (positive system: no citation, no obligation).
+    """
+    from episteme.doc_lifecycle import _repo_root  # one notion of root resolution
+
+    root = Path(root) if root is not None else _repo_root()
+    try:
+        index = cached_reverse_index(root)  # warms the same cache the hook reads
+    except RuntimeError as exc:
+        print(f"docs map: {exc}")
+        return 1
+    if not paths:
+        if not index:
+            print("docs map: no citation edges in tracked markdown")
+            return 0
+        for target in sorted(index):
+            cited_by = sorted({e.doc for e in index[target]})
+            print(f"{target}  ←  {', '.join(cited_by)}")
+        return 0
+    for query in paths:
+        edges = edges_for_path(root, query, index=index)
+        if not edges:
+            print(f"{query}: no citing docs — no doc claims to describe this path")
+            continue
+        print(f"{query}:")
+        labels = dict(annotate_docs(root, [e.doc for e in edges]))
+        for e in edges:
+            label = labels.get(e.doc, "")
+            via = f"  [via {e.target}/]" if e.kind == "dir" else ""
+            print(f"  {e.doc}" + (f"  ({label})" if label else "") + via)
+    return 0
+
+
 if __name__ == "__main__":  # pragma: no cover
     import sys
 

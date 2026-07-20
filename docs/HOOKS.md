@@ -25,7 +25,7 @@ change; it is the actual registry, not this prose.
 | `reasoning_surface_guard.py` | `PreToolUse Bash\|Write\|Edit\|MultiEdit` | Blocks high-impact / irreversible ops and architectural-cascade edits that lack a valid Reasoning Surface |
 | `block_dangerous.py` | `PreToolUse Bash` | Blocks `rm -rf`, `git reset --hard`, `git push --force`, `sudo`, destructive SQL, and more |
 | `_arm_a_pre.py` | `PreToolUse Write\|Edit\|MultiEdit` | Cognitive Arm A pre-snapshot of watched profile/policy files for trajectory diffing |
-| `workflow_guard.py` | `PreToolUse Write\|Edit\|MultiEdit` (balanced/strict) | Advisory nudge to keep authoritative docs (`EVENTS.md` / `NEXT_STEPS.md`) aligned with edits |
+| `workflow_guard.py` | `PreToolUse Write\|Edit\|MultiEdit` (balanced/strict) | Targeted DOC ADVISORY (E173): names the docs whose citations claim to describe the edited path — the reverse index of `episteme docs map`, derived from citation edges — with lifecycle state; falls back to the generic `EVENTS.md` / `NEXT_STEPS.md` nudge when no doc cites the path (positive system) or the index is unavailable (non-git project, plugin-only install) |
 | `prompt_guard.py` | `PreToolUse Write\|Edit\|MultiEdit` (balanced/strict) | Advisory prompt-injection detection when writing durable context |
 | `format.py` | `PostToolUse Write\|Edit\|MultiEdit` (async) | Auto-runs `ruff` (Python) / `prettier` (JS/TS) after a file write |
 | `test_runner.py` | `PostToolUse Write\|Edit\|MultiEdit` | Runs pytest / jest when the edited file is a test |
