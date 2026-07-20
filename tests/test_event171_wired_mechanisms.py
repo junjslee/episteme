@@ -140,3 +140,51 @@ class EpistemePythonHonoredTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KnobsSandboxAndMergeTests(unittest.TestCase):
+    """Event 171 incident pins: (a) the knobs path must honor
+    EPISTEME_HOME — the module-load constant ignored it, so a test of
+    the newly-wired writer escaped its sandbox and overwrote the
+    operator's REAL derived_knobs.json; (b) regeneration must MERGE,
+    because the derivation covers only a subset of the knob vocabulary
+    and a replace-write dropped the operator's posture knobs (lens
+    order, noise watch) until they were restored from gate-output
+    evidence."""
+
+    def test_knobs_path_honors_episteme_home(self):
+        import importlib, sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "core" / "hooks"))
+        import _derived_knobs  # type: ignore  # pyright: ignore[reportMissingImports]
+        with _Home() as home:
+            self.assertEqual(
+                _derived_knobs.knobs_path(),
+                home / "derived_knobs.json",
+                "sandbox escape: knobs path ignores EPISTEME_HOME",
+            )
+
+    def test_regeneration_merges_and_preserves_operator_knobs(self):
+        from unittest import mock
+        with _Home() as home:
+            kf = home / "derived_knobs.json"
+            kf.write_text(json.dumps({
+                "unknown_specificity_min": 999,
+                "preferred_lens_order": ["failure-first", "causal-chain"],
+                "noise_watch_set": ["status-pressure"],
+                "explanation_form": "causal-chain",
+                "fence_check_strictness": 4,
+            }), encoding="utf-8")
+            scores = ({"planning_strictness": 5, "testing_rigor": 5}, {})
+            with mock.patch.object(ecli, "_load_generated_scores",
+                                   return_value=scores):
+                lines = ecli._regenerate_derived_knobs()
+            self.assertTrue(lines)
+            data = json.loads(kf.read_text(encoding="utf-8"))
+            # Derived key updated...
+            self.assertNotEqual(data["unknown_specificity_min"], 999)
+            # ...and every non-derived operator knob SURVIVES.
+            self.assertEqual(data["preferred_lens_order"],
+                             ["failure-first", "causal-chain"])
+            self.assertEqual(data["noise_watch_set"], ["status-pressure"])
+            self.assertEqual(data["explanation_form"], "causal-chain")
+            self.assertEqual(data["fence_check_strictness"], 4)

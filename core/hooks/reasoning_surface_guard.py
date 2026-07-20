@@ -138,14 +138,20 @@ _CLASSIFIED_FIELDS_BY_BLUEPRINT: dict[str, tuple[str, ...]] = {
 # is invoked as a standalone script by the host runtime with no guaranteed
 # sys.path setup.
 _MIN_LEN_DEFAULT = 15
-_DERIVED_KNOBS_PATH = Path.home() / ".episteme" / "derived_knobs.json"
+def _derived_knobs_path() -> Path:
+    """Resolved per call, honoring EPISTEME_HOME (Event 171 — the
+    module-load constant ignored the sandbox env var; same bug class
+    as _derived_knobs._KNOBS_PATH, fixed in the same event)."""
+    return Path(
+        os.environ.get("EPISTEME_HOME") or (Path.home() / ".episteme")
+    ) / "derived_knobs.json"
 
 
 def _load_derived_knob(name: str, default):
     try:
-        if not _DERIVED_KNOBS_PATH.is_file():
+        if not _derived_knobs_path().is_file():
             return default
-        with open(_DERIVED_KNOBS_PATH, "r", encoding="utf-8") as f:
+        with open(_derived_knobs_path(), "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict) or name not in data:
             return default

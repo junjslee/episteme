@@ -1758,7 +1758,7 @@ def _regenerate_derived_knobs() -> list[str]:
         workstyle, cognitive = _load_generated_scores(REPO_ROOT)
         if not workstyle and not cognitive:
             return []
-        knobs = _derived_knobs.compute_knobs_from_scores(
+        derived = _derived_knobs.compute_knobs_from_scores(
             workstyle or {}, cognitive or {}
         )
         knobs_file = _derived_knobs.knobs_path()
@@ -1768,8 +1768,16 @@ def _regenerate_derived_knobs() -> list[str]:
                 old = json.loads(knobs_file.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
                 old = {}
+        # MERGE, never replace (Event 171 incident): the derivation
+        # covers only a subset of the knob vocabulary — the live file
+        # also carries operator knobs the formulas don't produce
+        # (preferred_lens_order, noise_watch_set, explanation_form,
+        # fence_check_strictness). A replace-write dropped them once;
+        # the gates lost their posture lines until restoration.
+        knobs = {**old, **derived}
         changed = {
-            k: (old.get(k), v) for k, v in knobs.items() if old.get(k) != v
+            k: (old.get(k), v) for k, v in derived.items()
+            if old.get(k) != v
         }
         if not changed and old:
             return []

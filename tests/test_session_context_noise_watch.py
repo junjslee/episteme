@@ -24,66 +24,37 @@ from core.hooks import _derived_knobs  # pyright: ignore[reportAttributeAccessIs
 
 
 class _TmpKnobs:
-    """Point `_derived_knobs._KNOBS_PATH` at a tmp file for one test.
+    """Point the derived-knobs file at a tmp dir via EPISTEME_HOME.
 
-    `_derived_knobs` uses a module-level `_KNOBS_PATH = Path.home() /
-    ".episteme" / "derived_knobs.json"` constant rather than reading
-    `EPISTEME_HOME` at call time (orthogonal gap, NOT fixed in Phase A).
-
-    Subtlety: `session_context._noise_watch_line` imports `_derived_knobs`
-    via a `sys.path` injection pointing at `core/hooks/` — so at runtime
-    Python loads the module under the BARE name `_derived_knobs` at
-    `sys.modules["_derived_knobs"]`. The test file imports the same
-    source under the dotted path `core.hooks._derived_knobs`, which
-    registers at `sys.modules["core.hooks._derived_knobs"]` — a
-    DIFFERENT module object.
-
-    To make the monkey-patch visible to the production code path, patch
-    `_KNOBS_PATH` on every module in sys.modules whose source resolves
-    to the same file. This is the only reliable pattern when a hook
-    intentionally uses bare-name sys.path imports for standalone-script
-    independence.
+    Until Event 171 this required patching a module-load `_KNOBS_PATH`
+    constant on EVERY loaded module instance (bare-name + dotted-path
+    imports register as different module objects) because the module
+    ignored `EPISTEME_HOME` — the docstring here called that an
+    "orthogonal gap, NOT fixed". E171 fixed it for real after the gap
+    let a writer test escape its sandbox and overwrite the operator's
+    live knobs file: the path now resolves per call from the env var,
+    so the fixture is just an env redirect.
     """
     def __init__(self, knobs: dict | None):
         self._tmp = tempfile.TemporaryDirectory()
         self._knobs = knobs
-        self._orig_by_module: dict[str, object] = {}
+        self._patch = None
 
     def __enter__(self) -> Path:
-        path = Path(self._tmp.name) / "derived_knobs.json"
+        home = Path(self._tmp.name)
+        path = home / "derived_knobs.json"
         if self._knobs is not None:
             path.write_text(json.dumps(self._knobs), encoding="utf-8")
-
-        # Pre-trigger session_context's internal sys.path-injected import
-        # so sys.modules["_derived_knobs"] is populated before we patch.
-        _hooks_dir = Path(sc.__file__).resolve().parent
-        if str(_hooks_dir) not in sys.path:
-            sys.path.insert(0, str(_hooks_dir))
-        try:
-            import _derived_knobs as _dk_bare  # type: ignore  # pyright: ignore[reportMissingImports]  # noqa: F401
-        except ImportError:
-            pass
-
-        # Patch every module instance whose source is core/hooks/_derived_knobs.py.
-        for mod_name in list(sys.modules.keys()):
-            mod = sys.modules.get(mod_name)
-            if mod is None:
-                continue
-            if not hasattr(mod, "_KNOBS_PATH"):
-                continue
-            mod_file = getattr(mod, "__file__", "")
-            if not mod_file or "_derived_knobs" not in str(mod_file):
-                continue
-            self._orig_by_module[mod_name] = mod._KNOBS_PATH  # type: ignore[attr-defined]
-            mod._KNOBS_PATH = path  # type: ignore[attr-defined]
+        from unittest.mock import patch as _patch
+        self._patch = _patch.dict(os.environ, {"EPISTEME_HOME": str(home)})
+        self._patch.start()
         return path
 
-    def __exit__(self, *a):  # noqa: ARG002 (unittest API)
-        for mod_name, orig in self._orig_by_module.items():
-            mod = sys.modules.get(mod_name)
-            if mod is not None:
-                mod._KNOBS_PATH = orig  # type: ignore[attr-defined]
+    def __exit__(self, *exc):
+        if self._patch is not None:
+            self._patch.stop()
         self._tmp.cleanup()
+        return False
 
 
 class NoiseWatchLineProducer(unittest.TestCase):
