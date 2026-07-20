@@ -20,9 +20,11 @@
 
 <p align="center"><a href="https://epistemekernel.com"><b>epistemekernel.com</b></a></p>
 
-> **episteme makes an AI agent show its work before it acts — and makes your repo's docs stop lying about your code.**
+> **episteme makes an AI agent show its work before it acts.**
 >
-> It installs into the coding tools you already use (Claude Code today; a vendor-neutral adapter layer for others). Before any high-impact action — `git push`, a deploy, a migration, deleting a constraint — the agent must write down, on disk, what it knows, what it doesn't, and what observable event would prove it wrong. A deterministic hook checks the artifact and refuses to proceed until it's real (`exit 2`). Lessons from verified decisions become tamper-evident, context-scoped protocols that resurface at the next matching decision — so the agent gets sharper on *your* codebase over time, and your documentation is linted against your code the same way your code is linted against your tests.
+> You know the feeling: the diff looks fine, the analysis sounds right, and a small voice says *I should probably read this more carefully.* episteme is that voice, given teeth. Before anything irreversible — a push, a deploy, a migration — your agent has to write down what it knows, what it doesn't, and what would prove it wrong. On disk, where you can read it. A quiet, deterministic gate holds the door until the thinking is real.
+>
+> It plugs into the tools you already use (Claude Code today; a vendor-neutral adapter layer for others). Lessons from verified decisions stick around as tamper-evident protocols that resurface exactly when they matter again — so the agent gets sharper on *your* codebase over time, and your docs are held to the same standard as your code.
 
 **[What it looks like ↓](#what-it-looks-like)** · **[Install ↓](#install)** · **[The demos ↓](#the-demos)** · **[How it compares ↓](#how-it-compares)** · **[Under the hood ↓](#under-the-hood)** · **[Does it work? ↗](docs/EVALUATION_METHOD.md)**
 
@@ -30,15 +32,15 @@
 
 ## What it looks like
 
-You ask your agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
+Say you ask your agent: *"Evaluate whether our retrieval-augmented memory system is actually improving response quality."*
 
-**Without episteme** — the agent treats this as a measurement chore. It pulls 30 days of metrics, finds a 7% lift in thumbs-up rate, and writes a confident memo: *"memory helps; keep shipping."* You read it. It's wrong three ways, fluently:
+**Without episteme**, the agent treats this as a measurement chore. It pulls 30 days of metrics, finds a 7% lift in thumbs-up rate, and writes you a confident memo: *"memory helps; keep shipping."* It reads beautifully. It's also wrong three ways at once:
 
 - Thumbs-up tracks response *confidence*, not *correctness* — it measured a proxy for your question, not the question.
 - Memory responses run 30% longer, and length independently drives thumbs-up — the "lift" might be the length effect.
 - No condition was ever named under which the conclusion would be judged wrong — so it can't be.
 
-**With episteme** — before the memo can land, the agent has to commit this to disk:
+**With episteme**, the memo can't land yet. First, the agent has to put this on disk:
 
 | Field | What the agent must write |
 |---|---|
@@ -48,7 +50,7 @@ You ask your agent: *"Evaluate whether our retrieval-augmented memory system is 
 | **Assumptions** | Load-bearing beliefs, flagged so they can be falsified |
 | **Disconfirmation** | A pre-committed observable — *"if the lift disappears under length-controlled re-run, memory is adding tokens, not signal"* |
 
-Lazy tokens (`none`, `n/a`, `tbd`, `해당 없음`) are rejected. Vague hedges (*"if issues arise"*) are rejected — only concrete falsification conditions pass. The act of writing the surface is what exposes that the proxy wasn't the question. That's the product: **the agent is forced to think in a way you can audit, before the consequences exist.**
+Lazy answers (`none`, `n/a`, `tbd`, `해당 없음`) don't pass. Vague hedges (*"if issues arise"*) don't pass either — only a concrete, observable way to be proven wrong does. And here's the quiet magic: the act of writing that surface is exactly what exposes that thumbs-up was never the question. That's the product. **The agent has to think in a way you can audit, before the consequences exist.**
 
 ![episteme — the thinking framework in motion](docs/assets/demo_posture.gif)
 
@@ -56,12 +58,12 @@ Lazy tokens (`none`, `n/a`, `tbd`, `해당 없음`) are rejected. Vague hedges (
 
 ## What you get
 
-- **A reasoning gate at the point of no return.** Hooks intercept high-impact operations and validate the Reasoning Surface structurally — normalized command scanning catches bypass shapes (`subprocess.run(['git','push'])`, agent-written shell scripts, wrapped executors). Absent or hollow surface → the op is refused. Strict by default; advisory mode is opt-in per project.
-- **Interrogation for load-bearing decisions.** Structure alone can't tell thinking from theater, so the gate also accepts a stronger artifact: the decision decomposed into claims, each load-bearing claim verified by a **fresh context that never saw the draft reasoning**, the strongest opposition argued, the weakest link named. A `stop` verdict fails closed.
-- **Memory that compounds instead of decaying.** Every verified lesson becomes a hash-chained, context-scoped protocol — append-only and tamper-evident, so the agent can't silently rewrite what it learned. At the next matching decision the kernel surfaces the protocol proactively: `[episteme guide] … · overlap 5/6 · Protocol: In context X, do Y`. You don't have to remember to ask.
-- **Docs that are linted against reality.** Every tracked doc carries a machine-readable lifecycle marker (`living / spec-implemented / design-history / report / tombstone`). CI fails when a new doc lands unclassified, when a living doc cites a retired one as if current, or when a point-in-time report tries to squat in `docs/`. Version strings are stamped from the release manifest, never hand-copied. Stale docs surface at session start — silently, only when something is actually stale. **Single source of truth, enforced — not aspired to.**
-- **A system that cleans up after itself.** Review queues are capped with visible backpressure, logs rotate at size caps, expired markers and old telemetry are reaped at session start. Artifacts don't stack; deletion is a designed operation, not an accident of neglect.
-- **One identity across tools.** Your working style, risk posture, and reasoning preferences live in governed, versioned markdown — synced to every adapter with one command. The kernel outlives the tool.
+- **A gate at the point of no return.** High-impact operations get intercepted before they run, and the agent's reasoning is checked for substance — including the sneaky shapes (`subprocess.run(['git','push'])`, agent-written shell scripts, wrapped commands). No real surface, no execution. Strict by default; you can soften it per project if you want.
+- **A second opinion the draft never touched.** Structure alone can't tell thinking from theater. So for load-bearing decisions, the gate accepts a stronger artifact: the decision broken into claims, each one verified by a fresh context that never saw the original reasoning, with the strongest opposition actually argued. If the verdict says stop, it stops.
+- **Memory that compounds instead of decaying.** Every verified lesson becomes a tamper-evident protocol scoped to its context. The next time a matching decision comes up, the kernel brings the lesson to you — `Protocol: In context X, do Y` — without you having to remember it exists. The agent gets sharper on your codebase specifically.
+- **Docs that stay honest.** Every tracked doc carries a lifecycle marker, and CI fails when reality drifts — an unclassified doc, a living doc citing a retired one, a version string someone hand-copied. Stale docs greet you at session start, and only when something is genuinely stale. One source of truth, enforced rather than aspired to.
+- **A system that cleans up after itself.** Queues have caps with visible backpressure, logs rotate, expired markers get swept at session start. Nothing stacks up in a corner; deletion is a designed operation, not an accident of neglect.
+- **One identity across tools.** Your working style, risk posture, and reasoning preferences live in versioned markdown — synced to every adapter with one command. The kernel outlives whichever tool you're using this year.
 
 ## Install
 
@@ -86,11 +88,11 @@ episteme sync      # push identity to every adapter
 episteme doctor    # verify wiring
 ```
 
-Adopting in an existing repo: `episteme docs lint` forces a lifecycle classification of every tracked doc — that first lint run is the honest inventory most repos have never had. Details, project harnesses, and the full command reference: [`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md).
+Adopting in an existing repo? Run `episteme docs lint` first — it asks every tracked doc to declare what it is, and that first run is usually the most honest inventory the repo has ever had. Details, project harnesses, and the full command reference live in [`INSTALL.md`](./INSTALL.md) · [`docs/SETUP.md`](./docs/SETUP.md) · [`docs/COMMANDS.md`](./docs/COMMANDS.md).
 
 ## The demos
 
-Every demo ships its real artifacts — read them before any philosophy.
+Every demo ships its real artifacts. Read them before you read any philosophy — they're the receipts.
 
 | Demo | What it proves |
 |---|---|
@@ -111,19 +113,19 @@ Re-record the hero demo yourself: `scripts/demo_posture.sh` (recipe in the scrip
 | **Know-how** | Extracted at the file-system boundary, hash-chained, resurfaced by context | Opaque retrieval | Prompt-tuned, per session |
 | **Docs/state hygiene** | Lifecycle-linted, GC'd, drift-gated in CI | N/A | N/A |
 
-**Isn't this just contract testing?** Contract tests catch *behavioral* regressions — did the code do what the spec says. The Reasoning Surface catches *epistemological* regressions — did we write the right spec, frame the right question, name what would prove us wrong. A passing test suite cannot tell you you're solving the wrong problem fluently; that failure happens before the spec exists. episteme ships both layers ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
+**Isn't this just contract testing?** Contract tests ask *did the code do what the spec says.* The Reasoning Surface asks something earlier and harder: *was that the right spec, the right question, and what would have told us otherwise?* A green test suite can't tell you you're solving the wrong problem beautifully — that failure happens before the spec exists. episteme ships both layers ([`docs/CONTRACT_GATE.md`](./docs/CONTRACT_GATE.md)).
 
-**Why can't a prompt do this?** Prompts are advisory: they live for one call, get skipped at deadline, and vanish from context. A hook that exits non-zero cannot be skipped. The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 models, 8 labs, ~250k instances) found that showing models their own calibration doesn't help — *only architectural constraint is effective* (Confident Failure Rate 0.60 → 0.14). Posture over prompt.
+**Why can't a prompt do this?** Because prompts are suggestions. They live for one call, get skipped when you're in a hurry, and quietly fall out of context. A hook that exits non-zero doesn't negotiate. The MIRROR benchmark ([arXiv 2604.19809](https://arxiv.org/abs/2604.19809); 16 models, 8 labs, ~250k instances) tested this directly: showing a model its own calibration scores changed nothing — *only architectural constraint helped* (confident-failure rate 0.60 → 0.14). Posture beats prompting.
 
 ## Honest limits
 
-- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) names when this kernel is the wrong tool. *A discipline without a boundary is a creed.*
-- The kernel measures its own claims: the protocol-synthesis loop fired its own falsifiability condition in 2026-06 (49 days, zero synthesized protocols) and was rebuilt to synthesize from verified interrogations — the audit trail is public ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). A kernel that enforces disconfirmation on your decisions owes you the same on its own.
-- Attribution for every borrowed concept, and the 2025–26 industry work that independently converged on the same patterns: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
+- [`kernel/KERNEL_LIMITS.md`](./kernel/KERNEL_LIMITS.md) says plainly when this is the wrong tool for you. *A discipline without a boundary is just a creed.*
+- It holds itself to the same standard. In June 2026 the protocol-synthesis loop tripped its own falsifiability condition — 49 days, zero protocols synthesized — and got rebuilt around verified interrogations instead. The whole trail is public ([`kernel/FAILURE_MODES.md`](./kernel/FAILURE_MODES.md), [`docs/EVALUATION_METHOD.md`](./docs/EVALUATION_METHOD.md)). A tool that demands disconfirmation from your decisions owes you the same about itself.
+- Every borrowed idea is credited, alongside the 2025–26 work that arrived at similar patterns independently: [`kernel/REFERENCES.md`](./kernel/REFERENCES.md).
 
 ## Under the hood
 
-Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is Frame → Decompose → Execute → Verify → Handoff, grounded in named counters to specific System-1 failure modes (question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence) — the full operationalization is [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md), and the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specified in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+Status: **<!-- episteme-fact:version -->1.10.0-rc<!-- /episteme-fact:version -->** · The practice is five stages — Frame → Decompose → Execute → Verify → Handoff — and each one exists to counter a specific way minds go wrong under fluency: question substitution, WYSIATI, anchoring, narrative fallacy, planning fallacy, overconfidence. The full story is in [`docs/THE_WAY_TO_THINK.md`](./docs/THE_WAY_TO_THINK.md); the four Cognitive Blueprints (Axiomatic Judgment · Fence Reconstruction · Consequence Chain · Architectural Cascade) are specced in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ```mermaid
 graph TD
@@ -191,9 +193,9 @@ graph TD
     class A,B neutralStyle
 ```
 
-**Doxa** (red) — fluent-but-unvalidated output — is the failure state the kernel exists to prevent. **Episteme** (green) — a validated surface — is the precondition for execution. **Praxis** — the admitted action and its observed outcome. **결 · Gyeol** (blue) — the calibration loop that refines the framework across cycles. Works with any stack: the kernel is pure markdown, the profile plain JSON, the adapter layer (Claude Code, Hermes, OMO/OMX) pluggable.
+Four ideas, in the colors above. **Doxa** (red) is fluent-but-unvalidated output — the failure state this whole thing exists to prevent. **Episteme** (green) is a surface that actually holds up, and it's the price of admission for execution. **Praxis** is the action that got through, plus what really happened. **결 · Gyeol** (blue) is the loop that folds those outcomes back into how you're calibrated next time. Stack-agnostic by construction: the kernel is plain markdown, the profile plain JSON, the adapters (Claude Code, Hermes, OMO/OMX) swappable.
 
-The kernel itself — pure markdown, no code, no vendor lock-in — starts at [`kernel/`](./kernel/):
+The kernel itself — markdown, no code, nothing to lock you in — starts at [`kernel/`](./kernel/):
 
 | File | What it defines |
 |---|---|
@@ -235,4 +237,4 @@ Authority hierarchy: **project docs > operator profile > kernel defaults > runti
 
 ## Commercial licensing
 
-For commercial licensing or consulting, [contact me](mailto:junseong.lee652@gmail.com).
+Need a commercial license, or want help adopting this? [Say hello](mailto:junseong.lee652@gmail.com) — I'd genuinely like to hear what you're building.

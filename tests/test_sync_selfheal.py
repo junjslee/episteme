@@ -275,3 +275,84 @@ class DeployPruneTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SyncOriginGuardTests(unittest.TestCase):
+    """Event 166, from a live incident — a sync run from a scratchpad
+    CLONE rewrote the operator's real ~/.claude/CLAUDE.md to @-reference
+    that clone's EXAMPLE memory files, silently swapping the encoded
+    operator profile for defaults in every future session. The kernel
+    already had the rule ('never sync from a worktree') as prose wired
+    to no gate."""
+
+    def test_primary_checkout_is_allowed(self):
+        with _TmpHome() as th:
+            self.assertIsNone(
+                cadapter.sync_origin_problem(ecli.REPO_ROOT, th.claude_root)
+                if hasattr(cadapter, "sync_origin_problem")
+                else ecli.sync_origin_problem(ecli.REPO_ROOT, th.claude_root)
+            )
+
+    def test_linked_worktree_refused(self):
+        with _TmpHome() as th, tempfile.TemporaryDirectory() as td:
+            wt = Path(td) / "wt"
+            wt.mkdir()
+            # A linked worktree carries .git as a FILE, not a directory.
+            (wt / ".git").write_text("gitdir: /elsewhere/.git/worktrees/wt")
+            problem = ecli.sync_origin_problem(wt, th.claude_root)
+            assert problem is not None
+            self.assertIn("worktree", problem)
+
+    def test_temp_checkout_refused(self):
+        with _TmpHome() as th, tempfile.TemporaryDirectory() as td:
+            clone = Path(td).resolve() / "repo2"
+            (clone / ".git").mkdir(parents=True)
+            problem = ecli.sync_origin_problem(clone, th.claude_root)
+            assert problem is not None
+            self.assertIn("temp root", problem)
+
+    def test_second_checkout_refused_when_sidecar_names_another(self):
+        with _TmpHome() as th, tempfile.TemporaryDirectory() as td:
+            other = Path(td) / "other-checkout"
+            (other / ".git").mkdir(parents=True)
+            meta = cadapter.read_sync_meta(th.claude_root)
+            meta["repo_root"] = str(other)
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                json.dumps(meta), encoding="utf-8"
+            )
+            problem = ecli.sync_origin_problem(ecli.REPO_ROOT, th.claude_root)
+            assert problem is not None
+            self.assertIn("last deployed", problem)
+
+    def test_sidecar_records_repo_root(self):
+        with _TmpHome() as th:
+            meta = cadapter.read_sync_meta(th.claude_root)
+            self.assertEqual(meta.get("repo_root"), str(ecli.REPO_ROOT))
+
+    def test_missing_prior_root_does_not_refuse(self):
+        # First-ever sync has nothing to compare against.
+        with _TmpHome() as th:
+            meta = cadapter.read_sync_meta(th.claude_root)
+            meta.pop("repo_root", None)
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                json.dumps(meta), encoding="utf-8"
+            )
+            self.assertIsNone(
+                ecli.sync_origin_problem(ecli.REPO_ROOT, th.claude_root)
+            )
+
+    def test_force_downgrades_refusal_to_warning(self):
+        with _TmpHome() as th, tempfile.TemporaryDirectory() as td:
+            other = Path(td) / "other-checkout"
+            (other / ".git").mkdir(parents=True)
+            meta = cadapter.read_sync_meta(th.claude_root)
+            meta["repo_root"] = str(other)
+            (th.claude_root / cadapter.SYNC_META_FILENAME).write_text(
+                json.dumps(meta), encoding="utf-8"
+            )
+            self.assertEqual(
+                ecli._enforce_sync_origin(th.claude_root, False), 2
+            )
+            self.assertIsNone(
+                ecli._enforce_sync_origin(th.claude_root, True)
+            )

@@ -32,7 +32,10 @@ def _open_stub(n: int) -> list[dict]:
 
 class DeferredCapLineTests(unittest.TestCase):
     def _line(self, *, open_n, cap=100, skipped=0, expired=0,
-              cap_error=False):
+              cap_error=False, elsewhere=0):
+        # Event 163 — the banner scopes the deferred count to THIS
+        # project and names other projects' findings separately, while
+        # the cap is compared against the whole (global) ledger.
         cap_mock = (
             mock.patch.object(
                 _framework, "_resolve_deferred_open_cap",
@@ -43,10 +46,22 @@ class DeferredCapLineTests(unittest.TestCase):
                 _framework, "_resolve_deferred_open_cap", return_value=cap
             )
         )
+        project = _framework.canonical_project_key(Path.cwd())
+        counts = {project: open_n}
+        if elsewhere:
+            counts["some-other-repo"] = elsewhere
         with mock.patch.object(_framework, "list_protocols", return_value=[]), \
              mock.patch.object(
                  _framework, "open_deferred_discoveries",
                  return_value=_open_stub(open_n),
+             ), \
+             mock.patch.object(
+                 _framework, "open_counts_by_project", return_value=counts,
+             ), \
+             mock.patch.object(
+                 _framework, "projects_at_cap",
+                 return_value=[(k, v) for k, v in counts.items()
+                               if k != project and cap and v >= cap],
              ), \
              mock.patch.object(
                  _framework, "expired_unverdicted_count",
@@ -60,6 +75,33 @@ class DeferredCapLineTests(unittest.TestCase):
              mock.patch.object(sc, "_read_last_session_ts", return_value=None):
             return sc._framework_digest_line()
 
+    def test_other_projects_named_not_folded_in(self):
+        line = self._line(open_n=3, elsewhere=118)
+        assert line is not None
+        self.assertIn("3 deferred discoveries pending", line)
+        self.assertIn("+118 in other projects", line)
+
+    def test_quiet_project_is_not_told_its_writes_are_paused(self):
+        # REPLACES a test that pinned the bug as correct. The cap is per
+        # project: with 2 open here and 120 elsewhere, THIS project is
+        # admitting writes fine, so claiming "writes paused" is false —
+        # the unclosable-alarm failure E158 claimed to fix (Event 163
+        # review reproduced it against the live ledger).
+        line = self._line(open_n=2, elsewhere=120, cap=100, skipped=9)
+        assert line is not None
+        self.assertIn("2 deferred discoveries pending", line)
+        self.assertNotIn("writes paused", line)
+        # But the projects that ARE paused get named, not hidden.
+        self.assertIn("at cap elsewhere", line)
+        self.assertIn("some-other-repo", line)
+
+    def test_this_project_at_cap_says_so_plainly(self):
+        line = self._line(open_n=100, elsewhere=0, cap=100, skipped=4)
+        assert line is not None
+        self.assertIn("this project AT CAP (100)", line)
+        self.assertIn("writes paused", line)
+        self.assertIn("4 record(s) skipped", line)
+
     def test_below_cap_line_unchanged(self):
         line = self._line(open_n=28)
         self.assertEqual(
@@ -72,7 +114,7 @@ class DeferredCapLineTests(unittest.TestCase):
         line = self._line(open_n=100, cap=100, skipped=7)
         assert line is not None
         self.assertIn("100 deferred discoveries pending", line)
-        self.assertIn("queue AT CAP (100)", line)
+        self.assertIn("this project AT CAP (100)", line)
         self.assertIn("writes paused", line)
         self.assertIn("7 record(s) skipped", line)
 
@@ -80,7 +122,7 @@ class DeferredCapLineTests(unittest.TestCase):
         line = self._line(open_n=178, cap=100, skipped=42)
         assert line is not None
         self.assertIn("178 deferred discoveries pending", line)
-        self.assertIn("AT CAP (100)", line)
+        self.assertIn("this project AT CAP (100)", line)
         self.assertIn("42 record(s) skipped", line)
 
     def test_expired_count_surfaces(self):
