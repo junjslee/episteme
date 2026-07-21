@@ -19,10 +19,12 @@ episteme viewer                # live governance dashboard
 ```
 
 `episteme sync` from an installed package deploys the governance layer
-(hooks, skills, settings) and reports its origin as `installed package`;
-the operator-memory lane activates once you seed your own memory
-(`episteme init`, from the bundled examples). Developing episteme itself?
-A checkout always wins asset resolution — nothing changes for you.
+(hooks, skills, settings) and reports its origin as `installed package`.
+Personalized memory for installed users is not wired yet — `episteme init`
+refuses in installed context rather than writing into read-only wheel
+assets (sync deploys the generic examples layer meanwhile; to personalize
+today, clone the repo and run init from the checkout). Developing episteme
+itself? A checkout always wins asset resolution — nothing changes for you.
 
 ---
 

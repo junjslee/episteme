@@ -12,6 +12,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .. import cli as _cli
+from .._assets import is_installed_context as _is_installed_context
+
+
+def _sync_origin_record() -> str:
+    """What the sync ledger records as the deploying origin (E166/E177).
+
+    A checkout records its path (rule-3 clobber protection compares against
+    it). An installed package records a sentinel — its site-packages
+    ``_assets`` path is meaningless as an origin and would make a later
+    checkout sync trip the refusal against it.
+    """
+    return "installed-package" if _is_installed_context() else str(_cli.REPO_ROOT)
 
 
 # ---------------------------------------------------------------------------
@@ -643,8 +655,11 @@ def sync(governance_mode: str = "balanced") -> None:
                 # compares against this to refuse a clobber from a
                 # second clone/worktree (a scratchpad clone once
                 # rewrote the operator's global memory to point at its
-                # own example files).
-                "repo_root": str(_cli.REPO_ROOT),
+                # own example files). E177: an installed package records
+                # a sentinel instead of its site-packages _assets path —
+                # recording that path would make a LATER checkout sync
+                # trip the rule-3 refusal against a meaningless origin.
+                "repo_root": _sync_origin_record(),
                 "deployed_skills": deployed_skills,
                 "deployed_agents": deployed_agents,
             },

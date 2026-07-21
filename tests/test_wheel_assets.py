@@ -90,6 +90,51 @@ class PrivacyIgnoreTests(unittest.TestCase):
             _packaging.ASSET_TREES, ("core", "kernel", "skills", "templates")
         )
 
+    def test_evolution_runtime_state_never_ships(self):
+        # Review blocker, reproduced empirically: gitignored
+        # core/memory/evolution/episodes/*.json shipped from LOCAL builds
+        # while CI stayed green (a fresh checkout has no untracked files —
+        # the leak was unobservable exactly where the gate ran). Episode
+        # schemas can embed diffs of operator-private memory files.
+        ignored = self._ignored("core/memory", ["global", "substrates", "evolution"])
+        self.assertIn("evolution", ignored)
+
+    def test_gitignored_asset_tree_patterns_all_have_drop_rules(self):
+        # Structural guard: every .gitignore rule under a shipped tree must
+        # correspond to a drop in the packaging contract, so a NEW runtime
+        # lane cannot leak by omission. Parses the real .gitignore.
+        patterns = [
+            line.strip()
+            for line in (REPO_ROOT / ".gitignore").read_text().splitlines()
+            if line.strip().startswith(("core/", "kernel/", "skills/", "templates/"))
+        ]
+        self.assertTrue(patterns, ".gitignore asset-tree rules disappeared?")
+        for pattern in patterns:
+            parts = pattern.rstrip("/").split("/")
+            covered = False
+            # Walk each prefix: covered if some ancestor dir's listing drops
+            # the next component (dir rule), or the leaf is suffix-dropped,
+            # or it falls under the memory/global examples-only rule.
+            for i in range(1, len(parts)):
+                parent_rel = "/".join(parts[:i])
+                child = parts[i]
+                probe = child.replace("*", "leak")  # e.g. *.json → leak.json
+                ignored = self._ignored(parent_rel, [probe, "examples"])
+                if probe in ignored:
+                    covered = True
+                    break
+                if parent_rel == "core/memory/global" and probe != "examples":
+                    covered = True
+                    break
+            self.assertTrue(covered, f"gitignored but shippable: {pattern}")
+
+    def test_unrelatable_staging_dir_fails_closed(self):
+        # The privacy boundary must die loudly, never ship openly (review:
+        # the previous except-ValueError silently disabled every rule).
+        with TemporaryDirectory() as tmp:
+            with self.assertRaises(RuntimeError):
+                _ignore(str(Path(tmp)), ["anything"])
+
     def test_sdist_staged_build_keeps_privacy_rules(self):
         # The ignore is bound to an explicit root: when a build frontend
         # stages the tree elsewhere (sdist temp dir), the SAME relative

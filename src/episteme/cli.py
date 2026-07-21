@@ -1364,6 +1364,25 @@ def _init_memory() -> int:
     If the personal files already exist (e.g. the repo ships with the author's
     real profiles), init skips them so forks start from those real profiles.
     """
+    from episteme import _assets as _assets_mod
+
+    if _assets_mod.is_installed_context():
+        # E177 review finding: in installed context REPO_ROOT is the wheel's
+        # read-only/ephemeral _assets tree — seeding memory there either
+        # PermissionErrors (system installs) or evaporates on upgrade (venv).
+        # Honest refusal beats a broken write; the home-based memory lane for
+        # installed users is the E178 install-story work.
+        print(
+            "[episteme init] refused — installed-package context has no "
+            "writable memory root yet (the wheel's assets are read-only).\n"
+            "  Installed sync deploys the generic governance layer from the "
+            "bundled examples; PERSONALIZED memory for installed users lands "
+            "in a coming release. To personalize today, clone the repo and "
+            "run init from the checkout.",
+            file=sys.stderr,
+        )
+        return 2
+
     cwd = Path.cwd().resolve()
     memory_dir = REPO_ROOT / "core" / "memory" / "global"
     examples_dir = memory_dir / "examples"

@@ -41,7 +41,15 @@ def asset_ignore_for(repo_root: Path):
         try:
             rel = str(directory_path.relative_to(repo_root))
         except ValueError:
-            rel = ""
+            # FAIL CLOSED (review blocker-class): an unrelatable staging dir
+            # would silently disable every privacy rule and ship the
+            # operator's memory. A build that cannot place itself must die
+            # loudly, never ship openly.
+            raise RuntimeError(
+                f"asset staging dir {directory_path} is not under the bound "
+                f"repo root {repo_root}; refusing to apply privacy rules "
+                f"blind"
+            )
         ignored = set()
         for name in names:
             if name in DROP_DIR_NAMES or name.endswith(DROP_SUFFIXES):
@@ -49,9 +57,14 @@ def asset_ignore_for(repo_root: Path):
         # The operator's personal memory: ship the fork-install templates ONLY.
         if rel == "core/memory/global":
             ignored.update(n for n in names if n != "examples")
-        # Substrate records are runtime data, not distributable assets.
+        # Runtime data lanes, mirrored from .gitignore's asset-tree rules —
+        # tests/test_wheel_assets.py cross-checks that every gitignored
+        # pattern under the shipped trees has a drop rule here, so a new
+        # runtime lane cannot leak by omission (review: evolution episodes
+        # were exactly such an omission, and only LOCAL builds could see it).
         if rel == "core/memory":
             ignored.add("substrates")
+            ignored.add("evolution")
         # Private skills never ship.
         if rel == "skills":
             ignored.add("private")

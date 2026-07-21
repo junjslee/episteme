@@ -74,9 +74,9 @@ jobs:
         run: |
           LISTING="$(python3 -m zipfile -l dist_wheel/*.whl)"
           echo "$LISTING" | grep -q "_assets/core/hooks/workflow_guard.py" || { echo "assets missing from wheel"; exit 1; }
-          if echo "$LISTING" | grep -E "memory/global/(runtime_digest|operator_profile|agent_feedback|workflow_policy|cognitive_profile|overview)\.md"; then
+          if echo "$LISTING" | grep -E "memory/global/(runtime_digest|operator_profile|agent_feedback|workflow_policy|cognitive_profile|overview|python_runtime_policy)\.md"; then
             echo "PRIVACY VIOLATION: operator memory in wheel"; exit 1; fi
-          if echo "$LISTING" | grep -E "skills/private|\.jsonl|\.pem|\.key"; then
+          if echo "$LISTING" | grep -E "skills/private|memory/(evolution|substrates)|\.jsonl|\.pem|\.key|\.p12"; then
             echo "PRIVACY VIOLATION: private/state/key material in wheel"; exit 1; fi
 
       - name: Clean-home install and acceptance chain
@@ -115,7 +115,8 @@ jobs:
           printf 'Entry: `src/app.py`.\n' > docs/APP.md
           printf 'pass\n' > src/app.py
           git init -q && git add -A
-          GUARD="$FRESH/venv/lib/python3.12/site-packages/episteme/_assets/core/hooks/workflow_guard.py"
+          SITE="$("$FRESH/venv/bin/python" -c 'import episteme, os; print(os.path.dirname(episteme.__file__))')"
+          GUARD="$SITE/_assets/core/hooks/workflow_guard.py"
           OUT="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"%s/proj/src/app.py"},"session_type":"main","cwd":"%s/proj"}' "$FRESH" "$FRESH" | "$FRESH/venv/bin/python" "$GUARD")"
           echo "$OUT"
           echo "$OUT" | grep -q "ADVISORY" || { echo "hook did not fire"; exit 1; }

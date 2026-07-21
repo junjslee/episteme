@@ -31,7 +31,16 @@ class build_py_with_assets(build_py):  # noqa: N801 (setuptools naming)
         for tree in ASSET_TREES:
             src = REPO / tree
             if not src.is_dir():
-                continue
+                # FAIL LOUDLY (review): an sdist-staged build has none of the
+                # asset trees, and skipping silently ships an asset-less
+                # wheel that breaks at runtime. Wheels are built in-tree
+                # (`pip wheel .` — the CI clean-install path); any other
+                # staging must die here, visibly.
+                raise RuntimeError(
+                    f"asset tree '{tree}' missing at {src} — building outside "
+                    f"the repo checkout (sdist staging?) is not a supported "
+                    f"wheel path; build with `pip wheel .` from the checkout"
+                )
             dest = dest_root / tree
             if dest.exists():
                 shutil.rmtree(dest)
