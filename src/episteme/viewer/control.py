@@ -119,28 +119,34 @@ def run_action(name: str, cwd: str) -> dict:
     if not _run_lock.acquire(blocking=False):
         return {"error": "busy"}
     try:
-        if name == "docmap_rebuild":
-            code, output = _run_docmap_rebuild(cwd)
-        else:
-            try:
-                proc = subprocess.run(
-                    _cli_argv(action.argv),
-                    capture_output=True,
-                    text=True,
-                    timeout=ACTION_TIMEOUT_S,
-                    cwd=cwd,
-                )
-                code = proc.returncode
-                output = (proc.stdout or "") + (proc.stderr or "")
-            except subprocess.TimeoutExpired:
-                return {
-                    "error": "timeout",
-                    "name": name,
-                    "timeout_s": ACTION_TIMEOUT_S,
-                }
-        truncated = len(output.encode("utf-8", errors="replace")) > OUTPUT_CAP_BYTES
+        # Broad guard (review finding): the in-process branch raised
+        # RuntimeError in a non-git project and escaped as a raw 500; every
+        # action failure must come back as clean JSON — a control plane that
+        # tracebacks teaches the operator to distrust its buttons.
+        try:
+            if name == "docmap_rebuild":
+                code, output = _run_docmap_rebuild(cwd)
+            else:
+                code, output = _run_subprocess(action.argv, cwd)
+        except _ActionTimeout:
+            return {
+                "error": "timeout",
+                "name": name,
+                "timeout_s": ACTION_TIMEOUT_S,
+            }
+        except Exception as exc:
+            return {
+                "error": "action_failed",
+                "name": name,
+                "detail": f"{type(exc).__name__}: {exc}"[:500],
+            }
+        data = output.encode("utf-8", errors="replace")
+        truncated = len(data) > OUTPUT_CAP_BYTES
         if truncated:
-            output = output[:OUTPUT_CAP_BYTES] + TRUNCATION_MARKER
+            # Byte-accurate cut (review nit: char slicing let multibyte
+            # output exceed the advertised cap ~4x); decode-with-ignore
+            # drops at most one split codepoint at the boundary.
+            output = data[:OUTPUT_CAP_BYTES].decode("utf-8", "ignore") + TRUNCATION_MARKER
         return {
             "name": name,
             "tier": action.tier,
@@ -150,6 +156,40 @@ def run_action(name: str, cwd: str) -> dict:
         }
     finally:
         _run_lock.release()
+
+
+class _ActionTimeout(Exception):
+    pass
+
+
+def _run_subprocess(argv_tail: tuple, cwd: str) -> "tuple[int, str]":
+    """Run one CLI action in its own session; kill the whole group on timeout.
+
+    ``subprocess.run(timeout=...)`` reaps only the direct child — a git
+    process spawned by sync/doctor would orphan (review nit). Popen +
+    start_new_session lets the timeout path kill the process group.
+    """
+    import os
+    import signal
+
+    proc = subprocess.Popen(
+        _cli_argv(argv_tail),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        cwd=cwd,
+        start_new_session=True,
+    )
+    try:
+        output, _ = proc.communicate(timeout=ACTION_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (OSError, ProcessLookupError):
+            proc.kill()
+        proc.wait()
+        raise _ActionTimeout() from None
+    return proc.returncode, output or ""
 
 
 def catalog() -> dict:

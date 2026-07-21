@@ -37,6 +37,34 @@ class RegistryTests(unittest.TestCase):
         result = control.run_action("rm_rf_everything", cwd=".")
         self.assertEqual(result["error"], "unknown_action")
 
+    def test_action_failure_returns_clean_json_not_a_traceback(self):
+        # Review disconfirmation: docmap_rebuild in a non-git cwd raised
+        # RuntimeError straight through do_POST as a raw 500. Every action
+        # failure must come back as structured JSON, and the lock must be
+        # free afterward.
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp:
+            result = control.run_action("docmap_rebuild", cwd=tmp)
+        self.assertEqual(result["error"], "action_failed")
+        self.assertIn("RuntimeError", result["detail"])
+        self.assertTrue(control._run_lock.acquire(blocking=False))
+        control._run_lock.release()
+
+    def test_control_enabled_defaults_fail_closed(self):
+        # The kill-switch must default OFF; only serve() may enable it after
+        # confirming a loopback bind (review finding: fail-open posture).
+        # Fresh interpreter — reload() here would remint the shared server's
+        # SESSION_TOKEN under the HTTP tests' feet.
+        import subprocess as sp
+
+        probe = sp.run(
+            [sys.executable, "-c",
+             "from episteme.viewer import server; print(server.CONTROL_ENABLED)"],
+            capture_output=True, text=True, timeout=30,
+        )
+        self.assertEqual(probe.stdout.strip(), "False", probe.stderr)
+
     def test_busy_lock_single_flight(self):
         acquired = control._run_lock.acquire()
         try:
@@ -69,6 +97,11 @@ class HostAllowlistTests(unittest.TestCase):
 class ControlHttpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        # Fail-closed default means a bare handler has no control plane;
+        # these tests opt in the way serve() does on a confirmed loopback
+        # bind, and restore the default afterward.
+        cls._prev_enabled = viewer_server.CONTROL_ENABLED
+        viewer_server.CONTROL_ENABLED = True
         cls._server = ThreadingHTTPServer(("127.0.0.1", 0), viewer_server._Handler)
         cls._port = cls._server.server_address[1]
         cls._thread = threading.Thread(target=cls._server.serve_forever, daemon=True)
@@ -78,6 +111,7 @@ class ControlHttpTests(unittest.TestCase):
     def tearDownClass(cls):
         cls._server.shutdown()
         cls._server.server_close()
+        viewer_server.CONTROL_ENABLED = cls._prev_enabled
 
     def _post(self, path: str, token: str | None = None, host: str | None = None):
         req = urllib.request.Request(
@@ -152,12 +186,16 @@ class ControlHttpTests(unittest.TestCase):
         self.assertNotIn("{{EPISTEME_TOKEN}}", page)
 
     def test_tier1_action_runs_end_to_end(self):
+        # Asserts the authenticated pipe works — action ran, produced output,
+        # and exited with a lint verdict (0 or 1). Pinning exit==0 would make
+        # a control-plane test fail for a docs reason (review nit).
         status, body = self._post(
             "/api/control/docs_lint", token=viewer_server.SESSION_TOKEN
         )
         self.assertEqual(status, 200)
-        self.assertEqual(body["exit_code"], 0)
-        self.assertIn("clean", body["output"])
+        self.assertEqual(body["name"], "docs_lint")
+        self.assertIn(body["exit_code"], (0, 1))
+        self.assertTrue(body["output"].strip())
 
 
 if __name__ == "__main__":

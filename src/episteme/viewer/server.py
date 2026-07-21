@@ -49,17 +49,21 @@ import secrets
 
 SESSION_TOKEN = secrets.token_urlsafe(32)
 
-#: Set False by serve() on any non-loopback bind; the control plane is then
-#: hard-disabled regardless of tokens (read-only exposure was a conscious
-#: trade; remote mutation is not).
-CONTROL_ENABLED = True
+#: Fail-CLOSED default (review finding: a kill-switch must not default open).
+#: Only serve() enables control, and only after confirming a loopback bind;
+#: a handler constructed any other way (tests, embedding) gets no control
+#: plane unless it opts in explicitly.
+CONTROL_ENABLED = False
 
 
 def _host_allowed(host_header: str) -> bool:
-    host = (host_header or "").strip().rsplit(":", 1)[0].lower()
-    # rsplit breaks bracketed IPv6 ([::1]:port → "[::1]"); compare whole.
-    if host_header and host_header.strip().lower().startswith("[::1]"):
+    header = (host_header or "").strip().lower()
+    # Exact bracketed-IPv6 forms only — a prefix test accepted
+    # "[::1].evil.com" (review nit; not browser-producible, but the
+    # allowlist should not rely on that).
+    if header == "[::1]" or header.startswith("[::1]:"):
         return True
+    host = header.rsplit(":", 1)[0]
     return host in ("127.0.0.1", "localhost")
 
 
@@ -294,8 +298,13 @@ class _Handler(BaseHTTPRequestHandler):
         if not _host_allowed(self.headers.get("Host", "")):
             self._send_json(403, {"error": "host_not_allowed"})
             return
-        # 3. session token
-        if self.headers.get("X-Episteme-Token", "") != SESSION_TOKEN:
+        # 3. session token (timing-safe compare — hardening; the token is
+        # 256-bit and loopback-only, but a security boundary compares safely)
+        import hmac
+
+        if not hmac.compare_digest(
+            self.headers.get("X-Episteme-Token", ""), SESSION_TOKEN
+        ):
             self._send_json(403, {"error": "token_mismatch"})
             return
         name = path[len("/api/control/"):]
