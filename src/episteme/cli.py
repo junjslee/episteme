@@ -6606,6 +6606,7 @@ def build_parser() -> argparse.ArgumentParser:
     viewer.add_argument("--host", default="127.0.0.1")
     viewer.add_argument("--port", type=int, default=37776)
     viewer.add_argument("--no-open", action="store_true", help="Do not auto-open the browser")
+    viewer.add_argument("--exit-with-parent", action="store_true", help="Shut down when the spawning parent process dies (for GUI shells like Episteme.app; do NOT use under launchd/init — a parent of PID 1 triggers shutdown)")
 
     capture = sub.add_parser(
         "capture",
@@ -7178,6 +7179,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             host=args.host,
             port=args.port,
             open_browser=not getattr(args, "no_open", False),
+            exit_with_parent=getattr(args, "exit_with_parent", False),
         )
     if args.command == "capture":
         from episteme.capture import run_capture

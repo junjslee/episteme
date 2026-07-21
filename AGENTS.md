@@ -65,6 +65,8 @@ skills/           reusable operator skills (custom/vendor/private)
 templates/        project scaffolds, example answer files
 docs/             architecture, contracts, setup guides
 src/episteme/    CLI + core library
+app/             Episteme.app native shell (wry+tao) over `episteme viewer` — see app/README.md
+scripts/         build_app_pkg.sh (unsigned .pkg) and maintenance scripts
 tests/
 ```
 

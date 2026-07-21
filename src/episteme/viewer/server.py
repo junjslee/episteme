@@ -27,6 +27,7 @@ import argparse
 import html
 import json
 import mimetypes
+import os
 import subprocess
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -319,9 +320,54 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, result)
 
 
-def serve(host: str = "127.0.0.1", port: int = 37776, open_browser: bool = True) -> int:
+def _watch_parent(server: ThreadingHTTPServer) -> None:
+    """Shut the server down when the spawning parent dies (E176).
+
+    macOS has no PDEATHSIG; a GUI shell killed by signal (not window-close)
+    would orphan the viewer it spawned. The child watches instead: when the
+    parent dies, this process is reparented (getppid changes, typically to
+    launchd/1) and the server shuts down within a poll interval.
+    """
+    import threading
+    import time
+
+    original = os.getppid()
+
+    def _loop() -> None:
+        while True:
+            time.sleep(2.0)
+            ppid = os.getppid()
+            # ppid == 1 also covers the boot race: if the parent died before
+            # we sampled it, original IS already 1 and would never "change".
+            # exit_with_parent is only ever passed by the app shell, whose
+            # viewer is never a legitimate direct child of launchd.
+            if ppid != original or ppid == 1:
+                # Never silent (review): a self-kill without a trace reads as
+                # a crash. Note: reparent-to-1 is the macOS rule; under a
+                # Linux subreaper the orphan may reparent to a non-1 pid that
+                # this watch would miss — acceptable for the macOS app shell,
+                # documented for anyone reusing the flag cross-platform.
+                print(
+                    "episteme viewer: parent process gone — shutting down "
+                    "(--exit-with-parent)",
+                    flush=True,
+                )
+                server.shutdown()
+                return
+
+    threading.Thread(target=_loop, daemon=True, name="parent-watch").start()
+
+
+def serve(
+    host: str = "127.0.0.1",
+    port: int = 37776,
+    open_browser: bool = True,
+    exit_with_parent: bool = False,
+) -> int:
     global CONTROL_ENABLED
     server = ThreadingHTTPServer((host, port), _Handler)
+    if exit_with_parent:
+        _watch_parent(server)
     loopback = host in ("127.0.0.1", "localhost", "::1")
     CONTROL_ENABLED = loopback
     # A non-loopback bind serves the operator's core_question, absolute
@@ -361,8 +407,18 @@ def main() -> int:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=37776)
     p.add_argument("--no-open", action="store_true", help="Do not auto-open the browser")
+    p.add_argument(
+        "--exit-with-parent",
+        action="store_true",
+        help="Shut down when the spawning parent process dies (used by Episteme.app)",
+    )
     args = p.parse_args()
-    return serve(host=args.host, port=args.port, open_browser=not args.no_open)
+    return serve(
+        host=args.host,
+        port=args.port,
+        open_browser=not args.no_open,
+        exit_with_parent=args.exit_with_parent,
+    )
 
 
 if __name__ == "__main__":
