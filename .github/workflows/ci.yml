@@ -50,6 +50,27 @@ jobs:
       - name: Run tests
         run: python3 -m pytest -v
 
+  # Event 179 — the app shell gets a build gate (E176 shipped it CI-blind;
+  # release-relevance ends that). Build only — launching a GUI on a runner
+  # proves nothing the compile doesn't.
+  app-build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cargo cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            app/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('app/Cargo.lock') }}
+
+      - name: Build app shell
+        run: cd app && cargo build --release
+
   # Event 177 — the distribution acceptance bar as CI: a clean macOS runner
   # with nothing but Python must go wheel → install → doctor clean → sync →
   # resolvable hooks → a hook actually firing, with ZERO repo checkout in

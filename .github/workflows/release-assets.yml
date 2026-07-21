@@ -1,0 +1,62 @@
+# Release assets (E179): build the wheel and the .pkg and attach both to a
+# GitHub release.
+#
+# TRIGGER REALITY (the E163 deadlock class, documented not hidden):
+# release-please cuts releases with GITHUB_TOKEN, and GitHub deliberately
+# does not chain workflows off bot-token events — so `release: published`
+# only fires once the operator gives release-please a PAT. Until then,
+# `workflow_dispatch` is the working path: pick the tag, run, assets land.
+#
+# Signing: runners have no Developer ID cert; artifacts built here are the
+# UNSIGNED tier. Once the operator enrolls (Apple Developer, operator-only
+# gate), signing moves into scripts/build_app_pkg.sh via its env vars and a
+# certificate-import step here.
+
+name: release-assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach assets to (e.g. episteme-v1.10.0)"
+        required: true
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-attach:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: python3 -m pip wheel . --no-deps -w dist_wheel
+
+      - name: Privacy gate (same contract as CI clean-install)
+        run: |
+          LISTING="$(python3 -m zipfile -l dist_wheel/*.whl)"
+          echo "$LISTING" | grep -q "_assets/core/hooks/workflow_guard.py" || { echo "assets missing"; exit 1; }
+          if echo "$LISTING" | grep -E "memory/global/(runtime_digest|operator_profile|agent_feedback|workflow_policy|cognitive_profile|overview|python_runtime_policy)\.md|skills/private|memory/(evolution|substrates)|\.jsonl|\.pem|\.key|\.p12"; then
+            echo "PRIVACY VIOLATION in release wheel"; exit 1; fi
+
+      - name: Build app + pkg
+        run: scripts/build_app_pkg.sh
+
+      - name: Attach assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+        run: |
+          gh release upload "$TAG" dist_wheel/*.whl dist/Episteme.pkg --clobber
+          echo "attached: $(ls dist_wheel/*.whl) dist/Episteme.pkg → $TAG"
