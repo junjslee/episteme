@@ -39,7 +39,9 @@ from episteme.viewer import control as _control
 from episteme.viewer import live as _live
 
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+from episteme._assets import asset_root as _asset_root
+
+REPO_ROOT = _asset_root()
 VIEWER_DIR = Path(__file__).resolve().parent
 
 # Per-server-start session token (E175). Injected into index.html at serve

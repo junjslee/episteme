@@ -53,7 +53,9 @@ from pathlib import Path
 from typing import Any, Literal, TypedDict
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from episteme._assets import asset_root as _asset_root
+
+REPO_ROOT = _asset_root()
 
 # v1.0 RC CP1 — `_classify_disconfirmation` and its three pattern tuples moved
 # to `core/hooks/_specificity.py` so the hot-path validator

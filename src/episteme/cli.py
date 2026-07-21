@@ -15,7 +15,13 @@ from pathlib import Path
 from typing import Iterable
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# E177: one definition of where governance assets live — repo checkout when
+# present (operator/dev, unchanged), wheel-shipped episteme/_assets otherwise
+# (installed distribution). parents[2] resolved into lib/python3.X for
+# wheel installs and every asset consumer inherited the breakage.
+from episteme._assets import asset_root as _asset_root
+
+REPO_ROOT = _asset_root()
 HOME = Path.home()
 
 
@@ -1358,6 +1364,25 @@ def _init_memory() -> int:
     If the personal files already exist (e.g. the repo ships with the author's
     real profiles), init skips them so forks start from those real profiles.
     """
+    from episteme import _assets as _assets_mod
+
+    if _assets_mod.is_installed_context():
+        # E177 review finding: in installed context REPO_ROOT is the wheel's
+        # read-only/ephemeral _assets tree — seeding memory there either
+        # PermissionErrors (system installs) or evaporates on upgrade (venv).
+        # Honest refusal beats a broken write; the home-based memory lane for
+        # installed users is the E178 install-story work.
+        print(
+            "[episteme init] refused — installed-package context has no "
+            "writable memory root yet (the wheel's assets are read-only).\n"
+            "  Installed sync deploys the generic governance layer from the "
+            "bundled examples; PERSONALIZED memory for installed users lands "
+            "in a coming release. To personalize today, clone the repo and "
+            "run init from the checkout.",
+            file=sys.stderr,
+        )
+        return 2
+
     cwd = Path.cwd().resolve()
     memory_dir = REPO_ROOT / "core" / "memory" / "global"
     examples_dir = memory_dir / "examples"
@@ -1721,6 +1746,19 @@ def _enforce_sync_origin(claude_root: Path, force: bool) -> int | None:
     """Print + refuse when the origin is wrong. Returns an exit code to
     propagate, or None to proceed. ``--force`` downgrades to a warning
     so a deliberate primary-checkout move stays possible."""
+    from episteme import _assets as _assets_mod
+
+    if _assets_mod.is_installed_context():
+        # E177: an installed wheel is a LEGITIMATE origin class the E166
+        # guard's vocabulary lacked — its assets are versioned, immutable-by-
+        # install content, not a throwaway checkout that could hijack the
+        # operator's memory. (Measured pre-fix: the temp-root rule refused
+        # site-packages as "a checkout under a temp root".) The operator-
+        # memory lane still self-guards: live memory files simply do not
+        # exist in the wheel (privacy exclusion in setup.py), so sync
+        # deploys the governance layer and reports the memory lane skipped.
+        print("[episteme sync] origin: installed package (no repo checkout)")
+        return None
     problem = sync_origin_problem(REPO_ROOT, claude_root)
     if problem is None:
         return None
