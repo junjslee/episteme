@@ -49,3 +49,65 @@ jobs:
 
       - name: Run tests
         run: python3 -m pytest -v
+
+  # Event 177 — the distribution acceptance bar as CI: a clean macOS runner
+  # with nothing but Python must go wheel → install → doctor clean → sync →
+  # resolvable hooks → a hook actually firing, with ZERO repo checkout in
+  # reach of the installed package. This is the E155 reproducibility gap
+  # closed with evidence instead of reasoning. Also gates the privacy
+  # contract: a wheel that ships operator memory fails here.
+  clean-install:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build wheel
+        run: python3 -m pip wheel . --no-deps -w dist_wheel
+
+      - name: Privacy gate — no operator memory / private skills / state in wheel
+        run: |
+          LISTING="$(python3 -m zipfile -l dist_wheel/*.whl)"
+          echo "$LISTING" | grep -q "_assets/core/hooks/workflow_guard.py" || { echo "assets missing from wheel"; exit 1; }
+          if echo "$LISTING" | grep -E "memory/global/(runtime_digest|operator_profile|agent_feedback|workflow_policy|cognitive_profile|overview)\.md"; then
+            echo "PRIVACY VIOLATION: operator memory in wheel"; exit 1; fi
+          if echo "$LISTING" | grep -E "skills/private|\.jsonl|\.pem|\.key"; then
+            echo "PRIVACY VIOLATION: private/state/key material in wheel"; exit 1; fi
+
+      - name: Clean-home install and acceptance chain
+        env:
+          FRESH: ${{ runner.temp }}/fresh
+        run: |
+          mkdir -p "$FRESH/home"
+          python3 -m venv "$FRESH/venv"
+          "$FRESH/venv/bin/pip" install -q dist_wheel/*.whl
+          cd "$FRESH"
+          export HOME="$FRESH/home" EPISTEME_HOME="$FRESH/home/.episteme"
+          "$FRESH/venv/bin/episteme" doctor | tee doctor.out
+          grep -Eq " 0 warn · 0 fail" doctor.out
+          "$FRESH/venv/bin/episteme" sync
+          "$FRESH/venv/bin/python" - << 'PY'
+          import json, os
+          from pathlib import Path
+          cfg = json.loads((Path(os.environ["HOME"]) / ".claude/settings.json").read_text())
+          cmds = [h["command"] for grp in cfg.get("hooks", {}).values() for e in grp for h in e.get("hooks", [])]
+          script_cmds = [c for c in cmds if " " in c and c.split(" ", 1)[1].endswith(".py")]
+          assert script_cmds, "no hook scripts written"
+          missing = [c for c in script_cmds if not Path(c.split(" ", 1)[1]).exists()]
+          assert not missing, f"dangling hook paths: {missing}"
+          print(f"{len(script_cmds)} hook scripts resolve on disk")
+          PY
+          mkdir -p proj/src proj/docs && cd proj
+          printf '# agents\n' > AGENTS.md
+          printf 'Entry: `src/app.py`.\n' > docs/APP.md
+          printf 'pass\n' > src/app.py
+          git init -q && git add -A
+          GUARD="$FRESH/venv/lib/python3.12/site-packages/episteme/_assets/core/hooks/workflow_guard.py"
+          OUT="$(printf '{"tool_name":"Edit","tool_input":{"file_path":"%s/proj/src/app.py"},"session_type":"main","cwd":"%s/proj"}' "$FRESH" "$FRESH" | "$FRESH/venv/bin/python" "$GUARD")"
+          echo "$OUT"
+          echo "$OUT" | grep -q "ADVISORY" || { echo "hook did not fire"; exit 1; }

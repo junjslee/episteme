@@ -1,5 +1,30 @@
-<!-- episteme-lifecycle: status=living; reviewed_as_of=E147 -->
+<!-- episteme-lifecycle: status=living; reviewed_as_of=E177 -->
 # Setup — Profile, Cognition, One-Command
+
+## Install without a checkout (E177 — the distribution path)
+
+A pip-installed wheel is self-contained: it bundles the governance assets
+(`core/hooks`, `kernel/`, `skills/`, `templates/` → `episteme/_assets/`,
+built by `setup.py`; the maintainer's personal memory is excluded by
+construction) and every asset consumer resolves them via
+`src/episteme/_assets.py` — repo checkout when present, packaged assets
+otherwise. The clean-machine chain is CI-enforced on a fresh macOS runner
+(`.github/workflows/ci.yml`, `clean-install` job):
+
+```bash
+pip install <episteme wheel>   # from a GitHub release artifact
+episteme doctor                # expect 0 warn · 0 fail
+episteme sync                  # wires hooks from the installed assets
+episteme viewer                # live governance dashboard
+```
+
+`episteme sync` from an installed package deploys the governance layer
+(hooks, skills, settings) and reports its origin as `installed package`;
+the operator-memory lane activates once you seed your own memory
+(`episteme init`, from the bundled examples). Developing episteme itself?
+A checkout always wins asset resolution — nothing changes for you.
+
+---
 
 Deterministic onboarding for episteme. Two axes:
 

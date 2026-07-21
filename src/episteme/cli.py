@@ -15,7 +15,13 @@ from pathlib import Path
 from typing import Iterable
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+# E177: one definition of where governance assets live — repo checkout when
+# present (operator/dev, unchanged), wheel-shipped episteme/_assets otherwise
+# (installed distribution). parents[2] resolved into lib/python3.X for
+# wheel installs and every asset consumer inherited the breakage.
+from episteme._assets import asset_root as _asset_root
+
+REPO_ROOT = _asset_root()
 HOME = Path.home()
 
 
@@ -1721,6 +1727,19 @@ def _enforce_sync_origin(claude_root: Path, force: bool) -> int | None:
     """Print + refuse when the origin is wrong. Returns an exit code to
     propagate, or None to proceed. ``--force`` downgrades to a warning
     so a deliberate primary-checkout move stays possible."""
+    from episteme import _assets as _assets_mod
+
+    if _assets_mod.is_installed_context():
+        # E177: an installed wheel is a LEGITIMATE origin class the E166
+        # guard's vocabulary lacked — its assets are versioned, immutable-by-
+        # install content, not a throwaway checkout that could hijack the
+        # operator's memory. (Measured pre-fix: the temp-root rule refused
+        # site-packages as "a checkout under a temp root".) The operator-
+        # memory lane still self-guards: live memory files simply do not
+        # exist in the wheel (privacy exclusion in setup.py), so sync
+        # deploys the governance layer and reports the memory lane skipped.
+        print("[episteme sync] origin: installed package (no repo checkout)")
+        return None
     problem = sync_origin_problem(REPO_ROOT, claude_root)
     if problem is None:
         return None

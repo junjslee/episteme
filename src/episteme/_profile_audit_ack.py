@@ -55,7 +55,9 @@ from typing import Iterable
 
 # Locate core/hooks/_chain.py — same lazy-import pattern the rest of
 # the CLI uses for hook-tier modules.
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+from episteme._assets import asset_root as _asset_root
+
+_REPO_ROOT = _asset_root()
 _CORE_HOOKS_DIR = _REPO_ROOT / "core" / "hooks"
 if str(_CORE_HOOKS_DIR) not in sys.path:
     sys.path.insert(0, str(_CORE_HOOKS_DIR))
