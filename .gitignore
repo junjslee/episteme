@@ -145,3 +145,6 @@ core/memory/global/cognitive_profile.md
 core/memory/global/workflow_policy.md
 core/memory/global/agent_feedback.md
 core/memory/global/runtime_digest.md
+
+# E176 app shell build artifacts
+app/target/

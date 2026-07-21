@@ -227,6 +227,51 @@ class AdvisoryLogTests(unittest.TestCase):
         self.assertEqual(records[0]["docs"], ["docs/APP.md"])
 
 
+class ParentWatchTests(unittest.TestCase):
+    """--exit-with-parent: the viewer must die when its spawner dies (E176).
+
+    Reproduces the orphan the app-shell smoke found: SIGKILL on the shell
+    bypasses window-close cleanup, so the CHILD must notice the reparenting.
+    A middleman process spawns the viewer with the flag and exits; the
+    viewer must shut down within the watch poll interval.
+    """
+
+    def test_orphaned_viewer_shuts_down(self):
+        import os
+        import socket
+        import sys
+        import time
+
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+        middleman = (
+            "import subprocess, sys, time\n"
+            "subprocess.Popen([sys.executable, '-c', "
+            "'from episteme.viewer.server import serve; "
+            f"serve(port={port}, open_browser=False, exit_with_parent=True)'])\n"
+            "time.sleep(1.5)\n"  # let the viewer boot and sample the real ppid
+        )
+        env = dict(os.environ)
+        src = str(Path(__file__).resolve().parents[1] / "src")
+        env["PYTHONPATH"] = src + os.pathsep + env.get("PYTHONPATH", "")
+        subprocess.run([sys.executable, "-c", middleman], env=env, timeout=30)
+        # middleman has exited; the viewer is now orphaned
+
+        def port_open() -> bool:
+            with socket.socket() as probe:
+                probe.settimeout(0.3)
+                return probe.connect_ex(("127.0.0.1", port)) == 0
+
+        deadline = time.time() + 8  # watch polls every 2s
+        was_up = port_open()
+        while port_open() and time.time() < deadline:
+            time.sleep(0.5)
+        self.assertTrue(was_up, "viewer never came up — test setup broken")
+        self.assertFalse(port_open(), "orphaned viewer still serving after 8s")
+
+
 class HttpEndpointTests(unittest.TestCase):
     """The real server on an ephemeral port — routes, JSON shape, index.html."""
 

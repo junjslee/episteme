@@ -1,0 +1,8 @@
+[package]
+name = "episteme-app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tao = "0.35.3"
+wry = "0.55.1"
