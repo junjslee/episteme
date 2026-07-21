@@ -342,6 +342,16 @@ def _watch_parent(server: ThreadingHTTPServer) -> None:
             # exit_with_parent is only ever passed by the app shell, whose
             # viewer is never a legitimate direct child of launchd.
             if ppid != original or ppid == 1:
+                # Never silent (review): a self-kill without a trace reads as
+                # a crash. Note: reparent-to-1 is the macOS rule; under a
+                # Linux subreaper the orphan may reparent to a non-1 pid that
+                # this watch would miss — acceptable for the macOS app shell,
+                # documented for anyone reusing the flag cross-platform.
+                print(
+                    "episteme viewer: parent process gone — shutting down "
+                    "(--exit-with-parent)",
+                    flush=True,
+                )
                 server.shutdown()
                 return
 

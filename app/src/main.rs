@@ -19,7 +19,10 @@ use tao::window::WindowBuilder;
 use wry::WebViewBuilder;
 
 const PORT: u16 = 37776;
-const SPAWN_WAIT: Duration = Duration::from_secs(15);
+// Worst-case blank-launch window (review): the probe runs before the window
+// exists, so this bounds how long a broken viewer boot can look like a hang.
+// Typical boot is ~0.1s; window-first + background probe is the deferred fix.
+const SPAWN_WAIT: Duration = Duration::from_secs(6);
 
 fn port_open() -> bool {
     TcpStream::connect_timeout(
@@ -108,13 +111,16 @@ fn main() {
     let url = format!("http://127.0.0.1:{PORT}/");
     let builder = match &error {
         None => WebViewBuilder::new().with_url(&url),
-        Some(msg) => WebViewBuilder::new().with_html(format!(
-            "<body style=\"background:#0b0e14;color:#e06c75;font:14px monospace;\
-             padding:40px\"><h2>episteme viewer unavailable</h2><p>{}</p>\
-             <p style=\"color:#7a8494\">Start it manually: <code>episteme \
-             viewer</code>, then relaunch this app.</p></body>",
-            msg
-        )),
+        Some(raw) => {
+            let msg = raw.replace('<', "&lt;").replace('>', "&gt;");
+            WebViewBuilder::new().with_html(format!(
+                "<body style=\"background:#0b0e14;color:#e06c75;font:14px monospace;\
+                 padding:40px\"><h2>episteme viewer unavailable</h2><p>{}</p>\
+                 <p style=\"color:#7a8494\">Start it manually: <code>episteme \
+                 viewer</code>, then relaunch this app.</p></body>",
+                msg
+            ))
+        }
     };
     let _webview = builder.build(&window).expect("webview");
 

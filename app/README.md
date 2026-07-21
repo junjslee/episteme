@@ -26,6 +26,9 @@ implementation to drift from the kernel.
 scripts/build_app_pkg.sh
 ```
 
+Requires Rust ≥ 1.85 (`edition = "2024"` in `app/Cargo.toml`); `app/` is not
+built in CI — the build host's toolchain is the only gate.
+
 Produces `dist/Episteme.app` and an **unsigned** `dist/Episteme.pkg`
 (installs to /Applications). Unsigned is a conscious tier: it installs
 cleanly on the machine that built it; distribution-grade signing +

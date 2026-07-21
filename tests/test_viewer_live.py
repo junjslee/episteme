@@ -251,7 +251,7 @@ class ParentWatchTests(unittest.TestCase):
             "subprocess.Popen([sys.executable, '-c', "
             "'from episteme.viewer.server import serve; "
             f"serve(port={port}, open_browser=False, exit_with_parent=True)'])\n"
-            "time.sleep(1.5)\n"  # let the viewer boot and sample the real ppid
+            "time.sleep(2.5)\n"  # boot + real-ppid sample margin (CI-load headroom)
         )
         env = dict(os.environ)
         src = str(Path(__file__).resolve().parents[1] / "src")
