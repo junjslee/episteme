@@ -34,11 +34,37 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
+from episteme.viewer import control as _control
 from episteme.viewer import live as _live
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VIEWER_DIR = Path(__file__).resolve().parent
+
+# Per-server-start session token (E175). Injected into index.html at serve
+# time; every control POST must echo it in X-Episteme-Token. A foreign page
+# cannot read it (no CORS grants) and cannot send the custom header
+# cross-origin without a preflight this server never approves.
+import secrets
+
+SESSION_TOKEN = secrets.token_urlsafe(32)
+
+#: Fail-CLOSED default (review finding: a kill-switch must not default open).
+#: Only serve() enables control, and only after confirming a loopback bind;
+#: a handler constructed any other way (tests, embedding) gets no control
+#: plane unless it opts in explicitly.
+CONTROL_ENABLED = False
+
+
+def _host_allowed(host_header: str) -> bool:
+    header = (host_header or "").strip().lower()
+    # Exact bracketed-IPv6 forms only — a prefix test accepted
+    # "[::1].evil.com" (review nit; not browser-producible, but the
+    # allowlist should not rely on that).
+    if header == "[::1]" or header.startswith("[::1]:"):
+        return True
+    host = header.rsplit(":", 1)[0]
+    return host in ("127.0.0.1", "localhost")
 
 
 def _project_root() -> Path:
@@ -211,8 +237,18 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(200, routes[path]())
             return
 
+        if path == "/api/control/catalog":
+            payload = _control.catalog()
+            payload["control_enabled"] = CONTROL_ENABLED
+            self._send_json(200, payload)
+            return
+
         if path == "/" or path == "/index.html":
             html_body = _safe_read(VIEWER_DIR / "index.html")
+            if html_body:
+                # Token templating (E175): the page is the only place the
+                # session token exists client-side.
+                html_body = html_body.replace("{{EPISTEME_TOKEN}}", SESSION_TOKEN)
             self._send_text(200, html_body or "<h1>episteme viewer</h1><p>index.html missing</p>")
             return
 
@@ -247,10 +283,47 @@ class _Handler(BaseHTTPRequestHandler):
 
         self._send_text(404, "not found", "text/plain")
 
+    def do_POST(self) -> None:
+        parsed = urlsplit(self.path)
+        path = parsed.path
+        if not path.startswith("/api/control/"):
+            self._send_json(404, {"error": "not_found"})
+            return
+        # Defense ladder (E175) — each rung tested independently:
+        # 1. control hard-disabled on non-loopback binds
+        if not CONTROL_ENABLED:
+            self._send_json(403, {"error": "control_disabled_non_loopback"})
+            return
+        # 2. Host allowlist (DNS-rebinding defense)
+        if not _host_allowed(self.headers.get("Host", "")):
+            self._send_json(403, {"error": "host_not_allowed"})
+            return
+        # 3. session token (timing-safe compare — hardening; the token is
+        # 256-bit and loopback-only, but a security boundary compares safely)
+        import hmac
+
+        if not hmac.compare_digest(
+            self.headers.get("X-Episteme-Token", ""), SESSION_TOKEN
+        ):
+            self._send_json(403, {"error": "token_mismatch"})
+            return
+        name = path[len("/api/control/"):]
+        result = _control.run_action(name, cwd=str(PROJECT_ROOT))
+        if result.get("error") == "unknown_action":
+            self._send_json(404, result)
+        elif result.get("error") == "busy":
+            self._send_json(409, result)
+        elif result.get("error") == "timeout":
+            self._send_json(504, result)
+        else:
+            self._send_json(200, result)
+
 
 def serve(host: str = "127.0.0.1", port: int = 37776, open_browser: bool = True) -> int:
+    global CONTROL_ENABLED
     server = ThreadingHTTPServer((host, port), _Handler)
     loopback = host in ("127.0.0.1", "localhost", "::1")
+    CONTROL_ENABLED = loopback
     # A non-loopback bind serves the operator's core_question, absolute
     # home/project paths, and edit activity over UNAUTHENTICATED HTTP —
     # never do it silently (review finding, E174).
