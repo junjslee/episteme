@@ -1358,6 +1358,11 @@ def _resolve_memory_file(name: str) -> Path:
 
     1. checkout personal (``core/memory/global/<name>.md``) — the operator's
        source of truth; unchanged behavior when a checkout exists.
+       KNOWN EXCEPTION (E178 review): ``overview.md`` is the one personal
+       file that is git-TRACKED, so it exists in every fresh clone and wins
+       tier 1 there, shadowing a home-lane overview. It describes shared
+       project topology, not personal posture — whether to gitignore it for
+       consistency is an operator ledger decision, not silently mine.
     2. home personal (``$EPISTEME_HOME/memory/global/<name>.md``) — the
        installed-user lane, seeded by ``episteme init``.
     3. packaged example — generic fallback so sync always composes.
@@ -1397,16 +1402,38 @@ def _init_memory() -> int:
         # checkout path: re-running init never clobbers a personalization).
         examples = GLOBAL_MEMORY_DIR / "examples"
         dest_dir = _home_memory_dir()
-        dest_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            print(
+                f"[episteme init] cannot create memory lane {dest_dir}: {exc}\n"
+                f"  Set EPISTEME_HOME to a writable location and re-run.",
+                file=sys.stderr,
+            )
+            return 1
         seeded, skipped = [], []
         for example in sorted(examples.glob("*.example.md")):
-            target = dest_dir / example.name.replace(".example", "")
+            # Suffix-exact strip (review: .replace removed EVERY '.example').
+            target = dest_dir / (example.name.removesuffix(".example.md") + ".md")
+            if target.stem == "build_story":
+                continue  # no resolver consumes it; seeding it strands a dead file
             if target.exists():
                 skipped.append(target.name)
                 continue
-            target.write_text(
-                example.read_text(encoding="utf-8"), encoding="utf-8"
-            )
+            try:
+                # Atomic per-file seed: a crash mid-write must not leave a
+                # truncated file the skip-existing contract then protects.
+                tmp = target.with_suffix(f".md.tmp.{os.getpid()}")
+                tmp.write_text(
+                    example.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+                tmp.replace(target)
+            except OSError as exc:
+                print(
+                    f"[episteme init] failed seeding {target.name}: {exc}",
+                    file=sys.stderr,
+                )
+                return 1
             seeded.append(target.name)
         print(f"[episteme init] installed-package context — memory lane: {dest_dir}")
         for name in seeded:

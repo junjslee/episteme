@@ -25,8 +25,11 @@ memory lane at `$EPISTEME_HOME/memory/global/` from the bundled examples —
 edit those files to encode YOUR posture, re-run `episteme sync`, and the
 composed `~/.claude/CLAUDE.md` references your lane (resolution precedence:
 checkout personal > home personal > packaged examples; re-running init
-never clobbers an edited file). Developing episteme itself? A checkout
-always wins asset resolution — nothing changes for you.
+never clobbers an edited file). One conscious exception: `overview.md` is
+git-tracked shared topology, so inside a checkout the repo's copy wins over
+a home-lane overview — every other memory name falls through to yours.
+Developing episteme itself? A checkout always wins asset resolution —
+nothing changes for you.
 
 ---
 

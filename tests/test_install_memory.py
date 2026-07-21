@@ -42,6 +42,43 @@ class ResolveMemoryFileTests(unittest.TestCase):
         checkout_file.write_text("checkout personal\n")
         self.assertEqual(cli._resolve_memory_file("overview"), checkout_file)
 
+    def test_real_fresh_clone_shape(self):
+        # Review F1/F2: a REAL fresh clone is not an empty checkout — it
+        # carries exactly one tracked personal file, overview.md (shared
+        # project topology). This pins the real shape: overview resolves to
+        # the checkout copy (the documented exception), while a personal-
+        # class name (runtime_digest, gitignored → absent in a clone) falls
+        # through to the user's home lane.
+        (self.checkout / "overview.md").write_text("tracked topology\n")
+        home_dir = self.home / "memory" / "global"
+        home_dir.mkdir(parents=True)
+        (home_dir / "overview.md").write_text("home overview\n")
+        (home_dir / "runtime_digest.md").write_text("home digest\n")
+        self.assertEqual(
+            cli._resolve_memory_file("overview"), self.checkout / "overview.md"
+        )
+        self.assertEqual(
+            cli._resolve_memory_file("runtime_digest"),
+            home_dir / "runtime_digest.md",
+        )
+
+    def test_tracked_personal_files_are_exactly_overview(self):
+        # The F1 exception stays a SINGLE conscious exception: if another
+        # personal memory file ever becomes git-tracked, the precedence
+        # documentation is wrong again and this fails loudly.
+        import subprocess
+
+        repo = Path(__file__).resolve().parents[1]
+        out = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "core/memory/global/*.md"],
+            capture_output=True, text=True, check=True,
+        ).stdout.split()
+        tracked = [
+            p for p in out
+            if "/examples/" not in p and "/.generated/" not in p
+        ]
+        self.assertEqual(tracked, ["core/memory/global/overview.md"])
+
 
 class InstalledInitTests(unittest.TestCase):
     def setUp(self):
