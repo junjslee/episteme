@@ -92,6 +92,46 @@ This change closes Finding F3 from `docs/PRIVATE_ANALYSIS_PI_VS_EPISTEME.md` (th
 
 ---
 
+## [1.10.0-rc.2](https://github.com/junjslee/episteme/compare/episteme-v1.10.0-rc.1...episteme-v1.10.0-rc.2) (2026-07-21)
+
+
+### Features
+
+* **app:** Episteme.app native shell + unsigned .pkg installer (Event 176) ([06b5ed4](https://github.com/junjslee/episteme/commit/06b5ed4b0a9ab72df22fecface3a21ffba89930b))
+* **app:** Episteme.app native shell + unsigned .pkg installer (Event 176) ([0efa000](https://github.com/junjslee/episteme/commit/0efa00050cdcdebcfd826e3b63c615cdcc3054aa))
+* **dist:** installed users get a personal memory lane — init seeds, sync composes it (Event 178) ([a7f1ce7](https://github.com/junjslee/episteme/commit/a7f1ce7c0ac8f113edebe2449a5e6348b3c9c235))
+* **dist:** installed users get a personal memory lane — init seeds, sync composes it (Event 178) ([f9b9c42](https://github.com/junjslee/episteme/commit/f9b9c422cfa8c36e1a50570e47e4766bf5e9ec25))
+* **dist:** self-contained wheel — assets ship, paths resolve, privacy is structural (Event 177) ([2948295](https://github.com/junjslee/episteme/commit/2948295d7b6216217408e37ed4681f087083116d))
+* **dist:** self-contained wheel — assets ship, paths resolve, privacy is structural (Event 177) ([8f2920f](https://github.com/junjslee/episteme/commit/8f2920fb25d3b3ddc995f3e8e667c30b6fb13db5))
+* **docs:** code→doc reverse index — every edit names the docs that claim to describe it (Event 173) ([a236fab](https://github.com/junjslee/episteme/commit/a236fab9088a139e1c9945af584ae938a923ca47))
+* **docs:** code→doc reverse index — every edit names the docs that claim to describe it (Event 173) ([6d27402](https://github.com/junjslee/episteme/commit/6d274021f70eb9e537301e9f809e88e1856007ec))
+* **release:** release-grade packaging — generated icon, credential-ready signing tiers, release-assets workflow, app CI lane (Event 179) ([1d39f51](https://github.com/junjslee/episteme/commit/1d39f51322d0779f9ba765ac4c8fff34d1ebf6db))
+* **release:** release-grade packaging — generated icon, signing tiers, release assets, app CI lane (Event 179) ([e5a6217](https://github.com/junjslee/episteme/commit/e5a62171fca8c6741a732c4eb166a13b49244e79))
+* **viewer:** control plane — Tier 1/2 actions behind a defense ladder, Tier 3 stays deliberate (Event 175) ([b383063](https://github.com/junjslee/episteme/commit/b383063188825b3b33f65c9eabb6487669c614ba))
+* **viewer:** control plane — Tier 1/2 actions behind a defense ladder, Tier 3 stays deliberate (Event 175) ([56b6733](https://github.com/junjslee/episteme/commit/56b6733c2224fc0700b9612d1e2f23adaf99ccc5))
+* **viewer:** revive episteme viewer as the live local governance dashboard (Event 174) ([8ee2205](https://github.com/junjslee/episteme/commit/8ee2205bd477ac3a48f26d8445a25b0b435e7b94))
+* **viewer:** revive episteme viewer as the live local governance dashboard (Event 174) ([c315f25](https://github.com/junjslee/episteme/commit/c315f25d2d138437b9decc9ad6944207053fc983))
+
+
+### Bug Fixes
+
+* **adapters:** Event 169 — registry ⟷ implementation bijection, CI-enforced ([e0b863a](https://github.com/junjslee/episteme/commit/e0b863acd7a917848dff5366f758bf958317914a))
+* **adapters:** make the registry a bijection and CI-enforce it (Event 169) ([abfad36](https://github.com/junjslee/episteme/commit/abfad36bf907a5fdd59ae764209625ad68f813ae))
+* **app:** review polish — no silent self-kill, bounded blank-launch, toolchain gate named ([e0c2fb8](https://github.com/junjslee/episteme/commit/e0c2fb83f2f228e1c78ffad8755cd2395701bb29))
+* **dist:** close the local-build privacy leak the review reproduced — evolution lane dropped, boundary fails closed, gitignore↔packaging cross-checked ([630ee22](https://github.com/junjslee/episteme/commit/630ee2279e75f7642a1cba976c7dec8a44198d94))
+* **dist:** contract module without setuptools, CI doctor assertion names its one allowed failure ([5858c4a](https://github.com/junjslee/episteme/commit/5858c4ac56683815f5aac252f302ead1f79ee004))
+* **dist:** pin the REAL fresh-clone shape the review exposed — overview.md is the one tracked personal file ([78f8365](https://github.com/junjslee/episteme/commit/78f8365b24fa8e2588a5604035cab2d3e670f408))
+* **docs-map:** index unresolved citations as claims — the cache must not go blind to pre-documented files ([a78b52a](https://github.com/junjslee/episteme/commit/a78b52aefd1bdd4dd68f2af436baf14833efc06b))
+* **docs:** Event 172 — docs tell the truth about the code; four crashed commands revived ([05aaec8](https://github.com/junjslee/episteme/commit/05aaec8c7c186c38dd5eb0ae4113684d786456a0))
+* **docs:** make the docs tell the truth about the code — and revive four crashed commands (Event 172) ([dbd97c1](https://github.com/junjslee/episteme/commit/dbd97c198f4c42debf889f625dc9e9471ff9f962))
+* **governance:** Event 170 — operational-doc rot detector, toxic-clone hook purge, PROGRESS closure ([96bc25d](https://github.com/junjslee/episteme/commit/96bc25dbab69b3fce6484b732e7ffd39793b7008))
+* **governance:** operational-doc rot detector + toxic-clone hook purge + PROGRESS tombstone closure (Event 170) ([65a8edf](https://github.com/junjslee/episteme/commit/65a8edff2d71943ef1312b8f294ab0f6304e9552))
+* **hooks:** doc-path suppression must not follow symlinks out of the project ([4681a74](https://github.com/junjslee/episteme/commit/4681a74decf184ec42a67533587f4f5ffc5203c2))
+* **hooks:** Event 171 — wire the dead (pending-contracts drain, knobs writer, EPISTEME_PYTHON) + sandbox-escape fix ([1c41c8a](https://github.com/junjslee/episteme/commit/1c41c8ac0e7a0ac3e3d1523f157a83f91744d797))
+* **hooks:** wire the dead mechanisms the sweep found — pending-contracts drain, derived-knobs writer, EPISTEME_PYTHON (Event 171) ([ca99fd5](https://github.com/junjslee/episteme/commit/ca99fd531b8d7f66f1bba865207b13362abe3e58))
+* **viewer:** fail-closed kill-switch, clean JSON on action failure, timing-safe token, byte-accurate cap ([25bc9e9](https://github.com/junjslee/episteme/commit/25bc9e99620463c6b99d38be2979a2ddca8c8064))
+* **viewer:** read the audit schema that actually exists, never 500 on naive timestamps, warn on non-loopback bind ([9ae4b23](https://github.com/junjslee/episteme/commit/9ae4b230a6ee6b7a20ee395b6716cedc41d1a2eb))
+
 ## [1.10.0-rc.1](https://github.com/junjslee/episteme/compare/episteme-v1.10.0-rc...episteme-v1.10.0-rc.1) (2026-07-20)
 
 
