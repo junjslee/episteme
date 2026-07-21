@@ -1340,11 +1340,34 @@ def _managed_skills() -> list[Path]:
     return sorted(skill_dirs, key=lambda p: p.name)
 
 
+def _home_memory_dir() -> Path:
+    """The installed-user personal memory lane (E178).
+
+    Lives under EPISTEME_HOME (default ``~/.episteme``) so it survives wheel
+    upgrades and reinstalls — the wheel's ``_assets`` tree is read-only and
+    ephemeral by contract (E177). Checkout users never need this dir; the
+    checkout's ``core/memory/global`` outranks it in resolution.
+    """
+    home = os.environ.get("EPISTEME_HOME")
+    base = Path(home) if home else (Path.home() / ".episteme")
+    return base / "memory" / "global"
+
+
 def _resolve_memory_file(name: str) -> Path:
-    """Return the personal file if it exists, else fall back to the example in examples/."""
+    """Personal memory file for ``name``, by precedence (E178):
+
+    1. checkout personal (``core/memory/global/<name>.md``) — the operator's
+       source of truth; unchanged behavior when a checkout exists.
+    2. home personal (``$EPISTEME_HOME/memory/global/<name>.md``) — the
+       installed-user lane, seeded by ``episteme init``.
+    3. packaged example — generic fallback so sync always composes.
+    """
     personal = GLOBAL_MEMORY_DIR / f"{name}.md"
     if personal.exists():
         return personal
+    home_personal = _home_memory_dir() / f"{name}.md"
+    if home_personal.exists():
+        return home_personal
     return GLOBAL_MEMORY_DIR / "examples" / f"{name}.example.md"
 
 
@@ -1367,21 +1390,34 @@ def _init_memory() -> int:
     from episteme import _assets as _assets_mod
 
     if _assets_mod.is_installed_context():
-        # E177 review finding: in installed context REPO_ROOT is the wheel's
-        # read-only/ephemeral _assets tree — seeding memory there either
-        # PermissionErrors (system installs) or evaporates on upgrade (venv).
-        # Honest refusal beats a broken write; the home-based memory lane for
-        # installed users is the E178 install-story work.
-        print(
-            "[episteme init] refused — installed-package context has no "
-            "writable memory root yet (the wheel's assets are read-only).\n"
-            "  Installed sync deploys the generic governance layer from the "
-            "bundled examples; PERSONALIZED memory for installed users lands "
-            "in a coming release. To personalize today, clone the repo and "
-            "run init from the checkout.",
-            file=sys.stderr,
-        )
-        return 2
+        # E178: the installed-user lane (replaces E177's honest refusal).
+        # Seeds $EPISTEME_HOME/memory/global/ from the packaged examples —
+        # writable, upgrade-surviving, and outranked by a checkout if one
+        # ever appears. Existing files are skipped (same contract as the
+        # checkout path: re-running init never clobbers a personalization).
+        examples = GLOBAL_MEMORY_DIR / "examples"
+        dest_dir = _home_memory_dir()
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        seeded, skipped = [], []
+        for example in sorted(examples.glob("*.example.md")):
+            target = dest_dir / example.name.replace(".example", "")
+            if target.exists():
+                skipped.append(target.name)
+                continue
+            target.write_text(
+                example.read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            seeded.append(target.name)
+        print(f"[episteme init] installed-package context — memory lane: {dest_dir}")
+        for name in seeded:
+            print(f"  seeded  {name}")
+        for name in skipped:
+            print(f"  kept    {name} (already personalized)")
+        if not seeded and not skipped:
+            print("  no example templates found in packaged assets", file=sys.stderr)
+            return 1
+        print("Edit these files to encode YOUR posture, then run: episteme sync")
+        return 0
 
     cwd = Path.cwd().resolve()
     memory_dir = REPO_ROOT / "core" / "memory" / "global"

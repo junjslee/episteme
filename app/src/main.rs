@@ -113,11 +113,22 @@ fn main() {
         None => WebViewBuilder::new().with_url(&url),
         Some(raw) => {
             let msg = raw.replace('<', "&lt;").replace('>', "&gt;");
+            // Onboarding, not a dead-end (E178): a fresh machine's first
+            // launch lands here — the page must carry the way out.
             WebViewBuilder::new().with_html(format!(
-                "<body style=\"background:#0b0e14;color:#e06c75;font:14px monospace;\
-                 padding:40px\"><h2>episteme viewer unavailable</h2><p>{}</p>\
-                 <p style=\"color:#7a8494\">Start it manually: <code>episteme \
-                 viewer</code>, then relaunch this app.</p></body>",
+                "<body style=\"background:#0b0e14;color:#d7dde8;font:14px monospace;\
+                 padding:40px;line-height:1.6\">\
+                 <h2 style=\"color:#e06c75\">episteme is not set up yet</h2>\
+                 <p style=\"color:#7a8494\">{}</p>\
+                 <h3 style=\"color:#5ec2a6;margin-top:24px\">Set up (once, in a terminal)</h3>\
+                 <pre style=\"background:#12161f;border:1px solid #1e2530;border-radius:8px;\
+                 padding:14px 16px\">\
+pip install &lt;episteme wheel&gt;   <span style=\"color:#7a8494\"># from the GitHub release</span>\n\
+episteme init                  <span style=\"color:#7a8494\"># seed YOUR memory (~/.episteme)</span>\n\
+episteme sync                  <span style=\"color:#7a8494\"># wire the governance hooks</span></pre>\
+                 <p style=\"color:#7a8494\">Then relaunch this app. If episteme is installed \
+                 somewhere unusual, set <code style=\"color:#e0b25e\">EPISTEME_BIN</code> to its path.</p>\
+                 </body>",
                 msg
             ))
         }
