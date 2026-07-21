@@ -29,7 +29,25 @@ scripts/build_app_pkg.sh
 Requires Rust ≥ 1.85 (`edition = "2024"` in `app/Cargo.toml`); `app/` is not
 built in CI — the build host's toolchain is the only gate.
 
-Produces `dist/Episteme.app` and an **unsigned** `dist/Episteme.pkg`
-(installs to /Applications). Unsigned is a conscious tier: it installs
-cleanly on the machine that built it; distribution-grade signing +
-notarization is a separate operator-gated decision recorded in the ledger.
+Produces `dist/Episteme.app` and `dist/Episteme.pkg` (installs to
+/Applications), with the icon regenerated on demand:
+`swift app/icon/make_icns.swift app/icon` (the committed `episteme.icns` is
+a reproducible artifact of that script — no design blob without a source).
+
+**Signing tiers** (E179 — the script is credential-ready and inert without
+certs; each tier upgrades by exporting env vars before the build):
+
+| Tier | Requires | Gets you |
+|---|---|---|
+| unsigned (default) | nothing | installs on the building machine; right-click → Open elsewhere |
+| signed | `EPISTEME_SIGN_APP_ID`, `EPISTEME_SIGN_INSTALLER_ID` (Developer ID certs — operator-only Apple enrollment) | Gatekeeper-recognized identity |
+| notarized | + `EPISTEME_NOTARY_PROFILE` (notarytool keychain profile) | clean first-run for any downloader |
+
+Local builds carry `com.apple.provenance` AppleDouble entries in the pkg
+payload — SIP-protected, re-stamped on write, unremovable by construction;
+harmless 11-byte metadata (release artifacts are CI-built via
+`release-assets.yml`). First check after enrolling: hardened runtime
+(`--options runtime`) vs the wry webview — if the window comes up blank, add a JIT entitlement (noted in
+`scripts/build_app_pkg.sh`). Release assets: `.github/workflows/release-assets.yml`
+attaches the wheel + pkg to a GitHub release (`workflow_dispatch` today;
+`release: published` activates once release-please gets the operator's PAT).
