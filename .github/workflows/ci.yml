@@ -88,8 +88,16 @@ jobs:
           "$FRESH/venv/bin/pip" install -q dist_wheel/*.whl
           cd "$FRESH"
           export HOME="$FRESH/home" EPISTEME_HOME="$FRESH/home/.episteme"
-          "$FRESH/venv/bin/episteme" doctor | tee doctor.out
-          grep -Eq " 0 warn · 0 fail" doctor.out
+          # doctor exits non-zero here for exactly ONE legitimate reason: the
+          # runner cannot have the Claude Code binary. Assert 0 warnings and
+          # that "missing tool: claude" is the ONLY failure — any other
+          # failure (or a second one) breaks the job.
+          "$FRESH/venv/bin/episteme" doctor | tee doctor.out || true
+          grep -Eq " 0 warn " doctor.out
+          FAILS="$(grep -E '^\s+×' doctor.out || true)"
+          echo "failure lines: ${FAILS:-none}"
+          [ "$(printf '%s' "$FAILS" | grep -c .)" -le 1 ]
+          if [ -n "$FAILS" ]; then echo "$FAILS" | grep -q "missing tool: claude"; fi
           "$FRESH/venv/bin/episteme" sync
           "$FRESH/venv/bin/python" - << 'PY'
           import json, os

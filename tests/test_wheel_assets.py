@@ -13,10 +13,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-import setup as wheel_setup
-from episteme import _assets
+from episteme import _assets, _packaging
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+_ignore = _packaging.asset_ignore_for(REPO_ROOT)
 
 
 class AssetRootTests(unittest.TestCase):
@@ -50,7 +50,7 @@ class PrivacyIgnoreTests(unittest.TestCase):
     """setup.py's shipping contract, pinned field by field."""
 
     def _ignored(self, rel: str, names: list) -> set:
-        return wheel_setup.asset_ignore(str(REPO_ROOT / rel), names)
+        return _ignore(str(REPO_ROOT / rel), names)
 
     def test_operator_memory_ships_examples_only(self):
         names = [
@@ -87,8 +87,23 @@ class PrivacyIgnoreTests(unittest.TestCase):
 
     def test_asset_trees_are_the_ratified_four(self):
         self.assertEqual(
-            wheel_setup.ASSET_TREES, ("core", "kernel", "skills", "templates")
+            _packaging.ASSET_TREES, ("core", "kernel", "skills", "templates")
         )
+
+    def test_sdist_staged_build_keeps_privacy_rules(self):
+        # The ignore is bound to an explicit root: when a build frontend
+        # stages the tree elsewhere (sdist temp dir), the SAME relative
+        # rules must hold — an unmatched root must not silently disable
+        # the memory/global exclusion.
+        with TemporaryDirectory() as tmp:
+            staged = Path(tmp) / "staging"
+            (staged / "core" / "memory" / "global").mkdir(parents=True)
+            ignore = _packaging.asset_ignore_for(staged)
+            ignored = ignore(
+                str(staged / "core" / "memory" / "global"),
+                ["examples", "runtime_digest.md", "operator_profile.md"],
+            )
+            self.assertEqual(ignored, {"runtime_digest.md", "operator_profile.md"})
 
 
 if __name__ == "__main__":
