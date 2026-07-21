@@ -46,7 +46,7 @@ Scope key:
 | `episteme detect [path]` | project | Score which harness type fits the project. |
 | `episteme harness {list,apply}` | project | List available harnesses; apply one to a project. A harness defines execution profile + workflow constraints for a project type. |
 | `episteme worktree` | project | Create a git worktree for a bounded task in the current repo. |
-| `episteme viewer` | project | Live local governance dashboard (E174): global operator-home state + current-project surface/doc-map/staleness + the DOC ADVISORY feed, polling every 3s at `localhost:37776`; auto-opens the browser (`--no-open` to suppress). Menu-bar companion: `tools/xbar/episteme.30s.sh`. |
+| `episteme viewer` | project | Live local governance dashboard (E174) + control plane (E175): global operator-home state, current-project surface/doc-map/staleness, the DOC ADVISORY feed (3s poll, `localhost:37776`, auto-opens browser; `--no-open`). Actions: Tier 1 diagnostics + Tier 2 reversible maintenance as token-authenticated buttons (loopback-only, Host-checked); Tier 3 governance mutations render as copyable commands — deliberately not executable from the UI. Menu-bar companion: `tools/xbar/episteme.30s.sh`. |
 | `episteme capture` | project | Draft a `reasoning-surface.json` skeleton from unstructured text (Slack thread, PR desc, ticket, email). Reads stdin. |
 
 ## Framework internals
