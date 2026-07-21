@@ -20,11 +20,16 @@ episteme viewer                # live governance dashboard
 
 `episteme sync` from an installed package deploys the governance layer
 (hooks, skills, settings) and reports its origin as `installed package`.
-Personalized memory for installed users is not wired yet — `episteme init`
-refuses in installed context rather than writing into read-only wheel
-assets (sync deploys the generic examples layer meanwhile; to personalize
-today, clone the repo and run init from the checkout). Developing episteme
-itself? A checkout always wins asset resolution — nothing changes for you.
+Personalization (E178): `episteme init` seeds a writable, upgrade-surviving
+memory lane at `$EPISTEME_HOME/memory/global/` from the bundled examples —
+edit those files to encode YOUR posture, re-run `episteme sync`, and the
+composed `~/.claude/CLAUDE.md` references your lane (resolution precedence:
+checkout personal > home personal > packaged examples; re-running init
+never clobbers an edited file). One conscious exception: `overview.md` is
+git-tracked shared topology, so inside a checkout the repo's copy wins over
+a home-lane overview — every other memory name falls through to yours.
+Developing episteme itself? A checkout always wins asset resolution —
+nothing changes for you.
 
 ---
 

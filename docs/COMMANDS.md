@@ -31,7 +31,7 @@ Scope key:
 
 | Command | Scope | What it does |
 |---|---|---|
-| `episteme init` | global | One-shot: seed kernel global memory from `core/memory/global/examples/*.example.md`. Only meaningful on a fresh kernel clone. |
+| `episteme init` | global | One-shot memory seeding from the bundled examples. Checkout: seeds `core/memory/global/`. Installed package (E178): seeds the home lane `$EPISTEME_HOME/memory/global/` (upgrade-surviving; outranked by a checkout in resolution). Never clobbers existing personalizations. |
 | `episteme setup` | global | Interactive wizard that runs profile + cognition surveys end-to-end. |
 | `episteme profile {survey,infer,hybrid,gap,show,override,audit}` | global | Manage operator-profile axes (planning strictness, risk tolerance, testing rigor, etc.); `override` sets a per-project axis override (Event 85) and `audit ack <audit-id>` acknowledges a drift verdict (Event 78). |
 | `episteme cognition {survey,infer,hybrid,show}` | global | Manage cognitive-style axes (dominant lens, noise signature, abstraction entry, etc.). |
